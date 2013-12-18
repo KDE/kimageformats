@@ -31,7 +31,6 @@
 #define DEFAULT_RATE 0.10
 #define MAXCMPTS 256
 
-
 /************************* JasPer QIODevice stream ***********************/
 
 //unfortunately this is declared as static in JasPer libraries
@@ -39,7 +38,7 @@ static jas_stream_t *jas_stream_create()
 {
     jas_stream_t *stream;
 
-    if (!(stream = (jas_stream_t*)jas_malloc(sizeof(jas_stream_t)))) {
+    if (!(stream = (jas_stream_t *)jas_malloc(sizeof(jas_stream_t)))) {
         return 0;
     }
     stream->openmode_ = 0;
@@ -71,7 +70,7 @@ static void jas_stream_initbuf(jas_stream_t *stream, int bufmode, char *buf,
         if (!buf) {
             /* The caller has not specified a buffer to employ, so allocate
               one. */
-            if ((stream->bufbase_ = (unsigned char*)jas_malloc(JAS_STREAM_BUFSIZE +
+            if ((stream->bufbase_ = (unsigned char *)jas_malloc(JAS_STREAM_BUFSIZE +
                                     JAS_STREAM_MAXPUTBACK))) {
                 stream->bufmode_ |= JAS_STREAM_FREEBUF;
                 stream->bufsize_ = JAS_STREAM_BUFSIZE;
@@ -105,19 +104,19 @@ static void jas_stream_initbuf(jas_stream_t *stream, int bufmode, char *buf,
 
 static int qiodevice_read(jas_stream_obj_t *obj, char *buf, int cnt)
 {
-    QIODevice *io = (QIODevice*) obj;
+    QIODevice *io = (QIODevice *) obj;
     return io->read(buf, cnt);
 }
 
 static int qiodevice_write(jas_stream_obj_t *obj, char *buf, int cnt)
 {
-    QIODevice *io = (QIODevice*) obj;
+    QIODevice *io = (QIODevice *) obj;
     return io->write(buf, cnt);
 }
 
 static long qiodevice_seek(jas_stream_obj_t *obj, long offset, int origin)
 {
-    QIODevice *io = (QIODevice*) obj;
+    QIODevice *io = (QIODevice *) obj;
     long newpos;
 
     switch (origin) {
@@ -136,10 +135,11 @@ static long qiodevice_seek(jas_stream_obj_t *obj, long offset, int origin)
     if (newpos < 0) {
         return -1;
     }
-    if (io->seek(newpos))
+    if (io->seek(newpos)) {
         return newpos;
-    else
+    } else {
         return -1;
+    }
 }
 
 static int qiodevice_close(jas_stream_obj_t *)
@@ -158,7 +158,9 @@ static jas_stream_t *jas_stream_qiodevice(QIODevice *iodevice)
 {
     jas_stream_t *stream;
 
-    if (!iodevice) return 0;
+    if (!iodevice) {
+        return 0;
+    }
     if (!(stream = jas_stream_create())) {
         return 0;
     }
@@ -179,24 +181,25 @@ static jas_stream_t *jas_stream_qiodevice(QIODevice *iodevice)
 /************************ End of JasPer QIODevice stream ****************/
 
 typedef struct {
-    jas_image_t* image;
+    jas_image_t *image;
 
     int cmptlut[MAXCMPTS];
 
-    jas_image_t* altimage;
+    jas_image_t *altimage;
 } gs_t;
 
-
-static jas_image_t*
-read_image(QIODevice* io)
+static jas_image_t *
+read_image(QIODevice *io)
 {
-    jas_stream_t* in = 0;
+    jas_stream_t *in = 0;
 
     in = jas_stream_qiodevice(io);
 
-    if (!in) return 0;
+    if (!in) {
+        return 0;
+    }
 
-    jas_image_t* image = jas_image_decode(in, -1, 0);
+    jas_image_t *image = jas_image_decode(in, -1, 0);
     jas_stream_close(in);
 
     // image may be 0, but that's Ok
@@ -204,22 +207,28 @@ read_image(QIODevice* io)
 } // read_image
 
 static bool
-convert_colorspace(gs_t& gs)
+convert_colorspace(gs_t &gs)
 {
     jas_cmprof_t *outprof = jas_cmprof_createfromclrspc(JAS_CLRSPC_SRGB);
-    if (!outprof) return false;
+    if (!outprof) {
+        return false;
+    }
 
     gs.altimage = jas_image_chclrspc(gs.image, outprof,
                                      JAS_CMXFORM_INTENT_PER);
-    if (!gs.altimage) return false;
+    if (!gs.altimage) {
+        return false;
+    }
 
     return true;
 } // convert_colorspace
 
 static bool
-render_view(gs_t& gs, QImage* outImage)
+render_view(gs_t &gs, QImage *outImage)
 {
-    if (!gs.altimage) return false;
+    if (!gs.altimage) {
+        return false;
+    }
     QImage qti;
     if ((gs.cmptlut[0] = jas_image_getcmptbytype(gs.altimage,
                          JAS_IMAGE_CT_COLOR(JAS_CLRSPC_CHANIND_RGB_R))) < 0 ||
@@ -230,7 +239,7 @@ render_view(gs_t& gs, QImage* outImage)
         return false;
     } // if
 
-    const int* cmptlut = gs.cmptlut;
+    const int *cmptlut = gs.cmptlut;
     int v[3];
 
     // check that all components have the same size.
@@ -238,8 +247,9 @@ render_view(gs_t& gs, QImage* outImage)
     const int height = jas_image_cmptheight(gs.altimage, cmptlut[0]);
     for (int i = 1; i < 3; ++i) {
         if (jas_image_cmptwidth(gs.altimage, cmptlut[i]) != width ||
-                jas_image_cmptheight(gs.altimage, cmptlut[i]) != height)
+                jas_image_cmptheight(gs.altimage, cmptlut[i]) != height) {
             return false;
+        }
     } // for
 
     jas_matrix_t *cmptmatrix[3];
@@ -258,7 +268,7 @@ render_view(gs_t& gs, QImage* outImage)
     if (qti.isNull()) {
         return false;
     }
-    uint32_t* data = (uint32_t*)qti.bits();
+    uint32_t *data = (uint32_t *)qti.bits();
 
     for (int y = 0; y < height; ++y) {
         for (int k = 0; k < 3; ++k) {
@@ -274,8 +284,11 @@ render_view(gs_t& gs, QImage* outImage)
                 // it to use the complete value range.
                 v[k] <<= 8 - prec[k];
 
-                if (v[k] < 0) v[k] = 0;
-                else if (v[k] > 255) v[k] = 255;
+                if (v[k] < 0) {
+                    v[k] = 0;
+                } else if (v[k] > 255) {
+                    v[k] = 255;
+                }
                 ++buf[k];
             } // for k
 
@@ -293,12 +306,11 @@ render_view(gs_t& gs, QImage* outImage)
     return true;
 } // render_view
 
-
-static jas_image_t*
-create_image(const QImage& qi)
+static jas_image_t *
+create_image(const QImage &qi)
 {
     // prepare the component parameters
-    jas_image_cmptparm_t* cmptparms = new jas_image_cmptparm_t[ 3 ];
+    jas_image_cmptparm_t *cmptparms = new jas_image_cmptparm_t[ 3 ];
 
     for (int i = 0; i < 3; ++i) {
         // x and y offset
@@ -316,41 +328,45 @@ create_image(const QImage& qi)
         cmptparms[i].sgnd = false;
     }
 
-    jas_image_t* ji = jas_image_create(3 /* number components */, cmptparms, JAS_CLRSPC_UNKNOWN);
+    jas_image_t *ji = jas_image_create(3 /* number components */, cmptparms, JAS_CLRSPC_UNKNOWN);
     delete[] cmptparms;
 
     // returning 0 is ok
     return ji;
 } // create_image
 
-
 static bool
-write_components(jas_image_t* ji, const QImage& qi)
+write_components(jas_image_t *ji, const QImage &qi)
 {
     const unsigned height = qi.height();
     const unsigned width = qi.width();
 
-    jas_matrix_t* m = jas_matrix_create(height, width);
-    if (!m) return false;
+    jas_matrix_t *m = jas_matrix_create(height, width);
+    if (!m) {
+        return false;
+    }
 
     jas_image_setclrspc(ji, JAS_CLRSPC_SRGB);
 
     jas_image_setcmpttype(ji, 0, JAS_IMAGE_CT_RGB_R);
     for (uint y = 0; y < height; ++y)
-        for (uint x = 0; x < width; ++x)
+        for (uint x = 0; x < width; ++x) {
             jas_matrix_set(m, y, x, qRed(qi.pixel(x, y)));
+        }
     jas_image_writecmpt(ji, 0, 0, 0, width, height, m);
 
     jas_image_setcmpttype(ji, 1, JAS_IMAGE_CT_RGB_G);
     for (uint y = 0; y < height; ++y)
-        for (uint x = 0; x < width; ++x)
+        for (uint x = 0; x < width; ++x) {
             jas_matrix_set(m, y, x, qGreen(qi.pixel(x, y)));
+        }
     jas_image_writecmpt(ji, 1, 0, 0, width, height, m);
 
     jas_image_setcmpttype(ji, 2, JAS_IMAGE_CT_RGB_B);
     for (uint y = 0; y < height; ++y)
-        for (uint x = 0; x < width; ++x)
+        for (uint x = 0; x < width; ++x) {
             jas_matrix_set(m, y, x, qBlue(qi.pixel(x, y)));
+        }
     jas_image_writecmpt(ji, 2, 0, 0, width, height, m);
     jas_matrix_destroy(m);
 
@@ -358,15 +374,17 @@ write_components(jas_image_t* ji, const QImage& qi)
 } // write_components
 
 static bool
-write_image(const QImage &image, QIODevice* io, int quality)
+write_image(const QImage &image, QIODevice *io, int quality)
 {
-    jas_stream_t* stream = 0;
+    jas_stream_t *stream = 0;
     stream = jas_stream_qiodevice(io);
 
     // by here, a jas_stream_t is open
-    if (!stream) return false;
+    if (!stream) {
+        return false;
+    }
 
-    jas_image_t* ji = create_image(image);
+    jas_image_t *ji = create_image(image);
     if (!ji) {
         jas_stream_close(stream);
         return false;
@@ -390,7 +408,9 @@ write_image(const QImage &image, QIODevice* io, int quality)
     jas_image_destroy(ji);
     jas_stream_close(stream);
 
-    if (i != 0) return false;
+    if (i != 0) {
+        return false;
+    }
 
     return true;
 }
@@ -425,17 +445,27 @@ bool JP2Handler::canRead(QIODevice *device)
 
 bool JP2Handler::read(QImage *image)
 {
-    if (!canRead()) return false;
+    if (!canRead()) {
+        return false;
+    }
 
     gs_t gs;
-    if (!(gs.image = read_image(device()))) return false;
+    if (!(gs.image = read_image(device()))) {
+        return false;
+    }
 
-    if (!convert_colorspace(gs)) return false;
+    if (!convert_colorspace(gs)) {
+        return false;
+    }
 
     render_view(gs, image);
 
-    if (gs.image) jas_image_destroy(gs.image);
-    if (gs.altimage) jas_image_destroy(gs.altimage);
+    if (gs.image) {
+        jas_image_destroy(gs.image);
+    }
+    if (gs.altimage) {
+        jas_image_destroy(gs.altimage);
+    }
     return true;
 
 }
@@ -452,31 +482,38 @@ bool JP2Handler::supportsOption(ImageOption option) const
 
 QVariant JP2Handler::option(ImageOption option) const
 {
-    if (option == Quality)
+    if (option == Quality) {
         return quality;
+    }
     return QVariant();
 }
 
 void JP2Handler::setOption(ImageOption option, const QVariant &value)
 {
-    if (option == Quality)
+    if (option == Quality) {
         quality = qBound(-1, value.toInt(), 100);
+    }
 }
 
 QImageIOPlugin::Capabilities JP2Plugin::capabilities(QIODevice *device, const QByteArray &format) const
 {
-    if (format == "jp2")
+    if (format == "jp2") {
         return Capabilities(CanRead | CanWrite);
-    if (!format.isEmpty())
+    }
+    if (!format.isEmpty()) {
         return 0;
-    if (!device->isOpen())
+    }
+    if (!device->isOpen()) {
         return 0;
+    }
 
     Capabilities cap;
-    if (device->isReadable() && JP2Handler::canRead(device))
+    if (device->isReadable() && JP2Handler::canRead(device)) {
         cap |= CanRead;
-    if (device->isWritable())
+    }
+    if (device->isWritable()) {
         cap |= CanWrite;
+    }
     return cap;
 }
 

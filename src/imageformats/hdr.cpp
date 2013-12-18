@@ -26,14 +26,16 @@ namespace   // Private.
 
 static inline uchar ClipToByte(float value)
 {
-    if (value > 255.0f) return 255;
+    if (value > 255.0f) {
+        return 255;
+    }
     //else if (value < 0.0f) return 0;  // we know value is positive.
     return uchar(value);
 }
 
 // read an old style line from the hdr image file
 // if 'first' is true the first byte is already read
-static bool Read_Old_Line(uchar * image, int width, QDataStream & s)
+static bool Read_Old_Line(uchar *image, int width, QDataStream &s)
 {
     int  rshift = 0;
     int  i;
@@ -44,7 +46,9 @@ static bool Read_Old_Line(uchar * image, int width, QDataStream & s)
         s >> image[2];
         s >> image[3];
 
-        if (s.atEnd()) return false;
+        if (s.atEnd()) {
+            return false;
+        }
 
         if ((image[0] == 1) && (image[1] == 1) && (image[2] == 1)) {
             for (i = image[3] << rshift; i > 0; i--) {
@@ -63,8 +67,7 @@ static bool Read_Old_Line(uchar * image, int width, QDataStream & s)
     return true;
 }
 
-
-static void RGBE_To_QRgbLine(uchar * image, QRgb * scanline, int width)
+static void RGBE_To_QRgbLine(uchar *image, QRgb *scanline, int width)
 {
     for (int j = 0; j < width; j++) {
         // v = ldexp(1.0, int(image[3]) - 128);
@@ -85,7 +88,7 @@ static void RGBE_To_QRgbLine(uchar * image, QRgb * scanline, int width)
 }
 
 // Load the HDR image.
-static bool LoadHDR(QDataStream & s, const int width, const int height, QImage & img)
+static bool LoadHDR(QDataStream &s, const int width, const int height, QImage &img)
 {
     uchar val, code;
 
@@ -97,7 +100,7 @@ static bool LoadHDR(QDataStream & s, const int width, const int height, QImage &
     QMemArray<uchar> image(width * 4);
 
     for (int cline = 0; cline < height; cline++) {
-        QRgb * scanline = (QRgb *) img.scanLine(cline);
+        QRgb *scanline = (QRgb *) img.scanLine(cline);
 
         // determine scanline type
         if ((width < MINELEN) || (MAXELEN < width)) {
@@ -173,8 +176,7 @@ static bool LoadHDR(QDataStream & s, const int width, const int height, QImage &
 
 } // namespace
 
-
-Q_DECL_EXPORT void kimgio_hdr_read(QImageIO * io)
+Q_DECL_EXPORT void kimgio_hdr_read(QImageIO *io)
 {
     int len;
     char line[MAXLINE];
@@ -228,7 +230,6 @@ Q_DECL_EXPORT void kimgio_hdr_read(QImageIO * io)
     io->setImage(img);
     io->setStatus(0);
 }
-
 
 Q_DECL_EXPORT void kimgio_hdr_write(QImageIO *)
 {

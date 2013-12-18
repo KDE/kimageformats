@@ -74,7 +74,7 @@ struct TgaHeader {
     enum { SIZE = 18 }; // const static int SIZE = 18;
 };
 
-static QDataStream & operator>> (QDataStream & s, TgaHeader & head)
+static QDataStream &operator>> (QDataStream &s, TgaHeader &head)
 {
     s >> head.id_length;
     s >> head.colormap_type;
@@ -94,7 +94,7 @@ static QDataStream & operator>> (QDataStream & s, TgaHeader & head)
     return s;
 }
 
-static bool IsSupported(const TgaHeader & head)
+static bool IsSupported(const TgaHeader &head)
 {
     if (head.image_type != TGA_TYPE_INDEXED &&
             head.image_type != TGA_TYPE_RGB &&
@@ -140,25 +140,26 @@ struct TgaHeaderInfo {
     bool rgb;
     bool grey;
 
-    TgaHeaderInfo(const TgaHeader & tga) : rle(false), pal(false), rgb(false), grey(false) {
+    TgaHeaderInfo(const TgaHeader &tga) : rle(false), pal(false), rgb(false), grey(false)
+    {
         switch (tga.image_type) {
         case TGA_TYPE_RLE_INDEXED:
             rle = true;
-            // no break is intended!
+        // no break is intended!
         case TGA_TYPE_INDEXED:
             pal = true;
             break;
 
         case TGA_TYPE_RLE_RGB:
             rle = true;
-            // no break is intended!
+        // no break is intended!
         case TGA_TYPE_RGB:
             rgb = true;
             break;
 
         case TGA_TYPE_RLE_GREY:
             rle = true;
-            // no break is intended!
+        // no break is intended!
         case TGA_TYPE_GREY:
             grey = true;
             break;
@@ -170,9 +171,7 @@ struct TgaHeaderInfo {
     }
 };
 
-
-
-static bool LoadTGA(QDataStream & s, const TgaHeader & tga, QImage &img)
+static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
 {
     // Create image.
     img = QImage(tga.width, tga.height, QImage::Format_RGB32);
@@ -202,11 +201,11 @@ static bool LoadTGA(QDataStream & s, const TgaHeader & tga, QImage &img)
     }
 
     // Allocate image.
-    uchar * const image = new uchar[size];
+    uchar *const image = new uchar[size];
 
     if (info.rle) {
         // Decode image.
-        char * dst = (char *)image;
+        char *dst = (char *)image;
         int num = size;
 
         while (num > 0) {
@@ -250,10 +249,10 @@ static bool LoadTGA(QDataStream & s, const TgaHeader & tga, QImage &img)
         y_end = -1;
     }
 
-    uchar * src = image;
+    uchar *src = image;
 
     for (int y = y_start; y != y_end; y += y_step) {
-        QRgb * scanline = (QRgb *) img.scanLine(y);
+        QRgb *scanline = (QRgb *) img.scanLine(y);
 
         if (info.pal) {
             // Paletted.
@@ -299,7 +298,6 @@ static bool LoadTGA(QDataStream & s, const TgaHeader & tga, QImage &img)
 
 } // namespace
 
-
 TGAHandler::TGAHandler()
 {
 }
@@ -320,7 +318,6 @@ bool TGAHandler::read(QImage *outImage)
     QDataStream s(device());
     s.setByteOrder(QDataStream::LittleEndian);
 
-
     // Read image header.
     TgaHeader tga;
     s >> tga;
@@ -338,7 +335,6 @@ bool TGAHandler::read(QImage *outImage)
         return false;
     }
 
-
     QImage img;
     bool result = LoadTGA(s, tga, img);
 
@@ -346,7 +342,6 @@ bool TGAHandler::read(QImage *outImage)
 //         qDebug() << "Error loading TGA file.";
         return false;
     }
-
 
     *outImage = img;
     return true;
@@ -357,10 +352,11 @@ bool TGAHandler::write(const QImage &image)
     QDataStream s(device());
     s.setByteOrder(QDataStream::LittleEndian);
 
-    const QImage& img = image;
+    const QImage &img = image;
     const bool hasAlpha = (img.format() == QImage::Format_ARGB32);
-    for (int i = 0; i < 12; i++)
+    for (int i = 0; i < 12; i++) {
         s << targaMagic[i];
+    }
 
     // write header
     s << quint16(img.width());   // width
@@ -374,8 +370,9 @@ bool TGAHandler::write(const QImage &image)
             s << quint8(qBlue(color));
             s << quint8(qGreen(color));
             s << quint8(qRed(color));
-            if (hasAlpha)
+            if (hasAlpha) {
                 s << quint8(qAlpha(color));
+            }
         }
 
     return true;
@@ -413,18 +410,23 @@ bool TGAHandler::canRead(QIODevice *device)
 
 QImageIOPlugin::Capabilities TGAPlugin::capabilities(QIODevice *device, const QByteArray &format) const
 {
-    if (format == "tga")
+    if (format == "tga") {
         return Capabilities(CanRead | CanWrite);
-    if (!format.isEmpty())
+    }
+    if (!format.isEmpty()) {
         return 0;
-    if (!device->isOpen())
+    }
+    if (!device->isOpen()) {
         return 0;
+    }
 
     Capabilities cap;
-    if (device->isReadable() && TGAHandler::canRead(device))
+    if (device->isReadable() && TGAHandler::canRead(device)) {
         cap |= CanRead;
-    if (device->isWritable())
+    }
+    if (device->isWritable()) {
         cap |= CanWrite;
+    }
     return cap;
 }
 

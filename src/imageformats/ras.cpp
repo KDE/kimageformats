@@ -51,7 +51,7 @@ struct RasHeader {
     enum { SIZE = 32 }; // 8 fields of four bytes each
 };
 
-static QDataStream & operator>> (QDataStream & s, RasHeader & head)
+static QDataStream &operator>> (QDataStream &s, RasHeader &head)
 {
     s >> head.MagicNumber;
     s >> head.Width;
@@ -72,7 +72,7 @@ static QDataStream & operator>> (QDataStream & s, RasHeader & head)
     return s;
 }
 
-static bool IsSupported(const RasHeader & head)
+static bool IsSupported(const RasHeader &head)
 {
     // check magic number
     if (head.MagicNumber != rasMagicBigEndian) {
@@ -99,7 +99,7 @@ static bool IsSupported(const RasHeader & head)
     return true;
 }
 
-static bool LoadRAS(QDataStream & s, const RasHeader & ras, QImage &img)
+static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
 {
     s.device()->seek(RasHeader::SIZE);
     // Read palette if needed.
@@ -278,16 +278,20 @@ bool RASHandler::read(QImage *outImage)
 QImageIOPlugin::Capabilities RASPlugin::capabilities(QIODevice *device, const QByteArray &format) const
 {
 
-    if (format == "ras")
+    if (format == "ras") {
         return Capabilities(CanRead);
-    if (!format.isEmpty())
+    }
+    if (!format.isEmpty()) {
         return 0;
-    if (!device->isOpen())
+    }
+    if (!device->isOpen()) {
         return 0;
+    }
 
     Capabilities cap;
-    if (device->isReadable() && RASHandler::canRead(device))
+    if (device->isReadable() && RASHandler::canRead(device)) {
         cap |= CanRead;
+    }
     return cap;
 }
 

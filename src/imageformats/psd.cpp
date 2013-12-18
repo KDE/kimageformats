@@ -52,7 +52,7 @@ struct PSDHeader {
     ushort color_mode;
 };
 
-static QDataStream & operator>> (QDataStream & s, PSDHeader & header)
+static QDataStream &operator>> (QDataStream &s, PSDHeader &header)
 {
     s >> header.signature;
     s >> header.version;
@@ -66,22 +66,23 @@ static QDataStream & operator>> (QDataStream & s, PSDHeader & header)
     s >> header.color_mode;
     return s;
 }
-static bool seekBy(QDataStream& s, unsigned int bytes)
+static bool seekBy(QDataStream &s, unsigned int bytes)
 {
     char buf[4096];
     while (bytes) {
         unsigned int num = qMin(bytes, (unsigned int)sizeof(buf));
         unsigned int l = num;
         s.readRawData(buf, l);
-        if (l != num)
+        if (l != num) {
             return false;
+        }
         bytes -= num;
     }
     return true;
 }
 
 // Check that the header is a valid PSD.
-static bool IsValid(const PSDHeader & header)
+static bool IsValid(const PSDHeader &header)
 {
     if (header.signature != 0x38425053) {    // '8BPS'
         return false;
@@ -90,7 +91,7 @@ static bool IsValid(const PSDHeader & header)
 }
 
 // Check that the header is supported.
-static bool IsSupported(const PSDHeader & header)
+static bool IsSupported(const PSDHeader &header)
 {
     if (header.version != 1) {
         return false;
@@ -108,7 +109,7 @@ static bool IsSupported(const PSDHeader & header)
 }
 
 // Load the PSD image.
-static bool LoadPSD(QDataStream & s, const PSDHeader & header, QImage & img)
+static bool LoadPSD(QDataStream &s, const PSDHeader &header, QImage &img)
 {
     // Create dst image.
     img = QImage(header.width, header.height, QImage::Format_RGB32);
@@ -159,19 +160,21 @@ static bool LoadPSD(QDataStream & s, const PSDHeader & header, QImage & img)
     if (compression) {
 
         // Skip row lengths.
-        if (!seekBy(s, header.height * header.channel_count * sizeof(ushort)))
+        if (!seekBy(s, header.height * header.channel_count * sizeof(ushort))) {
             return false;
+        }
 
         // Read RLE data.
         for (uint channel = 0; channel < channel_num; channel++) {
 
-            uchar * ptr = img.bits() + components[channel];
+            uchar *ptr = img.bits() + components[channel];
 
             uint count = 0;
             while (count < pixel_count) {
                 uchar c;
-                if (s.atEnd())
+                if (s.atEnd()) {
                     return false;
+                }
                 s >> c;
                 uint len = c;
 
@@ -179,8 +182,9 @@ static bool LoadPSD(QDataStream & s, const PSDHeader & header, QImage & img)
                     // Copy next len+1 bytes literally.
                     len++;
                     count += len;
-                    if (count > pixel_count)
+                    if (count > pixel_count) {
                         return false;
+                    }
 
                     while (len != 0) {
                         s >> *ptr;
@@ -193,8 +197,9 @@ static bool LoadPSD(QDataStream & s, const PSDHeader & header, QImage & img)
                     len ^= 0xFF;
                     len += 2;
                     count += len;
-                    if (s.atEnd() || count > pixel_count)
+                    if (s.atEnd() || count > pixel_count) {
                         return false;
+                    }
                     uchar val;
                     s >> val;
                     while (len != 0) {
@@ -214,7 +219,7 @@ static bool LoadPSD(QDataStream & s, const PSDHeader & header, QImage & img)
         // Read the data by channel.
         for (uint channel = 0; channel < channel_num; channel++) {
 
-            uchar * ptr = img.bits() + components[channel];
+            uchar *ptr = img.bits() + components[channel];
 
             // Read the data.
             uint count = pixel_count;
@@ -230,7 +235,6 @@ static bool LoadPSD(QDataStream & s, const PSDHeader & header, QImage & img)
 }
 
 } // Private
-
 
 PSDHandler::PSDHandler()
 {
@@ -288,8 +292,9 @@ bool PSDHandler::canRead(QIODevice *device)
     qint64 readBytes = device->read(head, sizeof(head));
     if (readBytes != sizeof(head)) {
         if (device->isSequential()) {
-            while (readBytes > 0)
+            while (readBytes > 0) {
                 device->ungetChar(head[readBytes-- - 1]);
+            }
         } else {
             device->seek(oldPos);
         }
@@ -297,8 +302,9 @@ bool PSDHandler::canRead(QIODevice *device)
     }
 
     if (device->isSequential()) {
-        while (readBytes > 0)
+        while (readBytes > 0) {
             device->ungetChar(head[readBytes-- - 1]);
+        }
     } else {
         device->seek(oldPos);
     }
@@ -308,16 +314,20 @@ bool PSDHandler::canRead(QIODevice *device)
 
 QImageIOPlugin::Capabilities PSDPlugin::capabilities(QIODevice *device, const QByteArray &format) const
 {
-    if (format == "psd")
+    if (format == "psd") {
         return Capabilities(CanRead);
-    if (!format.isEmpty())
+    }
+    if (!format.isEmpty()) {
         return 0;
-    if (!device->isOpen())
+    }
+    if (!device->isOpen()) {
         return 0;
+    }
 
     Capabilities cap;
-    if (device->isReadable() && PSDHandler::canRead(device))
+    if (device->isReadable() && PSDHandler::canRead(device)) {
         cap |= CanRead;
+    }
     return cap;
 }
 

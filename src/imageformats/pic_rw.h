@@ -90,7 +90,6 @@ typedef struct {
 #define HEADER_SIZE sizeof(PICHeader)
 #define CHANNEL_SIZE sizeof(PICChannel)
 
-
 /**
  * Reads the PIC header and checks that it is OK
  * @param dev The QT device to read from
@@ -105,6 +104,5 @@ void pic_read(QIODevice *dev, QImage *img);
 
 /// Pic write handler for Qt / KDE
 void pic_write(QIODevice *dev, const QImage *img);
-
 
 #endif//__PIC_RW_H__

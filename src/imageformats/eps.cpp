@@ -49,7 +49,7 @@ static bool seekToCodeStart(QIODevice *io, qint64 &ps_offset, qint64 &ps_size)
                 return false;
             }
             ps_offset // Offset is in little endian
-                = qint64(  ((unsigned char)buf[0])
+                = qint64(((unsigned char)buf[0])
                          + ((unsigned char)buf[1] << 8)
                          + ((unsigned char)buf[2] << 16)
                          + ((unsigned char)buf[3] << 24));
@@ -58,11 +58,11 @@ static bool seekToCodeStart(QIODevice *io, qint64 &ps_offset, qint64 &ps_size)
                 return false;
             }
             ps_size // Size is in little endian
-                = qint64(  ((unsigned char)buf[0])
+                = qint64(((unsigned char)buf[0])
                          + ((unsigned char)buf[1] << 8)
                          + ((unsigned char)buf[2] << 16)
                          + ((unsigned char)buf[3] << 24));
-            qCDebug(EPSPLUGIN) << "Offset: " << ps_offset <<" Size: " << ps_size;
+            qCDebug(EPSPLUGIN) << "Offset: " << ps_offset << " Size: " << ps_size;
             if (!io->seek(ps_offset)) { // Get offset of PostScript code in the MS-DOS EPS file.
                 qCDebug(EPSPLUGIN) << "cannot seek in MS-DOS EPS file";
                 return false;
@@ -138,12 +138,13 @@ bool EPSHandler::read(QImage *image)
     dt.start();
 #endif
 
-    QIODevice* io = device();
+    QIODevice *io = device();
     qint64 ps_offset, ps_size;
 
     // find start of PostScript code
-    if (!seekToCodeStart(io, ps_offset, ps_size))
+    if (!seekToCodeStart(io, ps_offset, ps_size)) {
         return false;
+    }
 
     qCDebug(EPSPLUGIN) << "Offset:" << ps_offset << "; size:" << ps_size;
 
@@ -202,15 +203,16 @@ bool EPSHandler::read(QImage *image)
     }
 
     QByteArray intro = "\n";
-    intro += QByteArray::number(-qRound(x1*xScale));
+    intro += QByteArray::number(-qRound(x1 * xScale));
     intro += " ";
-    intro += QByteArray::number(-qRound(y1*yScale));
+    intro += QByteArray::number(-qRound(y1 * yScale));
     intro += " translate\n";
     converter.write(intro);
 
     io->reset();
-    if (ps_offset > 0)
+    if (ps_offset > 0) {
         io->seek(ps_offset);
+    }
 
     QByteArray buffer;
     buffer.resize(4096);
@@ -246,15 +248,15 @@ bool EPSHandler::read(QImage *image)
     }
 }
 
-
 bool EPSHandler::write(const QImage &image)
 {
     QPrinter psOut(QPrinter::PrinterResolution);
     QPainter p;
 
     QTemporaryFile tmpFile(QStringLiteral("XXXXXXXX.pdf"));
-    if (!tmpFile.open())
+    if (!tmpFile.open()) {
         return false;
+    }
 
     psOut.setCreator(QStringLiteral("KDE EPS image plugin"));
     psOut.setOutputFileName(tmpFile.fileName());
@@ -319,8 +321,9 @@ bool EPSHandler::canRead(QIODevice *device)
     QByteArray head = device->readLine(64);
     int readBytes = head.size();
     if (device->isSequential()) {
-        while (readBytes > 0)
+        while (readBytes > 0) {
             device->ungetChar(head[readBytes-- - 1]);
+        }
     } else {
         device->seek(oldPos);
     }
@@ -330,18 +333,23 @@ bool EPSHandler::canRead(QIODevice *device)
 
 QImageIOPlugin::Capabilities EPSPlugin::capabilities(QIODevice *device, const QByteArray &format) const
 {
-    if (format == "eps" || format == "epsi" || format == "epsf")
+    if (format == "eps" || format == "epsi" || format == "epsf") {
         return Capabilities(CanRead | CanWrite);
-    if (!format.isEmpty())
+    }
+    if (!format.isEmpty()) {
         return 0;
-    if (!device->isOpen())
+    }
+    if (!device->isOpen()) {
         return 0;
+    }
 
     Capabilities cap;
-    if (device->isReadable() && EPSHandler::canRead(device))
+    if (device->isReadable() && EPSHandler::canRead(device)) {
         cap |= CanRead;
-    if (device->isWritable())
+    }
+    if (device->isWritable()) {
         cap |= CanWrite;
+    }
     return cap;
 }
 

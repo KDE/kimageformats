@@ -28,7 +28,7 @@
 #include <QImageWriter>
 #include <QTextStream>
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
     QCoreApplication::addLibraryPath(QLatin1String(PLUGIN_DIR));
@@ -42,18 +42,18 @@ int main(int argc, char** argv)
     parser.addPositionalArgument(QLatin1String("in"), QLatin1String("input image file"));
     parser.addPositionalArgument(QLatin1String("out"), QLatin1String("output image file"));
     QCommandLineOption informat(
-            QStringList() << QLatin1String("i") << QLatin1String("informat"),
-            QLatin1String("Image format for input file"),
-            QLatin1String("format"));
+        QStringList() << QLatin1String("i") << QLatin1String("informat"),
+        QLatin1String("Image format for input file"),
+        QLatin1String("format"));
     parser.addOption(informat);
     QCommandLineOption outformat(
-            QStringList() << QLatin1String("o") << QLatin1String("outformat"),
-            QLatin1String("Image format for output file"),
-            QLatin1String("format"));
+        QStringList() << QLatin1String("o") << QLatin1String("outformat"),
+        QLatin1String("Image format for output file"),
+        QLatin1String("format"));
     parser.addOption(outformat);
     QCommandLineOption listformats(
-            QStringList() << QLatin1String("l") << QLatin1String("list"),
-            QLatin1String("List supported image formats"));
+        QStringList() << QLatin1String("l") << QLatin1String("list"),
+        QLatin1String("List supported image formats"));
     parser.addOption(listformats);
 
     parser.process(app);

@@ -27,7 +27,7 @@ class SoftimagePICHandler : public QImageIOHandler
 {
 public:
     virtual bool canRead() const;
-    virtual bool read(QImage * image);
+    virtual bool read(QImage *image);
     virtual bool write(const QImage &);
 
     virtual QVariant option(ImageOption option) const;

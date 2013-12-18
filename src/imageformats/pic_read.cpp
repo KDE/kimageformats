@@ -42,9 +42,9 @@ bool picReadHeader(QIODevice *dev, PICHeader *hdr, bool peek)
 {
     int result = 0;
     if (peek) {
-        result = dev->peek((char*) hdr, HEADER_SIZE);
+        result = dev->peek((char *) hdr, HEADER_SIZE);
     } else {
-        result = dev->read((char*) hdr, HEADER_SIZE);
+        result = dev->read((char *) hdr, HEADER_SIZE);
     }
 
     hdr->magic = ntohl(hdr->magic);
@@ -85,7 +85,7 @@ static bool readChannels(QIODevice *dev, PICChannel *channels, int &bpp)
     int c = 0;
     memset(channels, 0, sizeof(PICChannel) * 8);
     do {
-        int result = dev->read((char*) & channels[c], CHANNEL_SIZE);
+        int result = dev->read((char *) & channels[c], CHANNEL_SIZE);
         if (result != CHANNEL_SIZE) {
             return false;
         } else {
@@ -164,7 +164,7 @@ static int decodeRLE(QIODevice *dev, void *row, unsigned max, unsigned bpp, unsi
 
     makeComponentMap(channels, component_map);
 
-    if (dev->read((char*) buf, 1) != 1) {
+    if (dev->read((char *) buf, 1) != 1) {
         return -1;
     }
 
@@ -174,16 +174,16 @@ static int decodeRLE(QIODevice *dev, void *row, unsigned max, unsigned bpp, unsi
         if (len > max) {
             return -1;
         }
-        unsigned count = dev->read((char*) buf, bpp);
+        unsigned count = dev->read((char *) buf, bpp);
         if (count != bpp) {
             return -1;
         }
         for (unsigned i = 0; i < len; i++) {
-            pic2RGBA(buf, (unsigned char*)(ptr + i), component_map, bpp);
+            pic2RGBA(buf, (unsigned char *)(ptr + i), component_map, bpp);
         }
     }        /* If the value is exactly 10000000, it means that it is more than 127 repetitions */
     else if (buf[0] == 128) {
-        unsigned count = dev->read((char*) buf, bpp + 2);
+        unsigned count = dev->read((char *) buf, bpp + 2);
         if (count != bpp + 2) {
             return -1;
         }
@@ -192,7 +192,7 @@ static int decodeRLE(QIODevice *dev, void *row, unsigned max, unsigned bpp, unsi
             return -1;
         }
         for (unsigned i = 0; i < len; i++) {
-            pic2RGBA(buf + 2, (unsigned char*)(ptr + i), component_map, bpp);
+            pic2RGBA(buf + 2, (unsigned char *)(ptr + i), component_map, bpp);
         }
     }        /** No repetitions */
     else {
@@ -200,12 +200,12 @@ static int decodeRLE(QIODevice *dev, void *row, unsigned max, unsigned bpp, unsi
         if (len > max) {
             return -1;
         }
-        unsigned count = dev->read((char*) buf, len * bpp);
+        unsigned count = dev->read((char *) buf, len * bpp);
         if (count != len * bpp) {
             return -1;
         }
         for (unsigned i = 0; i < len; i++) {
-            pic2RGBA(buf + (i * bpp), (unsigned char*)(ptr + i), component_map, bpp);
+            pic2RGBA(buf + (i * bpp), (unsigned char *)(ptr + i), component_map, bpp);
         }
     }
     return len;
@@ -236,14 +236,14 @@ static bool readRow(QIODevice *dev, unsigned *row, unsigned width, PICChannel *c
             }
         } else {
             unsigned char component_map[8];
-            unsigned count = dev->read((char*) row, width * bpp);
+            unsigned count = dev->read((char *) row, width * bpp);
             if (count != width * bpp) {
                 return false;
             }
 
             makeComponentMap(channels[c].channel, component_map);
             for (unsigned i = 0; i < width; i++) {
-                pic2RGBA(((unsigned char*) row) + (i * bpp), (unsigned char*)(row + i), component_map, bpp);
+                pic2RGBA(((unsigned char *) row) + (i * bpp), (unsigned char *)(row + i), component_map, bpp);
             }
         }
     }
@@ -281,7 +281,7 @@ void pic_read(QIODevice *dev, QImage *result)
     QImage img(header.width, header.height, QImage::Format_ARGB32);
 
     for (int r = 0; r < header.height; r++) {
-        unsigned *row = (unsigned*) img.scanLine(r);
+        unsigned *row = (unsigned *) img.scanLine(r);
         std::fill(row, row + header.width, 0);
         if (!readRow(dev, row, header.width, channels)) {
             FAIL();

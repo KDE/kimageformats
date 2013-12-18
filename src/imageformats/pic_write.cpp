@@ -54,7 +54,7 @@ static bool writeHeader(QIODevice *dev, std::string msg, unsigned width, unsigne
     h.height = htons(height);
     h.ratio = 1.0f;
     h.fields = htons(BOTH);
-    count = dev->write((const char*) & h, sizeof(PICHeader));
+    count = dev->write((const char *) & h, sizeof(PICHeader));
     if (count != sizeof(PICHeader)) {
         return false;
     }
@@ -66,7 +66,7 @@ static bool writeHeader(QIODevice *dev, std::string msg, unsigned width, unsigne
     if (alpha) {
         c.chained = 1;
     }
-    count = dev->write((const char*) & c, sizeof(PICChannel));
+    count = dev->write((const char *) & c, sizeof(PICChannel));
     if (count != sizeof(PICChannel)) {
         return false;
     }
@@ -74,7 +74,7 @@ static bool writeHeader(QIODevice *dev, std::string msg, unsigned width, unsigne
     if (alpha) {
         c.channel = ALPHA;
         c.chained = 0;
-        count = dev->write((const char*) & c, sizeof(PICChannel));
+        count = dev->write((const char *) & c, sizeof(PICChannel));
         if (count != sizeof(PICChannel)) {
             return false;
         }
@@ -123,7 +123,7 @@ static bool encodeRLE(const unsigned *image, unsigned char *output, bool rgb, un
         *out++ = count >> 8;
         *out++ = count & 0xFF;
         unsigned pixel = convertABGRtoRGBA(*image);
-        memcpy(out, ((char*) & pixel) + offset, channels);
+        memcpy(out, ((char *) & pixel) + offset, channels);
         out += channels;
         oConsumed = count;
         oProduced = out - output;
@@ -131,7 +131,7 @@ static bool encodeRLE(const unsigned *image, unsigned char *output, bool rgb, un
         /* Sequece of < 128 identical pixels */
         *out++ = (count + 127);
         unsigned pixel = convertABGRtoRGBA(*image);
-        memcpy(out, ((char*) & pixel) + offset, channels);
+        memcpy(out, ((char *) & pixel) + offset, channels);
         out += channels;
         oConsumed = count;
         oProduced = out - output;
@@ -152,7 +152,7 @@ static bool encodeRLE(const unsigned *image, unsigned char *output, bool rgb, un
         in = image;
         for (unsigned c = 0; c < count; ++c) {
             unsigned pixel = convertABGRtoRGBA(*in);
-            memcpy(out, ((char*) & pixel) + offset, channels);
+            memcpy(out, ((char *) & pixel) + offset, channels);
             out += channels;
             in++;
         }
@@ -200,7 +200,7 @@ static bool writeRow(QIODevice *dev, unsigned *row, unsigned width, bool alpha)
         }
     }
 
-    dev->write((const char*) buf, posOut);
+    dev->write((const char *) buf, posOut);
     delete[] buf;
     return true;
 }
@@ -220,7 +220,7 @@ void pic_write(QIODevice *dev, const QImage *img)
     }
 
     for (int r = 0; r < img->height(); r++) {
-        unsigned *row = (unsigned*) img->scanLine(r);
+        unsigned *row = (unsigned *) img->scanLine(r);
         if (!writeRow(dev, row, img->width(), alpha)) {
             FAIL();
         }

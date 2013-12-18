@@ -77,12 +77,15 @@ bool SoftimagePICHandler::supportsOption(ImageOption option) const
 
 QImageIOPlugin::Capabilities SoftimagePICPlugin::capabilities(QIODevice *device, const QByteArray &format) const
 {
-    if (format == "pic")
+    if (format == "pic") {
         return Capabilities(CanRead | CanWrite);
-    if (!format.isEmpty())
+    }
+    if (!format.isEmpty()) {
         return 0;
-    if (!device->isOpen())
+    }
+    if (!device->isOpen()) {
         return 0;
+    }
 
     Capabilities cap;
     if (device->isReadable() && SoftimagePICHandler::canRead(device)) {
@@ -94,9 +97,9 @@ QImageIOPlugin::Capabilities SoftimagePICPlugin::capabilities(QIODevice *device,
     return cap;
 }
 
-QImageIOHandler * SoftimagePICPlugin::create(QIODevice *device, const QByteArray &format) const
+QImageIOHandler *SoftimagePICPlugin::create(QIODevice *device, const QByteArray &format) const
 {
-    QImageIOHandler * handler = new SoftimagePICHandler();
+    QImageIOHandler *handler = new SoftimagePICHandler();
     handler->setDevice(device);
     handler->setFormat(format);
     return handler;

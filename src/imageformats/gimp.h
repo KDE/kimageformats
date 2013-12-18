@@ -178,7 +178,7 @@ inline int INT_BLEND(int a, int b, int alpha)
  * \param green the green component (modified in place).
  * \param blue the blue component (modified in place).
  */
-static void RGBTOHSV(uchar& red, uchar& green, uchar& blue)
+static void RGBTOHSV(uchar &red, uchar &green, uchar &blue)
 {
     int r, g, b;
     double h, s, v;
@@ -200,27 +200,31 @@ static void RGBTOHSV(uchar& red, uchar& green, uchar& blue)
 
     v = max;
 
-    if (max != 0)
+    if (max != 0) {
         s = ((max - min) * 255) / (double)max;
-    else
+    } else {
         s = 0;
+    }
 
-    if (s == 0)
+    if (s == 0) {
         h = 0;
-    else {
+    } else {
         int delta = max - min;
-        if (r == max)
+        if (r == max) {
             h = (g - b) / (double)delta;
-        else if (g == max)
+        } else if (g == max) {
             h = 2 + (b - r) / (double)delta;
-        else if (b == max)
+        } else if (b == max) {
             h = 4 + (r - g) / (double)delta;
+        }
         h *= 42.5;
 
-        if (h < 0)
+        if (h < 0) {
             h += 255;
-        if (h > 255)
+        }
+        if (h > 255) {
             h -= 255;
+        }
     }
 
     red   = (uchar)h;
@@ -234,7 +238,7 @@ static void RGBTOHSV(uchar& red, uchar& green, uchar& blue)
  * \param saturation the saturation component (modified in place).
  * \param value the value component (modified in place).
  */
-static void HSVTORGB(uchar& hue, uchar& saturation, uchar& value)
+static void HSVTORGB(uchar &hue, uchar &saturation, uchar &value)
 {
     if (saturation == 0) {
         hue        = value;
@@ -293,7 +297,7 @@ static void HSVTORGB(uchar& hue, uchar& saturation, uchar& value)
  * \param green the green component (modified in place).
  * \param blue the blue component (modified in place).
  */
-static void RGBTOHLS(uchar& red, uchar& green, uchar& blue)
+static void RGBTOHLS(uchar &red, uchar &green, uchar &blue)
 {
     int r = red;
     int g = green;
@@ -319,24 +323,27 @@ static void RGBTOHLS(uchar& red, uchar& green, uchar& blue)
     } else {
         int delta = max - min;
 
-        if (l < 128)
+        if (l < 128) {
             s = 255 * (double)delta / (double)(max + min);
-        else
+        } else {
             s = 255 * (double)delta / (double)(511 - max - min);
+        }
 
-        if (r == max)
+        if (r == max) {
             h = (g - b) / (double)delta;
-        else if (g == max)
+        } else if (g == max) {
             h = 2 + (b - r) / (double)delta;
-        else
+        } else {
             h = 4 + (r - g) / (double)delta;
+        }
 
         h *= 42.5;
 
-        if (h < 0)
+        if (h < 0) {
             h += 255;
-        else if (h > 255)
+        } else if (h > 255) {
             h -= 255;
+        }
     }
 
     red   = (uchar)h;
@@ -355,19 +362,21 @@ static int HLSVALUE(double n1, double n2, double hue)
 {
     double value;
 
-    if (hue > 255)
+    if (hue > 255) {
         hue -= 255;
-    else if (hue < 0)
+    } else if (hue < 0) {
         hue += 255;
+    }
 
-    if (hue < 42.5)
+    if (hue < 42.5) {
         value = n1 + (n2 - n1) * (hue / 42.5);
-    else if (hue < 127.5)
+    } else if (hue < 127.5) {
         value = n2;
-    else if (hue < 170)
+    } else if (hue < 170) {
         value = n1 + (n2 - n1) * ((170 - hue) / 42.5);
-    else
+    } else {
         value = n1;
+    }
 
     return (int)(value * 255);
 }
@@ -378,7 +387,7 @@ static int HLSVALUE(double n1, double n2, double hue)
  * \param lightness the lightness component (modified in place).
  * \param saturation the saturation component (modified in place).
  */
-static void HLSTORGB(uchar& hue, uchar& lightness, uchar& saturation)
+static void HLSTORGB(uchar &hue, uchar &lightness, uchar &saturation)
 {
     double h = hue;
     double l = lightness;
@@ -391,10 +400,11 @@ static void HLSTORGB(uchar& hue, uchar& lightness, uchar& saturation)
     } else {
         double m1, m2;
 
-        if (l < 128)
+        if (l < 128) {
             m2 = (l * (255 + s)) / 65025.;
-        else
+        } else {
             m2 = (l + s - (l * s) / 255.) / 255.;
+        }
 
         m1 = (l / 127.5) - m2;
 

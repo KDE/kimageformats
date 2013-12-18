@@ -1,4 +1,3 @@
-// -*- C++;indent-tabs-mode: t; tab-width: 4; c-basic-offset: 4; -*-
 
 /**
 * KImageIO Routines to read (and perhaps in the future, write) images
@@ -37,8 +36,9 @@
 class K_IStream: public Imf::IStream
 {
 public:
-    K_IStream(QIODevice *dev, const QByteArray& fileName):
-        IStream(fileName.data()), m_dev(dev) {
+    K_IStream(QIODevice *dev, const QByteArray &fileName):
+        IStream(fileName.data()), m_dev(dev)
+    {
     }
 
     virtual bool  read(char c[], int n);
@@ -57,8 +57,9 @@ bool K_IStream::read(char c[], int n)
         return true;
     } else if (result == 0) {
         throw Iex::InputExc("Unexpected end of file");
-    } else // negative value {
+    } else { // negative value {
         Iex::throwErrnoExc("Error in read", result);
+    }
     return false;
 }
 
@@ -115,14 +116,18 @@ QRgb RgbaToQrgba(struct Imf::Rgba imagePixel)
     //     this value will be mapped to the display's
     //     maximum intensity).
     // Response: kneeLow = 0.0 (2^0.0 => 1); kneeHigh = 5.0 (2^5 =>32)
-    if (r > 1.0)
+    if (r > 1.0) {
         r = 1.0 + Imath::Math<float>::log((r - 1.0) * 0.184874 + 1) / 0.184874;
-    if (g > 1.0)
+    }
+    if (g > 1.0) {
         g = 1.0 + Imath::Math<float>::log((g - 1.0) * 0.184874 + 1) / 0.184874;
-    if (b > 1.0)
+    }
+    if (b > 1.0) {
         b = 1.0 + Imath::Math<float>::log((b - 1.0) * 0.184874 + 1) / 0.184874;
-    if (a > 1.0)
+    }
+    if (a > 1.0) {
         a = 1.0 + Imath::Math<float>::log((a - 1.0) * 0.184874 + 1) / 0.184874;
+    }
 //
 //  5) Gamma-correct the pixel values, assuming that the
 //     screen's gamma is 0.4545 (or 1/2.2).
@@ -174,8 +179,9 @@ bool EXRHandler::read(QImage *outImage)
         file.readPixels(dw.min.y, dw.max.y);
 
         QImage image(width, height, QImage::Format_RGB32);
-        if (image.isNull())
+        if (image.isNull()) {
             return false;
+        }
 
         // somehow copy pixels into image
         for (int y = 0; y < height; y++) {
@@ -194,14 +200,12 @@ bool EXRHandler::read(QImage *outImage)
     }
 }
 
-
 bool EXRHandler::write(const QImage &image)
 {
     // TODO: stub
     Q_UNUSED(image);
     return false;
 }
-
 
 bool EXRHandler::canRead(QIODevice *device)
 {
@@ -217,16 +221,20 @@ bool EXRHandler::canRead(QIODevice *device)
 
 QImageIOPlugin::Capabilities EXRPlugin::capabilities(QIODevice *device, const QByteArray &format) const
 {
-    if (format == "exr")
+    if (format == "exr") {
         return Capabilities(CanRead);
-    if (!format.isEmpty())
+    }
+    if (!format.isEmpty()) {
         return 0;
-    if (!device->isOpen())
+    }
+    if (!device->isOpen()) {
         return 0;
+    }
 
     Capabilities cap;
-    if (device->isReadable() && EXRHandler::canRead(device))
+    if (device->isReadable() && EXRHandler::canRead(device)) {
         cap |= CanRead;
+    }
     return cap;
 }
 
