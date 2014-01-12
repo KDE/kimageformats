@@ -1,5 +1,7 @@
 # KImageFormats
 
+Image format plugins for Qt
+
 ## Introduction
 
 This framework provides additional image format plugins for QtGui.  As
@@ -7,7 +9,23 @@ such it is not required for the compilation of any other software, but
 may be a runtime requirement for Qt-based software to support certain
 image formats.
 
-See the src/imagesformats directory for the provided image formats.
+It supports the following image format:
+
+* DDS
+* EPS
+* EXR
+* Gimp
+* HDR
+* JP2
+* PCX
+* PIC
+* PNM
+* PSD
+* RAS
+* RGB
+* TGA
+* XCF
+* xv
 
 ## Contributing
 
@@ -37,6 +55,7 @@ removed.
 
 ## Links
 
+- Home page: <https://projects.kde.org/projects/frameworks/kimageformats>
 - Mailing list: <https://mail.kde.org/mailman/listinfo/kde-frameworks-devel>
 - IRC channel: #kde-devel on Freenode
 - Git repository: <https://projects.kde.org/projects/frameworks/kimageformats/repository>
