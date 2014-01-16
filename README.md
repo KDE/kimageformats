@@ -22,7 +22,7 @@ The following image formats have read-only support:
 The following image formats have read and write support:
 
 * Encapsulated PostScript (eps)
-* Jasper (jp2)
+* JPEG-2000 (jp2)
 * Personal Computer Exchange (pcx)
 * SGI images (rgb, rgba, sgi, bw)
 * Softimage PIC (pic)
