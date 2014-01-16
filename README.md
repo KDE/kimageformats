@@ -9,23 +9,25 @@ such it is not required for the compilation of any other software, but
 may be a runtime requirement for Qt-based software to support certain
 image formats.
 
-It supports the following image format:
+## Formats
 
-* DDS
-* EPS
-* EXR
-* Gimp
-* HDR
-* JP2
-* PCX
-* PIC
-* PNM
-* PSD
-* RAS
-* RGB
-* TGA
-* XCF
-* xv
+The following image formats have read-only support:
+
+* DirectDraw Surface (dds)
+* Gimp (xcf)
+* OpenEXR (exr)
+* Photoshop documents (psd)
+* Sun Raster (ras)
+
+The following image formats have read and write support:
+
+* Encapsulated PostScript (eps)
+* Jasper (jp2)
+* Personal Computer Exchange (pcx)
+* SGI images (rgb, rgba, sgi, bw)
+* Softimage PIC (pic)
+* Targa (tga): supports more formats than Qt's version
+* XView (xv)
 
 ## Contributing
 
