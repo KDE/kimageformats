@@ -53,6 +53,7 @@ kimageformats_read_tests(
     rgb
     tga
     xcf
+    webp
 )
 
 # Basic write tests
