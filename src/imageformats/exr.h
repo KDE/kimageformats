@@ -20,7 +20,6 @@ public:
 
     virtual bool canRead() const;
     virtual bool read(QImage *outImage);
-    virtual bool write(const QImage &image);
 
     static bool canRead(QIODevice *device);
 };

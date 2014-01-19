@@ -89,7 +89,7 @@ set(OpenEXR_INCLUDE_DIRS ${OpenEXR_INCLUDE_DIR})
 include(FeatureSummary)
 set_package_properties(OpenEXR PROPERTIES
    URL http://www.openexr.com/
-   DESCRIPTION "A library for reading and writing OpenEXR high dynamic-range image files")
+   DESCRIPTION "A library for handling OpenEXR high dynamic-range image files")
 
 mark_as_advanced(
    OpenEXR_INCLUDE_DIR

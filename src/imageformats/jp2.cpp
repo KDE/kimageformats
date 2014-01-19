@@ -7,7 +7,7 @@
 
 #include "jp2.h"
 
-#include <config-kimgio.h>
+#include <config-jp2.h>
 
 #if HAVE_SYS_TYPES_H
 #include <sys/types.h>

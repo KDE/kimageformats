@@ -200,13 +200,6 @@ bool EXRHandler::read(QImage *outImage)
     }
 }
 
-bool EXRHandler::write(const QImage &image)
-{
-    // TODO: stub
-    Q_UNUSED(image);
-    return false;
-}
-
 bool EXRHandler::canRead(QIODevice *device)
 {
     if (!device) {
