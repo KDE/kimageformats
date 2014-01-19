@@ -65,9 +65,7 @@ set_package_properties(OpenEXR PROPERTIES
 
 if(OpenEXR_FOUND)
     add_library(kimg_exr MODULE exr.cpp)
-    target_compile_options(kimg_exr PRIVATE ${OpenEXR_DEFINITIONS})
-    target_include_directories(kimg_exr PRIVATE ${OpenEXR_INCLUDE_DIR})
-    target_link_libraries(kimg_exr Qt5::Gui ${OpenEXR_LIBRARIES})
+    target_link_libraries(kimg_exr Qt5::Gui OpenEXR::IlmImf)
 
     install(TARGETS kimg_exr  DESTINATION ${QT_PLUGIN_INSTALL_DIR}/imageformats/)
     install(FILES exr.desktop DESTINATION ${SERVICES_INSTALL_DIR}/qimageioplugins/)

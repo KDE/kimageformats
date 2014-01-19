@@ -6,12 +6,17 @@
 #   OpenEXR_LIBRARIES    - Link to these to use OpenEXR
 #   OpenEXR_INCLUDE_DIRS - Include directory for OpenEXR
 #   OpenEXR_DEFINITIONS  - Compiler flags required to link against OpenEXR
+#   OpenEXR::IlmImf      - imported target to link against (instead of using the above variables)
 #
 # Copyright (c) 2006, Alexander Neundorf, <neundorf@kde.org>
-# Copyright (c) 2013, Alex Merry, <alex.merry@kdemail.net>
+# Copyright (c) 2013-2014, Alex Merry, <alex.merry@kdemail.net>
 #
 # Redistribution and use is allowed according to the terms of the BSD license.
 # For details see the accompanying COPYING-CMAKE-SCRIPTS file.
+
+if(${CMAKE_VERSION} VERSION_LESS 2.8.12)
+    message(FATAL_ERROR "CMake 2.8.12 is required by FindOpenEXR.cmake")
+endif()
 
 # use pkg-config to get the directories and then use these values
 # in the FIND_PATH() and FIND_LIBRARY() calls
@@ -55,12 +60,15 @@ find_library(OpenEXR_ILMIMF_LIBRARY NAMES IlmImf
    ${PC_OpenEXR_LIBRARY_DIRS}
 )
 
-set(OpenEXR_LIBRARIES
+set(_OpenEXR_deps
    ${OpenEXR_HALF_LIBRARY}
    ${OpenEXR_IEX_LIBRARY}
    ${OpenEXR_IMATH_LIBRARY}
-   ${OpenEXR_ILMIMF_LIBRARY}
    ${OpenEXR_ILMTHREAD_LIBRARY})
+
+set(OpenEXR_LIBRARIES
+   ${_OpenEXR_deps}
+   ${OpenEXR_ILMIMF_LIBRARY})
 
 if (OpenEXR_INCLUDE_DIR AND EXISTS "${OpenEXR_INCLUDE_DIR}/OpenEXRConfig.h")
     file(STRINGS "${OpenEXR_INCLUDE_DIR}/OpenEXRConfig.h" openexr_version_str
@@ -101,3 +109,13 @@ mark_as_advanced(
    OpenEXR_IEX_LIBRARY
    OpenEXR_HALF_LIBRARY
 )
+
+if(OpenEXR_FOUND AND NOT TARGET OpenEXR::IlmImf)
+    add_library(OpenEXR::IlmImf UNKNOWN IMPORTED)
+    set_target_properties(OpenEXR::IlmImf PROPERTIES
+        IMPORTED_LOCATION "${OpenEXR_ILMIMF_LIBRARY}"
+        INTERFACE_COMPILE_OPTIONS "${OpenEXR_DEFINITIONS}"
+        INTERFACE_INCLUDE_DIRECTORIES "${OpenEXR_INCLUDE_DIR}"
+        INTERFACE_LINK_LIBRARIES "${_OpenEXR_deps}"
+    )
+endif()
