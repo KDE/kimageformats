@@ -26,7 +26,8 @@
  */
 
 #include "pic_rw.h"
-#include <netinet/in.h>
+
+#include <qendian.h>
 #include <iostream>
 #include <qimage.h>
 #include <algorithm>
@@ -47,10 +48,10 @@ bool picReadHeader(QIODevice *dev, PICHeader *hdr, bool peek)
         result = dev->read((char *) hdr, HEADER_SIZE);
     }
 
-    hdr->magic = ntohl(hdr->magic);
-    hdr->width = ntohs(hdr->width);
-    hdr->height = ntohs(hdr->height);
-    hdr->fields = ntohs(hdr->fields);
+    hdr->magic = qFromBigEndian(hdr->magic);
+    hdr->width = qFromBigEndian(hdr->width);
+    hdr->height = qFromBigEndian(hdr->height);
+    hdr->fields = qFromBigEndian(hdr->fields);
 
     if (hdr->magic != PIC_MAGIC_NUMBER || strncmp(hdr->id, "PICT", 4)) {
         return false;

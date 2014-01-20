@@ -26,9 +26,9 @@
  */
 
 #include "pic_rw.h"
-#include <netinet/in.h>
 #include <iostream>
 #include <qimage.h>
+#include <qendian.h>
 
 /**
  * Writes the PIC header info.
@@ -46,14 +46,14 @@ static bool writeHeader(QIODevice *dev, std::string msg, unsigned width, unsigne
     unsigned count = 0;
 
     memset(&h, 0, sizeof(PICHeader));
-    h.magic = htonl(PIC_MAGIC_NUMBER);
+    h.magic = qToBigEndian<qint32>(PIC_MAGIC_NUMBER);
     h.version = 3.71f;
     strcpy(h.comment, msg.c_str());
     strncpy(h.id, "PICT", 4);
-    h.width = htons(width);
-    h.height = htons(height);
+    h.width = qToBigEndian<qint16>(width);
+    h.height = qToBigEndian<qint16>(height);
     h.ratio = 1.0f;
-    h.fields = htons(BOTH);
+    h.fields = qToBigEndian<qint16>(BOTH);
     count = dev->write((const char *) & h, sizeof(PICHeader));
     if (count != sizeof(PICHeader)) {
         return false;
