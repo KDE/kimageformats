@@ -14,6 +14,8 @@
 // #include <QDebug>
 #include <QImage>
 
+
+#pragma pack(push,1)
 class RGB
 {
 public:
@@ -30,7 +32,7 @@ public:
         return c;
     }
 
-} Q_PACKED;
+};
 
 class Palette
 {
@@ -49,7 +51,7 @@ public:
     }
 
     class RGB rgb[ 16 ];
-} Q_PACKED;
+};
 
 class PCXHEADER
 {
@@ -101,7 +103,9 @@ public:
     // found only in PB IV/IV Plus
     quint16 VScreenSize;     // Vertical screen size in pixels. New field
     // found only in PB IV/IV Plus
-} Q_PACKED;
+};
+
+#pragma pack(pop)
 
 static QDataStream &operator>>(QDataStream &s, RGB &rgb)
 {
