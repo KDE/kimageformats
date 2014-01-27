@@ -1,8 +1,5 @@
 # NB: the desktop files are installed for the benefit of KImageIO in KDE4Support.
 
-# Required for OpenEXR
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${KDE_ENABLE_EXCEPTIONS}")
-
 ##################################
 
 add_library(kimg_dds MODULE dds.cpp)
@@ -66,6 +63,7 @@ set_package_properties(OpenEXR PROPERTIES
 if(OpenEXR_FOUND)
     add_library(kimg_exr MODULE exr.cpp)
     target_link_libraries(kimg_exr Qt5::Gui OpenEXR::IlmImf)
+    kde_target_enable_exceptions(kimg_exr PRIVATE)
 
     install(TARGETS kimg_exr  DESTINATION ${QT_PLUGIN_INSTALL_DIR}/imageformats/)
     install(FILES exr.desktop DESTINATION ${SERVICES_INSTALL_DIR}/qimageioplugins/)
