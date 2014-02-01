@@ -13,21 +13,21 @@ image formats.
 
 The following image formats have read-only support:
 
-* DirectDraw Surface (dds)
-* Gimp (xcf)
-* OpenEXR (exr)
-* Photoshop documents (psd)
-* Sun Raster (ras)
+- DirectDraw Surface (dds)
+- Gimp (xcf)
+- OpenEXR (exr)
+- Photoshop documents (psd)
+- Sun Raster (ras)
 
 The following image formats have read and write support:
 
-* Encapsulated PostScript (eps)
-* JPEG-2000 (jp2)
-* Personal Computer Exchange (pcx)
-* SGI images (rgb, rgba, sgi, bw)
-* Softimage PIC (pic)
-* Targa (tga): supports more formats than Qt's version
-* XView (xv)
+- Encapsulated PostScript (eps)
+- JPEG-2000 (jp2)
+- Personal Computer Exchange (pcx)
+- SGI images (rgb, rgba, sgi, bw)
+- Softimage PIC (pic)
+- Targa (tga): supports more formats than Qt's version
+- XView (xv)
 
 ## Contributing
 
@@ -59,5 +59,5 @@ removed.
 
 - Home page: <https://projects.kde.org/projects/frameworks/kimageformats>
 - Mailing list: <https://mail.kde.org/mailman/listinfo/kde-frameworks-devel>
-- IRC channel: #kde-devel on Freenode
+- IRC channel: \#kde-devel on Freenode
 - Git repository: <https://projects.kde.org/projects/frameworks/kimageformats/repository>
