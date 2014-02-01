@@ -55,6 +55,14 @@ licensing.  If anyone were willing to write fresh code to improve Qt's
 TGA plugin, it would allow the TGA plugin in this framework to be
 removed.
 
+## License
+
+This framework is licensed under the
+[LGPLv2.1](http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html#SEC1).
+
+The CMake code in this framework is licensed under the
+[BSD license](http://opensource.org/licenses/BSD-3-Clause).
+
 ## Links
 
 - Home page: <https://projects.kde.org/projects/frameworks/kimageformats>
