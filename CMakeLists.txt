@@ -17,6 +17,7 @@ set(REQUIRED_QT_VERSION 5.2.0)
 find_package(Qt5Gui ${REQUIRED_QT_VERSION} REQUIRED NO_MODULE)
 
 add_subdirectory(src)
+add_subdirectory(autotests)
 add_subdirectory(tests)
 
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)
