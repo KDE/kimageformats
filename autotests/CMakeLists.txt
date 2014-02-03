@@ -43,7 +43,8 @@ endmacro()
 # Loads each <format> image in read/<format>/, and compares the
 # result against the data read from the corresponding png file
 kimageformats_read_tests(
-    eps
+    #eps # EPS read tests depend on the vagaries of GhostScript
+         # which we cannot even guarantee to find
     jp2
     pcx
     pic
