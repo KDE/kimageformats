@@ -62,7 +62,8 @@ kimageformats_read_tests(
 # You can append -lossless to the format to indicate that
 # reading back the image data will result in an identical image.
 kimageformats_write_tests(
-    eps
+    #eps # EPS writing depends on a choice of tools, and so needs
+         # a cleverer test
     jp2
     pcx-lossless
     pic-lossless
