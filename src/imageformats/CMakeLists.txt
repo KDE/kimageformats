@@ -10,15 +10,7 @@ install(FILES dds.desktop DESTINATION ${SERVICES_INSTALL_DIR}/qimageioplugins/)
 
 ##################################
 
-# EPS support depends on the gs utility; non-UNIX systems are unlikely to have
-# this available in PATH
-if (UNIX)
-    find_package(Qt5PrintSupport 5.2.0 NO_MODULE)
-    set_package_properties(Qt5PrintSupport PROPERTIES
-        PURPOSE "Required for the QImage plugin for EPS images"
-        TYPE OPTIONAL
-    )
-
+if (BUILD_EPS_PLUGIN)
     if (Qt5PrintSupport_FOUND)
         add_library(kimg_eps MODULE eps.cpp)
         target_link_libraries(kimg_eps  Qt5::Gui Qt5::PrintSupport)
@@ -29,14 +21,6 @@ if (UNIX)
 endif()
 
 ##################################
-
-find_package(Jasper)
-set_package_properties(Jasper PROPERTIES
-    DESCRIPTION "A library for handling JPEG-2000 images"
-    PURPOSE "Required for the QImage plugin for JPEG-2000 images"
-    URL "http://www.ece.uvic.ca/~mdadams/jasper"
-    TYPE OPTIONAL
-)
 
 check_include_files(sys/types.h   HAVE_SYS_TYPES_H)
 check_include_files(stdint.h      HAVE_STDINT_H)
@@ -53,12 +37,6 @@ if(JASPER_FOUND)
 endif()
 
 ##################################
-
-find_package(OpenEXR)
-set_package_properties(OpenEXR PROPERTIES
-    TYPE OPTIONAL
-    PURPOSE "Required for the QImage plugin for OpenEXR images"
-)
 
 if(OpenEXR_FOUND)
     add_library(kimg_exr MODULE exr.cpp)
@@ -119,13 +97,7 @@ install(FILES tga.desktop DESTINATION ${SERVICES_INSTALL_DIR}/qimageioplugins/)
 
 ##################################
 
-find_package(WebP COMPONENTS WebP)
-set_package_properties(WebP PROPERTIES
-    TYPE OPTIONAL
-    PURPOSE "Required for the QImage plugin for WebP images"
-)
-
-if(WebP_FOUND)
+if (WebP_FOUND)
     add_library(kimg_webp MODULE webp.cpp)
     target_link_libraries(kimg_webp Qt5::Gui WebP::WebP)
 
