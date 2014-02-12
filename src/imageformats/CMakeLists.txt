@@ -134,10 +134,12 @@ if(WebP_FOUND)
 
     find_package(SharedMimeInfo)
     set_package_properties(SharedMimeInfo PROPERTIES
+        # TODO: Make RUNTIME when we remove webp.xml
         TYPE RECOMMENDED
         PURPOSE "Required to install the WebP MIME Type information"
     )
     if (SharedMimeInfo_FOUND)
+        # TODO: Remove when we can depend on shared-mime-info 1.3
         install(FILES webp.xml DESTINATION ${XDG_MIME_INSTALL_DIR})
         update_xdg_mimetypes(${XDG_MIME_INSTALL_DIR})
     endif()
