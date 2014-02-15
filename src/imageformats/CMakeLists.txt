@@ -125,11 +125,3 @@ target_link_libraries(kimg_xcf Qt5::Gui)
 install(TARGETS kimg_xcf  DESTINATION ${QT_PLUGIN_INSTALL_DIR}/imageformats/)
 install(FILES xcf.desktop DESTINATION ${SERVICES_INSTALL_DIR}/qimageioplugins/)
 
-##################################
-
-add_library(kimg_xview MODULE xview.cpp)
-target_link_libraries(kimg_xview Qt5::Gui)
-
-install(TARGETS kimg_xview  DESTINATION ${QT_PLUGIN_INSTALL_DIR}/imageformats/)
-install(FILES xv.desktop DESTINATION ${SERVICES_INSTALL_DIR}/qimageioplugins/)
-

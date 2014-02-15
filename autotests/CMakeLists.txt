@@ -53,7 +53,6 @@ kimageformats_read_tests(
     rgb
     tga
     xcf
-    xv
 )
 
 # Basic write tests
@@ -70,5 +69,4 @@ kimageformats_write_tests(
     pic-lossless
     rgb-lossless
     tga # fixme: the alpha images appear not to be written properly
-    xv
 )
