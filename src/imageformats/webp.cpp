@@ -131,13 +131,6 @@ bool WebPHandler::write(const QImage &image)
 
 //---------------------------------------------------------------------
 
-QByteArray WebPHandler::format() const
-{
-    return "webp";
-}
-
-//---------------------------------------------------------------------
-
 bool WebPHandler::supportsOption(ImageOption option) const
 {
     return (option == Quality) || (option == Size);

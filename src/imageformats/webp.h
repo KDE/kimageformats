@@ -30,15 +30,13 @@ class WebPHandler : public QImageIOHandler
 public:
     WebPHandler();
 
-    virtual bool canRead() const;
-    virtual bool read(QImage *image);
-    virtual bool write(const QImage &image);
+    bool canRead() const Q_DECL_OVERRIDE;
+    bool read(QImage *image) Q_DECL_OVERRIDE;
+    bool write(const QImage &image) Q_DECL_OVERRIDE;
 
-    virtual QByteArray format() const;
-
-    virtual bool supportsOption(ImageOption option) const;
-    virtual QVariant option(ImageOption option) const;
-    virtual void setOption(ImageOption option, const QVariant &value);
+    bool supportsOption(ImageOption option) const Q_DECL_OVERRIDE;
+    QVariant option(ImageOption option) const Q_DECL_OVERRIDE;
+    void setOption(ImageOption option, const QVariant &value) Q_DECL_OVERRIDE;
 
     static bool canRead(QIODevice *device);
 
@@ -52,8 +50,8 @@ class WebPPlugin : public QImageIOPlugin
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QImageIOHandlerFactoryInterface" FILE "webp.json")
 
 public:
-    virtual Capabilities capabilities(QIODevice *device, const QByteArray &format) const;
-    virtual QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const;
+    Capabilities capabilities(QIODevice *device, const QByteArray &format) const Q_DECL_OVERRIDE;
+    QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const Q_DECL_OVERRIDE;
 };
 
 #endif
