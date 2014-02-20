@@ -112,7 +112,7 @@ if (WebP_FOUND)
     )
     if (SharedMimeInfo_FOUND)
         # TODO: Remove when we can depend on shared-mime-info 1.3
-        install(FILES webp.xml DESTINATION ${XDG_MIME_INSTALL_DIR})
+        install(FILES webp.xml DESTINATION ${XDG_MIME_INSTALL_DIR} RENAME kf5-imageformats-webp.xml)
         update_xdg_mimetypes(${XDG_MIME_INSTALL_DIR})
     endif()
 endif()
