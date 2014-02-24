@@ -97,28 +97,6 @@ install(FILES tga.desktop DESTINATION ${SERVICES_INSTALL_DIR}/qimageioplugins/)
 
 ##################################
 
-if (WebP_FOUND)
-    add_library(kimg_webp MODULE webp.cpp)
-    target_link_libraries(kimg_webp Qt5::Gui WebP::WebP)
-
-    install(TARGETS kimg_webp  DESTINATION ${QT_PLUGIN_INSTALL_DIR}/imageformats/)
-    install(FILES webp.desktop DESTINATION ${SERVICES_INSTALL_DIR}/qimageioplugins/)
-
-    find_package(SharedMimeInfo)
-    set_package_properties(SharedMimeInfo PROPERTIES
-        # TODO: Make RUNTIME when we remove webp.xml
-        TYPE RECOMMENDED
-        PURPOSE "Required to install the WebP MIME Type information"
-    )
-    if (SharedMimeInfo_FOUND)
-        # TODO: Remove when we can depend on shared-mime-info 1.3
-        install(FILES webp.xml DESTINATION ${XDG_MIME_INSTALL_DIR} RENAME kf5-imageformats-webp.xml)
-        update_xdg_mimetypes(${XDG_MIME_INSTALL_DIR})
-    endif()
-endif()
-
-##################################
-
 add_library(kimg_xcf MODULE xcf.cpp)
 target_link_libraries(kimg_xcf Qt5::Gui)
 

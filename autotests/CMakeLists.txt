@@ -82,6 +82,3 @@ endif()
 if (OpenEXR_FOUND)
     # FIXME: OpenEXR tests
 endif()
-if (WebP_FOUND)
-    kimageformats_read_tests(webp)
-endif()

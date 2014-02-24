@@ -44,12 +44,6 @@ set_package_properties(OpenEXR PROPERTIES
     PURPOSE "Required for the QImage plugin for OpenEXR images"
 )
 
-find_package(WebP COMPONENTS WebP)
-set_package_properties(WebP PROPERTIES
-    TYPE OPTIONAL
-    PURPOSE "Required for the QImage plugin for WebP images"
-)
-
 add_subdirectory(src)
 if (BUILD_TESTING)
     add_subdirectory(autotests)
