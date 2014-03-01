@@ -12,4 +12,5 @@ endmacro()
 
 kimageformats_executable_tests(
     imageconverter
+    imagedump
 )
