@@ -29,6 +29,26 @@
 #include <QImageReader>
 #include <QTextStream>
 
+static void writeImageData(const char *name, const QString &filename, const QImage &image)
+{
+    QFile file(filename);
+    if (file.open(QIODevice::WriteOnly)) {
+        qint64 written = file.write(reinterpret_cast<const char *>(image.bits()), image.byteCount());
+        if (written == image.byteCount()) {
+            QTextStream(stdout) << "       " << name
+                                << " written to " << filename << "\n";
+        } else {
+            QTextStream(stdout) << "       could not write " << name
+                                << " to " << filename << ":"
+                                << file.errorString() << "\n";
+        }
+    } else {
+        QTextStream(stdout) << "       could not open "
+                            << filename << ":"
+                            << file.errorString() << "\n";
+    }
+}
+
 int main(int argc, char ** argv)
 {
     QCoreApplication app(argc, argv);
@@ -99,6 +119,12 @@ int main(int argc, char ** argv)
         if (expImage != inputImage) {
             QTextStream(stdout) << "FAIL : " << fi.fileName()
                 << ": differs from " << expfilename << "\n";
+            writeImageData("expected data",
+                           fi.fileName() + QLatin1String("-expected.data"),
+                           expImage);
+            writeImageData("actual data",
+                           fi.fileName() + QLatin1String("-actual.data"),
+                           inputImage);
             ++failed;
         } else {
             QTextStream(stdout) << "PASS : " << fi.fileName() << "\n";
