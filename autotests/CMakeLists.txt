@@ -1,11 +1,18 @@
 #find_package(Qt5Test ${REQUIRED_QT_VERSION} NO_MODULE)
 
 include(ECMMarkAsTest)
+include(CMakeParseArguments)
 
 add_definitions(-DPLUGIN_DIR="${CMAKE_CURRENT_BINARY_DIR}/../src")
 remove_definitions(-DQT_NO_CAST_FROM_ASCII)
 
 macro(kimageformats_read_tests)
+    cmake_parse_arguments(KIF_RT "" "FUZZ" "" ${ARGN})
+    set(_fuzzarg)
+    if (KIF_RT_FUZZ)
+        set(_fuzzarg -f ${KIF_RT_FUZZ})
+    endif()
+
     if (NOT TARGET readtest)
         add_executable(readtest readtest.cpp)
         target_link_libraries(readtest Qt5::Gui)
@@ -13,10 +20,11 @@ macro(kimageformats_read_tests)
             PRIVATE IMAGEDIR="${CMAKE_CURRENT_SOURCE_DIR}/read")
         ecm_mark_as_test(readtest)
     endif()
-    foreach(_testname ${ARGN})
+
+    foreach(_testname ${KIF_RT_UNPARSED_ARGUMENTS})
         add_test(
             NAME kimageformats-read-${_testname}
-            COMMAND readtest ${_testname}
+            COMMAND readtest ${_fuzzarg} ${_testname}
         )
     endforeach(_testname)
 endmacro()
@@ -53,6 +61,10 @@ kimageformats_read_tests(
     ras
     rgb
     tga
+)
+# Allow some fuzziness when reading this formats, to allow for
+# rounding errors (eg: in alpha blending).
+kimageformats_read_tests(FUZZ 1
     xcf
 )
 

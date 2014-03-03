@@ -29,6 +29,8 @@
 #include <QImageReader>
 #include <QTextStream>
 
+#include "../tests/format-enum.h"
+
 static void writeImageData(const char *name, const QString &filename, const QImage &image)
 {
     QFile file(filename);
@@ -49,6 +51,27 @@ static void writeImageData(const char *name, const QString &filename, const QIma
     }
 }
 
+// allow each byte to be different by up to 1, to allow for rounding errors
+static bool fuzzyeq(const QImage &im1, const QImage &im2, uchar fuzziness)
+{
+    const int height = im1.height();
+    const int width = im1.width();
+    for (int i = 0; i < height; ++i) {
+        const uchar *line1 = im1.scanLine(i);
+        const uchar *line2 = im2.scanLine(i);
+        for (int j = 0; j < width; ++j) {
+            if (line1[j] > line2[j]) {
+                if (line1[j] - line2[j] > fuzziness)
+                    return false;
+            } else {
+                if (line2[j] - line1[j] > fuzziness)
+                    return false;
+            }
+        }
+    }
+    return true;
+}
+
 int main(int argc, char ** argv)
 {
     QCoreApplication app(argc, argv);
@@ -61,6 +84,11 @@ int main(int argc, char ** argv)
     parser.addHelpOption();
     parser.addVersionOption();
     parser.addPositionalArgument(QStringLiteral("format"), QStringLiteral("format to test"));
+    QCommandLineOption fuzz(
+        QStringList() << QStringLiteral("f") << QStringLiteral("fuzz"),
+        QStringLiteral("Allow for some deviation in ARGB data."),
+        QStringLiteral("max"));
+    parser.addOption(fuzz);
 
     parser.process(app);
 
@@ -71,6 +99,17 @@ int main(int argc, char ** argv)
     } else if (args.count() > 1) {
         QTextStream(stderr) << "Too many arguments\n";
         parser.showHelp(1);
+    }
+
+    uchar fuzziness = 0;
+    if (parser.isSet(fuzz)) {
+        bool ok;
+        uint fuzzarg = parser.value(fuzz).toUInt(&ok);
+        if (!ok || fuzzarg > 255) {
+            QTextStream(stderr) << "Error: max fuzz argument must be a number between 0 and 255\n";
+            parser.showHelp(1);
+        }
+        fuzziness = uchar(fuzzarg);
     }
 
     QString suffix = args.at(0);
@@ -115,20 +154,47 @@ int main(int argc, char ** argv)
             ++failed;
             continue;
         }
-        inputImage = inputImage.convertToFormat(expImage.format());
-        if (expImage != inputImage) {
+        if (expImage.width() != inputImage.width()) {
             QTextStream(stdout) << "FAIL : " << fi.fileName()
-                << ": differs from " << expfilename << "\n";
-            writeImageData("expected data",
-                           fi.fileName() + QLatin1String("-expected.data"),
-                           expImage);
-            writeImageData("actual data",
-                           fi.fileName() + QLatin1String("-actual.data"),
-                           inputImage);
+                << ": width was " << inputImage.width()
+                << " but " << expfilename << " width was "
+                << expImage.width() << "\n";
+            ++failed;
+        } else if (expImage.height() != inputImage.height()) {
+            QTextStream(stdout) << "FAIL : " << fi.fileName()
+                << ": height was " << inputImage.height()
+                << " but " << expfilename << " height was "
+                << expImage.height() << "\n";
             ++failed;
         } else {
-            QTextStream(stdout) << "PASS : " << fi.fileName() << "\n";
-            ++passed;
+            if (inputImage.format() != QImage::Format_ARGB32) {
+                QTextStream(stdout) << "INFO : " << fi.fileName()
+                    << ": converting " << fi.fileName()
+                    << " from " << formatToString(inputImage.format())
+                    << " to ARGB32\n";
+                inputImage = inputImage.convertToFormat(QImage::Format_ARGB32);
+            }
+            if (expImage.format() != QImage::Format_ARGB32) {
+                QTextStream(stdout) << "INFO : " << fi.fileName()
+                    << ": converting " << expfilename
+                    << " from " << formatToString(expImage.format())
+                    << " to ARGB32\n";
+                expImage = expImage.convertToFormat(QImage::Format_ARGB32);
+            }
+            if (fuzzyeq(inputImage, expImage, fuzziness)) {
+                QTextStream(stdout) << "PASS : " << fi.fileName() << "\n";
+                ++passed;
+            } else {
+                QTextStream(stdout) << "FAIL : " << fi.fileName()
+                    << ": differs from " << expfilename << "\n";
+                writeImageData("expected data",
+                               fi.fileName() + QLatin1String("-expected.data"),
+                               expImage);
+                writeImageData("actual data",
+                               fi.fileName() + QLatin1String("-actual.data"),
+                               inputImage);
+                ++failed;
+            }
         }
     }
 
