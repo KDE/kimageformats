@@ -57,7 +57,7 @@ install(FILES pcx.desktop DESTINATION ${SERVICES_INSTALL_DIR}/qimageioplugins/)
 
 ##################################
 
-add_library(kimg_pic MODULE pic_read.cpp pic_write.cpp pic.cpp)
+add_library(kimg_pic MODULE pic.cpp)
 target_link_libraries(kimg_pic Qt5::Gui)
 
 install(TARGETS kimg_pic  DESTINATION ${QT_PLUGIN_INSTALL_DIR}/imageformats/)

@@ -56,7 +56,6 @@ endmacro()
 # result against the data read from the corresponding png file
 kimageformats_read_tests(
     pcx
-    pic
     psd
     ras
     rgb
@@ -101,3 +100,16 @@ endif()
 if (OpenEXR_FOUND)
     # FIXME: OpenEXR tests
 endif()
+
+
+find_package(Qt5Test ${REQUIRED_QT_VERSION} CONFIG QUIET)
+
+if(NOT Qt5Test_FOUND)
+    message(STATUS "Qt5Test not found, some autotests will not be built.")
+    return()
+endif()
+
+add_executable(pictest pictest.cpp)
+target_link_libraries(pictest Qt5::Gui Qt5::Test)
+ecm_mark_as_test(pictest)
+add_test(NAME kimageformats-pic COMMAND pictest)
