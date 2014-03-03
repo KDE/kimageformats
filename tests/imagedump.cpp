@@ -31,96 +31,7 @@
 #include <QMetaEnum>
 #include <QTextStream>
 
-QImage::Format formatFromString(const QString &str)
-{
-    if (str.compare(QLatin1String("Mono"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_Mono;
-    } else if (str.compare(QLatin1String("MonoLSB"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_MonoLSB;
-    } else if (str.compare(QLatin1String("Indexed8"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_Indexed8;
-    } else if (str.compare(QLatin1String("RGB32"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_RGB32;
-    } else if (str.compare(QLatin1String("ARGB32"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_ARGB32;
-    } else if (str.compare(QLatin1String("ARGB32_Premultiplied"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_ARGB32_Premultiplied;
-    } else if (str.compare(QLatin1String("RGB16"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_RGB16;
-    } else if (str.compare(QLatin1String("ARGB8565_Premultiplied"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_ARGB8565_Premultiplied;
-    } else if (str.compare(QLatin1String("RGB666"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_RGB666;
-    } else if (str.compare(QLatin1String("ARGB6666_Premultiplied"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_ARGB6666_Premultiplied;
-    } else if (str.compare(QLatin1String("RGB555"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_RGB555;
-    } else if (str.compare(QLatin1String("ARGB8555_Premultiplied"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_ARGB8555_Premultiplied;
-    } else if (str.compare(QLatin1String("RGB888"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_RGB888;
-    } else if (str.compare(QLatin1String("RGB444"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_RGB444;
-    } else if (str.compare(QLatin1String("ARGB4444_Premultiplied"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_ARGB4444_Premultiplied;
-    } else if (str.compare(QLatin1String("RGBX8888"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_RGBX8888;
-    } else if (str.compare(QLatin1String("RGBA8888"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_RGBA8888;
-    } else if (str.compare(QLatin1String("RGBA8888_Premultiplied"), Qt::CaseInsensitive) == 0) {
-        return QImage::Format_RGBA8888_Premultiplied;
-    } else {
-        return QImage::Format_Invalid;
-    }
-}
-
-QString formatToString(QImage::Format format)
-{
-    switch (format) {
-        case QImage::Format_Invalid:
-            return QStringLiteral("Invalid");
-        case QImage::Format_Mono:
-            return QStringLiteral("Mono");
-        case QImage::Format_MonoLSB:
-            return QStringLiteral("MonoLSB");
-        case QImage::Format_Indexed8:
-            return QStringLiteral("Indexed8");
-        case QImage::Format_RGB32:
-            return QStringLiteral("RGB32");
-        case QImage::Format_ARGB32:
-            return QStringLiteral("ARGB32");
-        case QImage::Format_ARGB32_Premultiplied:
-            return QStringLiteral("ARGB32_Premultiplied");
-        case QImage::Format_RGB16:
-            return QStringLiteral("RGB16");
-        case QImage::Format_ARGB8565_Premultiplied:
-            return QStringLiteral("ARGB8565_Premultiplied");
-        case QImage::Format_RGB666:
-            return QStringLiteral("RGB666");
-        case QImage::Format_ARGB6666_Premultiplied:
-            return QStringLiteral("ARGB6666_Premultiplied");
-        case QImage::Format_RGB555:
-            return QStringLiteral("RGB555");
-        case QImage::Format_ARGB8555_Premultiplied:
-            return QStringLiteral("ARGB8555_Premultiplied");
-        case QImage::Format_RGB888:
-            return QStringLiteral("RGB888");
-        case QImage::Format_RGB444:
-            return QStringLiteral("RGB444");
-        case QImage::Format_ARGB4444_Premultiplied:
-            return QStringLiteral("ARGB4444_Premultiplied");
-        case QImage::Format_RGBX8888:
-            return QStringLiteral("RGBX8888");
-        case QImage::Format_RGBA8888:
-            return QStringLiteral("RGBA8888");
-        case QImage::Format_RGBA8888_Premultiplied:
-            return QStringLiteral("RGBA8888_Premultiplied");
-        default:
-            return QLatin1String("<unknown:") +
-                QString::number(int(format)) +
-                QLatin1String(">");
-    }
-}
+#include "format-enum.h"
 
 int main(int argc, char **argv)
 {
@@ -167,26 +78,12 @@ int main(int argc, char **argv)
         return 0;
     }
     if (parser.isSet(listqformats)) {
-        QTextStream(stdout)
-            << "QImage formats:\n"
-            << "  Mono\n"
-            << "  MonoLSB\n"
-            << "  Indexed8\n"
-            << "  RGB32\n"
-            << "  ARGB32\n"
-            << "  ARGB32_Premultiplied\n"
-            << "  RGB16\n"
-            << "  ARGB8565_Premultiplied\n"
-            << "  RGB666\n"
-            << "  ARGB6666_Premultiplied\n"
-            << "  RGB555\n"
-            << "  ARGB8555_Premultiplied\n"
-            << "  RGB888\n"
-            << "  RGB444\n"
-            << "  ARGB4444_Premultiplied\n"
-            << "  RGBX8888\n"
-            << "  RGBA8888\n"
-            << "  RGBA8888_Premultiplied\n";
+        QTextStream out(stdout);
+        out << "QImage formats:\n";
+        // skip QImage::Format_Invalid
+        for (int i = 1; i < qimage_format_enum_names_count; ++i) {
+            out << "  " << qimage_format_enum_names[i] << '\n';
+        }
         return 0;
     }
 
