@@ -1,4 +1,4 @@
-# NB: the desktop files are installed for the benefit of KImageIO in KDE4Support.
+# NB: the desktop files are installed for the benefit of KImageIO in KDELibs4Support.
 
 ##################################
 
