@@ -1,9 +1,12 @@
 maintainer: alexmerry
-description: Addons to QtImageFormats
+description: Plugins to allow QImage to support extra file formats
 tier: 1
 type: functional
 platforms:
-    - name: All
+    - name: Linux
+    - name: MacOSX
+    - name: Windows
+      note: No EPS support on Windows
 portingAid: false
 deprecated: false
 release: true
