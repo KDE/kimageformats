@@ -60,6 +60,8 @@ enum PicChannelCode {
 
 /**
  * The header for a SoftImage PIC file.
+ *
+ * @private
  */
 struct PicHeader {
     /**
@@ -111,6 +113,8 @@ struct PicHeader {
 
 /**
  * Describes a channel in a SoftImage PIC file.
+ *
+ * @private
  */
 struct PicChannel {
     quint8 size; /**< Bits per component per pixel. */
