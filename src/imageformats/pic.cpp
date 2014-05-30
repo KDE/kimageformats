@@ -340,7 +340,7 @@ static void encodeMixedRLEData(QDataStream &stream, const Item *data, unsigned l
             chunkLength = 1;
             chunkEnd = chunkStart + 1;
             while (chunkLength < maxChunk &&
-                    (chunkLength + 1 == maxChunk ||
+                    (chunkLength + 1u == maxChunk ||
                      !itemsEqual(*chunkEnd, *(chunkEnd+1))))
             {
                 ++chunkEnd;
