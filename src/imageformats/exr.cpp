@@ -1,5 +1,5 @@
 
-/**
+/*
 * KImageIO Routines to read (and perhaps in the future, write) images
 * in the high dynamic range EXR format.
 * Copyright (c) 2003, Brad Hards <bradh@frogmouth.net>

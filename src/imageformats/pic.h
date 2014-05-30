@@ -1,4 +1,4 @@
-/**
+/*
  * PIC_RW - Qt PIC Support
  * Copyright (C) 2007 Ruben Lopez <r.lopez@bren.es>
  *

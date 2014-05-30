@@ -1,4 +1,4 @@
-/**
+/*
 * QImageIO Routines to read/write EPS images.
 * copyright (c) 1998 Dirk Schoenberger <dirk.schoenberger@freenet.de>
 *

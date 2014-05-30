@@ -1,4 +1,4 @@
-/**
+/*
 * QImageIO Routines to read/write JPEG2000 images.
 * copyright (c) 2002 Michael Ritzert <michael@ritzert.de>
 *

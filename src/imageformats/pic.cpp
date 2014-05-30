@@ -1,4 +1,4 @@
-/**
+/*
  * Softimage PIC support for QImage
  * Copyright 1998 Halfdan Ingvarsson
  * Copyright 2007 Ruben Lopez <r.lopez@bren.es>

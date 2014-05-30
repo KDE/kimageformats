@@ -1,4 +1,4 @@
-/**
+/*
 * QImageIO Routines to read (and perhaps in the future, write) images
 * in the high definition EXR format.
 *
