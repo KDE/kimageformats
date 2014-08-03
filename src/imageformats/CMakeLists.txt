@@ -2,11 +2,15 @@
 
 ##################################
 
-add_library(kimg_dds MODULE dds.cpp)
-target_link_libraries(kimg_dds Qt5::Gui)
+if (Qt5Gui_VERSION VERSION_LESS 5.3.0)
+    add_library(kimg_dds MODULE dds.cpp)
+    target_link_libraries(kimg_dds Qt5::Gui)
 
-install(TARGETS kimg_dds  DESTINATION ${QT_PLUGIN_INSTALL_DIR}/imageformats/)
-install(FILES dds.desktop DESTINATION ${SERVICES_INSTALL_DIR}/qimageioplugins/)
+    install(TARGETS kimg_dds  DESTINATION ${QT_PLUGIN_INSTALL_DIR}/imageformats/)
+    install(FILES dds.desktop DESTINATION ${SERVICES_INSTALL_DIR}/qimageioplugins/)
+else()
+    install(FILES dds-qt.desktop RENAME dds.desktop DESTINATION ${SERVICES_INSTALL_DIR}/qimageioplugins/)
+endif()
 
 ##################################
 
@@ -33,6 +37,9 @@ if(JASPER_FOUND)
     target_link_libraries(kimg_jp2  Qt5::Gui ${JASPER_LIBRARIES})
 
     install(TARGETS kimg_jp2  DESTINATION ${QT_PLUGIN_INSTALL_DIR}/imageformats/)
+    install(FILES jp2.desktop DESTINATION ${SERVICES_INSTALL_DIR}/qimageioplugins/)
+elseif (NOT Qt5Gui_VERSION VERSION_LESS 5.3.0)
+    # need this for Qt's version of the plugin
     install(FILES jp2.desktop DESTINATION ${SERVICES_INSTALL_DIR}/qimageioplugins/)
 endif()
 
