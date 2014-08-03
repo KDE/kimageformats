@@ -5,7 +5,7 @@
 * This library is distributed under the conditions of the GNU LGPL.
 */
 
-#include "jp2.h"
+#include "jp2_p.h"
 
 #include <config-jp2.h>
 

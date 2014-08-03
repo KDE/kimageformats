@@ -25,7 +25,7 @@
  * with his permission.
  */
 
-#include "pic.h"
+#include "pic_p.h"
 
 #include <QDataStream>
 #include <QDebug>

@@ -17,7 +17,7 @@
  *     not supported
  */
 
-#include "psd.h"
+#include "psd_p.h"
 
 #include <QImage>
 #include <QtCore/QDataStream>

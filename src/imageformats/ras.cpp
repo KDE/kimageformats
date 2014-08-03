@@ -9,7 +9,7 @@
    version 2 of the License, or (at your option) any later version.
 */
 
-#include "ras.h"
+#include "ras_p.h"
 
 #include <QImage>
 #include <QtCore/QDataStream>

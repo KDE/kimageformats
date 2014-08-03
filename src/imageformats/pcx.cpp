@@ -7,7 +7,7 @@
    version 2 of the License, or (at your option) any later version.
 */
 
-#include "pcx.h"
+#include "pcx_p.h"
 
 #include <QColor>
 #include <QDataStream>

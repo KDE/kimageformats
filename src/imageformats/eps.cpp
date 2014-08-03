@@ -6,7 +6,7 @@
 *
 * This library is distributed under the conditions of the GNU LGPL.
 */
-#include "eps.h"
+#include "eps_p.h"
 
 #include <QDebug>
 #include <QImage>

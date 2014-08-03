@@ -19,7 +19,7 @@
  *
  */
 
-#include "xcf.h"
+#include "xcf_p.h"
 
 #include <stdlib.h>
 #include <QImage>
@@ -29,7 +29,7 @@
 #include <QtCore/QVector>
 // #include <QDebug>
 
-#include "gimp.h"
+#include "gimp_p.h"
 
 const float INCHESPERMETER = (100.0f / 2.54f);
 

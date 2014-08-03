@@ -7,7 +7,7 @@
 * This library is distributed under the conditions of the GNU LGPL.
 */
 
-#include "exr.h"
+#include "exr_p.h"
 
 #include <ImfRgbaFile.h>
 #include <ImfStandardAttributes.h>

@@ -18,7 +18,7 @@
  *     uncompressed true color tga files
  */
 
-#include "tga.h"
+#include "tga_p.h"
 
 #include <assert.h>
 

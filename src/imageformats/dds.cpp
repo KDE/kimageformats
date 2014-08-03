@@ -19,7 +19,7 @@
  *     rgb dds files only -- TODO
  */
 
-#include "dds.h"
+#include "dds_p.h"
 
 #include <QtCore/QStringList>
 #include <QImage>

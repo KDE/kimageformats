@@ -21,7 +21,7 @@
  * saved by this filter.
  */
 
-#include "rgb.h"
+#include "rgb_p.h"
 
 #include <QtCore/QMap>
 #include <QtCore/QVector>
