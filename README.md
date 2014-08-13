@@ -63,9 +63,3 @@ This framework is licensed under the
 The CMake code in this framework is licensed under the
 [BSD license](http://opensource.org/licenses/BSD-3-Clause).
 
-## Links
-
-- Home page: <https://projects.kde.org/projects/frameworks/kimageformats>
-- Mailing list: <https://mail.kde.org/mailman/listinfo/kde-frameworks-devel>
-- IRC channel: \#kde-devel on Freenode
-- Git repository: <https://projects.kde.org/projects/frameworks/kimageformats/repository>
