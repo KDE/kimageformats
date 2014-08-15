@@ -1,6 +1,6 @@
 # KImageFormats
 
-Image format plugins for Qt
+Plugins to allow QImage to support extra file formats.
 
 ## Introduction
 
