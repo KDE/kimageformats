@@ -22,6 +22,7 @@
 #define KIMG_PIC_H
 
 #include <QImageIOPlugin>
+#include <QDataStream>
 
 /**
  * The magic number at the start of a SoftImage PIC file.
