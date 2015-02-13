@@ -41,10 +41,10 @@ public:
     {
     }
 
-    virtual bool  read(char c[], int n);
-    virtual Imf::Int64 tellg();
-    virtual void seekg(Imf::Int64 pos);
-    virtual void clear();
+    bool  read(char c[], int n) Q_DECL_OVERRIDE;
+    Imf::Int64 tellg() Q_DECL_OVERRIDE;
+    void seekg(Imf::Int64 pos) Q_DECL_OVERRIDE;
+    void clear() Q_DECL_OVERRIDE;
 
 private:
     QIODevice *m_dev;

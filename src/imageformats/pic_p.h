@@ -195,8 +195,8 @@ class SoftimagePICPlugin : public QImageIOPlugin
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QImageIOHandlerFactoryInterface" FILE "pic.json")
 
 public:
-    virtual Capabilities capabilities(QIODevice *device, const QByteArray &format) const;
-    virtual QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const;
+    Capabilities capabilities(QIODevice *device, const QByteArray &format) const Q_DECL_OVERRIDE;
+    QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const Q_DECL_OVERRIDE;
 };
 
 #endif // KIMG_PIC_H

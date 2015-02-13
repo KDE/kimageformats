@@ -29,9 +29,9 @@ class XCFHandler : public QImageIOHandler
 public:
     XCFHandler();
 
-    virtual bool canRead() const;
-    virtual bool read(QImage *image);
-    virtual bool write(const QImage &image);
+    bool canRead() const Q_DECL_OVERRIDE;
+    bool read(QImage *image) Q_DECL_OVERRIDE;
+    bool write(const QImage &image) Q_DECL_OVERRIDE;
 
     static bool canRead(QIODevice *device);
 };
@@ -42,8 +42,8 @@ class XCFPlugin : public QImageIOPlugin
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QImageIOHandlerFactoryInterface" FILE "xcf.json")
 
 public:
-    virtual Capabilities capabilities(QIODevice *device, const QByteArray &format) const;
-    virtual QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const;
+    Capabilities capabilities(QIODevice *device, const QByteArray &format) const Q_DECL_OVERRIDE;
+    QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const Q_DECL_OVERRIDE;
 };
 
 #endif // KIMG_XCF_H

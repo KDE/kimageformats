@@ -18,8 +18,8 @@ class RASHandler : public QImageIOHandler
 public:
     RASHandler();
 
-    virtual bool canRead() const;
-    virtual bool read(QImage *image);
+    bool canRead() const Q_DECL_OVERRIDE;
+    bool read(QImage *image) Q_DECL_OVERRIDE;
 
     static bool canRead(QIODevice *device);
 };
@@ -30,8 +30,8 @@ class RASPlugin : public QImageIOPlugin
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QImageIOHandlerFactoryInterface" FILE "ras.json")
 
 public:
-    virtual Capabilities capabilities(QIODevice *device, const QByteArray &format) const;
-    virtual QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const;
+    Capabilities capabilities(QIODevice *device, const QByteArray &format) const Q_DECL_OVERRIDE;
+    QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const Q_DECL_OVERRIDE;
 };
 
 #endif // KIMG_RAS_H
