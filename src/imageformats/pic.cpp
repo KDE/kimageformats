@@ -1,5 +1,6 @@
 /*
- * Softimage PIC support for QImage
+ * Softimage PIC support for QImage.
+ *
  * Copyright 1998 Halfdan Ingvarsson
  * Copyright 2007 Ruben Lopez <r.lopez@bren.es>
  * Copyright 2014 Alex Merry <alex.merry@kde.org>
@@ -26,6 +27,8 @@
  */
 
 #include "pic_p.h"
+
+#include "rle_p.h"
 
 #include <QDataStream>
 #include <QDebug>
@@ -167,82 +170,6 @@ static QDataStream &operator<< (QDataStream &s, const QList<PicChannel> &channel
     return s;
 }
 
-/**
- * Decodes data written in mixed run-length encoding format.
- *
- * This is intended to be used with lambda functions.
- *
- * Note that this functions expects that, at the current location in @p stream,
- * exactly @p length items have been encoded as a unit (and so it will not be
- * partway through a run when it has decoded @p length items). If this is not
- * the case, it will return @c false.
- *
- * @param stream      The stream to read the data from.
- * @param data        The location to write the data.
- * @param length      The number of items to read.
- * @param readItem    A function that takes a QDataStream reference and reads a
- *                    single item.
- * @param updateItem  A function that takes an item from @p data and an item
- *                    read by @p readItem and produces the item that should be
- *                    written to @p data.
- *
- * @returns @c true if @p length items in mixed RLE were successfully read
- *          into @p data, @c false otherwise.
- */
-template<typename Item, typename Func1, typename Func2>
-static bool decodeMixedRLEData(QDataStream &stream,
-                               Item *data,
-                               quint16 length,
-                               Func1 readItem,
-                               Func2 updateItem)
-{
-    unsigned offset = 0; // in data
-    while (offset < length) {
-        unsigned remaining = length - offset;
-        quint8 count1;
-        stream >> count1;
-
-        if (count1 >= 128u) {
-            unsigned length;
-            if (count1 == 128u) {
-                // If the value is exactly 128, it means that it is more than
-                // 127 repetitions
-                quint16 count2;
-                stream >> count2;
-                length = count2;
-            } else {
-                // If last bit is 1, then it is 2 to 127 repetitions
-                length = count1 - 127u;
-            }
-            if (length > remaining) {
-                qDebug() << "Row overrun:" << length << ">" << remaining;
-                return false;
-            }
-            Item item = readItem(stream);
-            for (unsigned i = offset; i < offset + length; ++i) {
-                data[i] = updateItem(data[i], item);
-            }
-            offset += length;
-        } else {
-            // No repetitions
-            unsigned length = count1 + 1u;
-            if (length > remaining) {
-                qDebug() << "Row overrun:" << length << ">" << remaining;
-                return false;
-            }
-            for (unsigned i = offset; i < offset + length; ++i) {
-                Item item = readItem(stream);
-                data[i] = updateItem(data[i], item);
-            }
-            offset += length;
-        }
-    }
-    if (stream.status() != QDataStream::Ok) {
-        qDebug() << "DataStream status was" << stream.status();;;;
-    }
-    return stream.status() == QDataStream::Ok;
-}
-
 static bool readRow(QDataStream &stream, QRgb *row, quint16 width, QList<PicChannel> channels)
 {
     Q_FOREACH(const PicChannel &channel, channels) {
@@ -273,8 +200,10 @@ static bool readRow(QDataStream &stream, QRgb *row, quint16 width, QList<PicChan
                 qAlpha((channel.code & ALPHA) ? newPixel : oldPixel));
         };
         if (channel.encoding == MixedRLE) {
-            if (!decodeMixedRLEData(stream, row, width, readPixel, updatePixel)) {
-                qDebug() << "decodeMixedRLEData failed";
+            bool success = decodeRLEData(RLEVariant::PIC, stream, row, width,
+                                         readPixel, updatePixel);
+            if (!success) {
+                qDebug() << "decodeRLEData failed";
                 return false;
             }
         } else if (channel.encoding == Uncompressed) {
@@ -292,67 +221,6 @@ static bool readRow(QDataStream &stream, QRgb *row, quint16 width, QList<PicChan
         qDebug() << "DataStream status was" << stream.status();
     }
     return stream.status() == QDataStream::Ok;
-}
-
-/**
- * Encodes data in mixed run-length encoding format.
- *
- * This is intended to be used with lambda functions.
- *
- * @param stream      The stream to write the data to.
- * @param data        The data to be written.
- * @param length      The number of items to write.
- * @param itemsEqual  A function that takes two items and returns whether
- *                    @p writeItem would write them identically.
- * @param writeItem   A function that takes a QDataStream reference and an item
- *                    and writes the item to the data stream.
- */
-template<typename Item, typename Func1, typename Func2>
-static void encodeMixedRLEData(QDataStream &stream, const Item *data, unsigned length, Func1 itemsEqual, Func2 writeItem)
-{
-    unsigned offset = 0;
-    while (offset < length) {
-        const Item *chunkStart = data + offset;
-        unsigned maxChunk = qMin(length - offset, 65535u);
-
-        const Item *chunkEnd = chunkStart + 1;
-        quint16 chunkLength = 1;
-        while (chunkLength < maxChunk && itemsEqual(*chunkStart, *chunkEnd)) {
-            ++chunkEnd;
-            ++chunkLength;
-        }
-
-        if (chunkLength > 127) {
-            // Sequence of > 127 identical pixels
-            stream << quint8(128);
-            stream << quint16(chunkLength);
-            writeItem(stream, *chunkStart);
-        } else if (chunkLength > 1) {
-            // Sequence of < 128 identical pixels
-            stream << quint8(chunkLength + 127);
-            writeItem(stream, *chunkStart);
-        } else {
-            // find a string of up to 128 values, each different from the one
-            // that follows it
-            if (maxChunk > 128) {
-                maxChunk = 128;
-            }
-            chunkLength = 1;
-            chunkEnd = chunkStart + 1;
-            while (chunkLength < maxChunk &&
-                    (chunkLength + 1u == maxChunk ||
-                     !itemsEqual(*chunkEnd, *(chunkEnd+1))))
-            {
-                ++chunkEnd;
-                ++chunkLength;
-            }
-            stream << quint8(chunkLength - 1);
-            for (unsigned i = 0; i < chunkLength; ++i) {
-                writeItem(stream, *(chunkStart + i));
-            }
-        }
-        offset += chunkLength;
-    }
 }
 
 bool SoftimagePICHandler::canRead() const
@@ -445,7 +313,8 @@ bool SoftimagePICHandler::write(const QImage &_image)
                 << quint8(qBlue(pixel));
         };
         if (m_compression) {
-            encodeMixedRLEData(stream, row, image.width(), rgbEqual, writeRgb);
+            encodeRLEData(RLEVariant::PIC, stream, row, image.width(),
+                          rgbEqual, writeRgb);
         } else {
             for (int i = 0; i < image.width(); ++i) {
                 writeRgb(stream, row[i]);
@@ -461,7 +330,8 @@ bool SoftimagePICHandler::write(const QImage &_image)
                 str << quint8(qAlpha(pixel));
             };
             if (m_compression) {
-                encodeMixedRLEData(stream, row, image.width(), alphaEqual, writeAlpha);
+                encodeRLEData(RLEVariant::PIC, stream, row, image.width(),
+                              alphaEqual, writeAlpha);
             } else {
                 for (int i = 0; i < image.width(); ++i) {
                     writeAlpha(stream, row[i]);
