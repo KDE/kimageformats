@@ -21,6 +21,8 @@
 #ifndef KIMAGEFORMATS_RLE_H
 #define KIMAGEFORMATS_RLE_H
 
+#include <QDebug>
+
 /**
  * The RLEVariant to use.
  *
