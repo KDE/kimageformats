@@ -22,6 +22,7 @@
 #define KIMAGEFORMATS_RLE_H
 
 #include <QDebug>
+#include <QDataStream>
 
 /**
  * The RLEVariant to use.
