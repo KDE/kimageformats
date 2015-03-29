@@ -219,7 +219,7 @@ bool RASHandler::canRead(QIODevice *device)
     }
 
     if (device->isSequential()) {
-        qWarning("Reading ras files from sequential devices not supported");
+        // qWarning("Reading ras files from sequential devices not supported");
         return false;
     }
 
