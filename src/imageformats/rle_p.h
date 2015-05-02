@@ -86,7 +86,7 @@ static inline bool decodeRLEData(RLEVariant variant,
         stream >> count1;
 
         if (count1 >= 128u) {
-            unsigned length;
+            unsigned length = 0;
             if (variant == RLEVariant::PIC) {
                 if (count1 == 128u) {
                     // If the value is exactly 128, it means that it is more than
