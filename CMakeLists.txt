@@ -17,14 +17,14 @@ include(KDECMakeSettings)
 
 include(CheckIncludeFiles)
 
-set(REQUIRED_QT_VERSION 5.2.0)
+set(REQUIRED_QT_VERSION 5.3.0)
 find_package(Qt5Gui ${REQUIRED_QT_VERSION} REQUIRED NO_MODULE)
 
 # EPS support depends on the gs utility; non-UNIX systems are unlikely to have
 # this available in PATH
 set(BUILD_EPS_PLUGIN FALSE)
 if (UNIX)
-    find_package(Qt5PrintSupport 5.2.0 NO_MODULE)
+    find_package(Qt5PrintSupport ${REQUIRED_QT_VERSION} NO_MODULE)
     set_package_properties(Qt5PrintSupport PROPERTIES
         PURPOSE "Required for the QImage plugin for EPS images"
         TYPE OPTIONAL
