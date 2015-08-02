@@ -17,7 +17,13 @@
 #include <QProcess>
 #include <QTemporaryFile>
 
+#if QT_VERSION >= QT_VERSION_CHECK(5, 4, 0)
+// logging category for this framework, default: log stuff >= warning
+Q_LOGGING_CATEGORY(EPSPLUGIN, "epsplugin", QtWarningMsg)
+#else
 Q_LOGGING_CATEGORY(EPSPLUGIN, "epsplugin")
+#endif
+
 //#define EPS_PERFORMANCE_DEBUG 1
 
 #define BBOX_BUFLEN 200
