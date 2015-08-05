@@ -86,21 +86,9 @@ kimageformats_write_tests(
 #    kimageformats_read_tests(eps)
 #    kimageformats_write_tests(eps)
 #endif()
-if (JASPER_FOUND)
-    # FIXME: when we read JPEG2000 files on different architectures
-    # (specifically x86_64 and i386), we get off-by-one errors. The
-    # jasper utility does not have the same problem, so it is not a
-    # problem inherent in the jasper library. For now, we just allow
-    # a little fuzziness to make sure it does not get any worse (being
-    # off by one in an image value is not noticable to the human eye,
-    # so it is not a release-blocking issue).
-    kimageformats_read_tests(FUZZ 1 jp2)
-    kimageformats_write_tests(jp2)
-endif()
 if (OpenEXR_FOUND)
     # FIXME: OpenEXR tests
 endif()
-
 
 find_package(Qt5Test ${REQUIRED_QT_VERSION} CONFIG QUIET)
 

@@ -34,18 +34,6 @@ if (UNIX)
     endif()
 endif()
 
-# QtImageFormats 5.3 comes with a JPEG-2000 plugin; don't duplicate it here
-# TODO: remove our JPEG-2000 plugin when we depend on Qt 5.3.
-if (Qt5Gui_VERSION VERSION_LESS 5.3.0)
-    find_package(Jasper)
-    set_package_properties(Jasper PROPERTIES
-        DESCRIPTION "A library for handling JPEG-2000 images"
-        PURPOSE "Required for the QImage plugin for JPEG-2000 images"
-        URL "http://www.ece.uvic.ca/~mdadams/jasper"
-        TYPE OPTIONAL
-    )
-endif()
-
 find_package(OpenEXR)
 set_package_properties(OpenEXR PROPERTIES
     TYPE OPTIONAL

@@ -2,15 +2,7 @@
 
 ##################################
 
-if (Qt5Gui_VERSION VERSION_LESS 5.3.0)
-    add_library(kimg_dds MODULE dds.cpp)
-    target_link_libraries(kimg_dds Qt5::Gui)
-
-    install(TARGETS kimg_dds  DESTINATION ${KDE_INSTALL_QTPLUGINDIR}/imageformats/)
-    install(FILES dds.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
-else()
-    install(FILES dds-qt.desktop RENAME dds.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
-endif()
+install(FILES dds-qt.desktop RENAME dds.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
 
 ##################################
 
@@ -26,22 +18,9 @@ endif()
 
 ##################################
 
-check_include_files(sys/types.h   HAVE_SYS_TYPES_H)
-check_include_files(stdint.h      HAVE_STDINT_H)
-configure_file(config-jp2.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-jp2.h)
 
-if(JASPER_FOUND)
-    add_library(kimg_jp2 MODULE jp2.cpp)
-    target_compile_options(kimg_jp2 PRIVATE ${JASPER_DEFINITIONS})
-    target_include_directories(kimg_jp2 PRIVATE ${JASPER_INCLUDE_DIR})
-    target_link_libraries(kimg_jp2  Qt5::Gui ${JASPER_LIBRARIES})
-
-    install(TARGETS kimg_jp2  DESTINATION ${KDE_INSTALL_QTPLUGINDIR}/imageformats/)
-    install(FILES jp2.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
-elseif (NOT Qt5Gui_VERSION VERSION_LESS 5.3.0)
-    # need this for Qt's version of the plugin
-    install(FILES jp2.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
-endif()
+# need this for Qt's version of the plugin
+install(FILES jp2.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
 
 ##################################
 

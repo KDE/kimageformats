@@ -13,7 +13,6 @@ image formats.
 
 The following image formats have read-only support:
 
-- DirectDraw Surface (dds)
 - Gimp (xcf)
 - OpenEXR (exr)
 - Photoshop documents (psd)
@@ -22,7 +21,6 @@ The following image formats have read-only support:
 The following image formats have read and write support:
 
 - Encapsulated PostScript (eps)
-- JPEG-2000 (jp2)
 - Personal Computer Exchange (pcx)
 - SGI images (rgb, rgba, sgi, bw)
 - Softimage PIC (pic)
