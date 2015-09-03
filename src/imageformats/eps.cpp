@@ -8,10 +8,8 @@
 */
 #include "eps_p.h"
 
-#include <QDebug>
 #include <QImage>
 #include <QImageReader>
-#include <QLoggingCategory>
 #include <QPainter>
 #include <QPrinter>
 #include <QProcess>

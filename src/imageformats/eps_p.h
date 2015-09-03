@@ -8,6 +8,7 @@
 #define KIMG_EPS_H
 
 #include <QImageIOPlugin>
+#include <QLoggingCategory>
 
 class EPSHandler : public QImageIOHandler
 {
@@ -30,6 +31,8 @@ public:
     Capabilities capabilities(QIODevice *device, const QByteArray &format) const Q_DECL_OVERRIDE;
     QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const Q_DECL_OVERRIDE;
 };
+
+Q_DECLARE_LOGGING_CATEGORY(EPSPLUGIN)
 
 #endif // KIMG_EPS_H
 
