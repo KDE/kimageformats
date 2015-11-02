@@ -75,7 +75,7 @@ int main(int argc, char ** argv)
 
     foreach (QFileInfo fi, imgdir.entryInfoList()) {
         int suffixPos = fi.filePath().count() - suffix.count();
-        QString pngfile = fi.filePath().replace(suffixPos, suffix.count(), "png");
+        QString pngfile = fi.filePath().replace(suffixPos, suffix.count(), QStringLiteral("png"));
         QString pngfilename = QFileInfo(pngfile).fileName();
 
         QImageReader pngReader(pngfile, "png");

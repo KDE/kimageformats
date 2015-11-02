@@ -32,29 +32,29 @@
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
-    QCoreApplication::addLibraryPath(QLatin1String(PLUGIN_DIR));
-    QCoreApplication::setApplicationName(QLatin1String("imageconverter"));
-    QCoreApplication::setApplicationVersion(QLatin1String("1.01.01.0"));
+    QCoreApplication::addLibraryPath(QStringLiteral(PLUGIN_DIR));
+    QCoreApplication::setApplicationName(QStringLiteral("imageconverter"));
+    QCoreApplication::setApplicationVersion(QStringLiteral("1.01.01.0"));
 
     QCommandLineParser parser;
-    parser.setApplicationDescription(QLatin1String("Converts images from one format to another"));
+    parser.setApplicationDescription(QStringLiteral("Converts images from one format to another"));
     parser.addHelpOption();
     parser.addVersionOption();
-    parser.addPositionalArgument(QLatin1String("in"), QLatin1String("input image file"));
-    parser.addPositionalArgument(QLatin1String("out"), QLatin1String("output image file"));
+    parser.addPositionalArgument(QStringLiteral("in"), QStringLiteral("input image file"));
+    parser.addPositionalArgument(QStringLiteral("out"), QStringLiteral("output image file"));
     QCommandLineOption informat(
-        QStringList() << QLatin1String("i") << QLatin1String("informat"),
-        QLatin1String("Image format for input file"),
-        QLatin1String("format"));
+        QStringList() << QStringLiteral("i") << QStringLiteral("informat"),
+        QStringLiteral("Image format for input file"),
+        QStringLiteral("format"));
     parser.addOption(informat);
     QCommandLineOption outformat(
-        QStringList() << QLatin1String("o") << QLatin1String("outformat"),
-        QLatin1String("Image format for output file"),
-        QLatin1String("format"));
+        QStringList() << QStringLiteral("o") << QStringLiteral("outformat"),
+        QStringLiteral("Image format for output file"),
+        QStringLiteral("format"));
     parser.addOption(outformat);
     QCommandLineOption listformats(
-        QStringList() << QLatin1String("l") << QLatin1String("list"),
-        QLatin1String("List supported image formats"));
+        QStringList() << QStringLiteral("l") << QStringLiteral("list"),
+        QStringLiteral("List supported image formats"));
     parser.addOption(listformats);
 
     parser.process(app);
