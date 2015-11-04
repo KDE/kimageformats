@@ -699,7 +699,7 @@ bool RGBHandler::canRead(QIODevice *device)
         device->seek(oldPos);
     }
 
-    const QRegExp regexp(QStringLiteral("^\x01\xda\x01[\x01\x02]"));
+    const QRegExp regexp(QLatin1String("^\x01\xda\x01[\x01\x02]"));
     QString data(QString::fromLocal8Bit(head));
 
     return data.contains(regexp);
