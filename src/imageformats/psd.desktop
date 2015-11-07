@@ -2,6 +2,6 @@
 Type=Service
 X-KDE-ServiceTypes=QImageIOPlugins
 X-KDE-ImageFormat=psd
-X-KDE-MimeType=image/x-psd
+X-KDE-MimeType=image/vnd.adobe.photoshop
 X-KDE-Read=true
 X-KDE-Write=false
