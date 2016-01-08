@@ -20,6 +20,12 @@ include(CheckIncludeFiles)
 set(REQUIRED_QT_VERSION 5.3.0)
 find_package(Qt5Gui ${REQUIRED_QT_VERSION} REQUIRED NO_MODULE)
 
+find_package(KF5Archive)
+set_package_properties(KF5Archive PROPERTIES
+    TYPE OPTIONAL
+    PURPOSE "Required for the QImage plugin for Krita and OpenRaster images"
+)
+
 # EPS support depends on the gs utility; non-UNIX systems are unlikely to have
 # this available in PATH
 set(BUILD_EPS_PLUGIN FALSE)

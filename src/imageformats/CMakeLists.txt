@@ -89,3 +89,20 @@ target_link_libraries(kimg_xcf Qt5::Gui)
 install(TARGETS kimg_xcf  DESTINATION ${KDE_INSTALL_QTPLUGINDIR}/imageformats/)
 install(FILES xcf.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
 
+##################################
+
+if (KF5Archive_FOUND)
+
+    add_library(kimg_kra MODULE kra.cpp)
+    target_link_libraries(kimg_kra Qt5::Gui KF5::Archive)
+
+    install(TARGETS kimg_kra  DESTINATION ${KDE_INSTALL_QTPLUGINDIR}/imageformats/)
+    install(FILES kra.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
+
+    add_library(kimg_ora MODULE ora.cpp)
+    target_link_libraries(kimg_ora Qt5::Gui KF5::Archive)
+
+    install(TARGETS kimg_ora  DESTINATION ${KDE_INSTALL_QTPLUGINDIR}/imageformats/)
+    install(FILES ora.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
+
+endif()

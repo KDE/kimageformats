@@ -61,6 +61,14 @@ kimageformats_read_tests(
     rgb
     tga
 )
+
+if (KF5Archive_FOUND)
+    kimageformats_read_tests(
+        kra
+        ora
+    )
+endif()
+
 # Allow some fuzziness when reading this formats, to allow for
 # rounding errors (eg: in alpha blending).
 kimageformats_read_tests(FUZZ 1
