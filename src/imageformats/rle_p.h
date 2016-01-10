@@ -75,7 +75,7 @@ template<typename Item, typename Func1, typename Func2>
 static inline bool decodeRLEData(RLEVariant variant,
                                  QDataStream &stream,
                                  Item *dest,
-                                 quint16 length,
+                                 quint32 length,
                                  Func1 readData,
                                  Func2 updateItem)
 {
