@@ -1,6 +1,6 @@
 maintainer: alexmerry
 description: Image format plugins for Qt
-tier: 1
+tier: 2
 type: functional
 platforms:
     - name: Linux
