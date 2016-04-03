@@ -17,7 +17,7 @@ include(KDECMakeSettings)
 
 include(CheckIncludeFiles)
 
-set(REQUIRED_QT_VERSION 5.3.0)
+set(REQUIRED_QT_VERSION 5.4.0)
 find_package(Qt5Gui ${REQUIRED_QT_VERSION} REQUIRED NO_MODULE)
 
 find_package(KF5Archive)
