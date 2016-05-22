@@ -10,3 +10,7 @@ platforms:
 portingAid: false
 deprecated: false
 release: true
+
+public_lib: true
+group: Frameworks
+subgroup: Tier 2
