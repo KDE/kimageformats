@@ -120,19 +120,19 @@ static quint8 readPixel(QDataStream &stream) {
     quint8 pixel;
     stream >> pixel;
     return pixel;
-};
+}
 static QRgb updateRed(QRgb oldPixel, quint8 redPixel) {
     return qRgba(redPixel, qGreen(oldPixel), qBlue(oldPixel), qAlpha(oldPixel));
-};
+}
 static QRgb updateGreen(QRgb oldPixel, quint8 greenPixel) {
     return qRgba(qRed(oldPixel), greenPixel, qBlue(oldPixel), qAlpha(oldPixel));
-};
+}
 static QRgb updateBlue(QRgb oldPixel, quint8 bluePixel) {
     return qRgba(qRed(oldPixel), qGreen(oldPixel), bluePixel, qAlpha(oldPixel));
-};
+}
 static QRgb updateAlpha(QRgb oldPixel, quint8 alphaPixel) {
     return qRgba(qRed(oldPixel), qGreen(oldPixel), qBlue(oldPixel), alphaPixel);
-};
+}
 typedef QRgb(*channelUpdater)(QRgb,quint8);
 
 // Load the PSD image.
