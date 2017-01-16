@@ -107,7 +107,7 @@ private:
         //! copied in different ways.
         void (*assignBytes)(Layer &layer, uint i, uint j);
 
-        Layer(void) : name(0) {}
+        Layer(void) : name(nullptr) {}
         ~Layer(void)
         {
             delete[] name;
@@ -416,7 +416,7 @@ bool XCFImageFormat::loadImageProperties(QDataStream &xcf_io, XCFImage &xcf_imag
                 property.readBytes(tag, size);
 
                 quint32 flags;
-                char *data = 0;
+                char *data = nullptr;
                 property >> flags >> data;
 
                 if (tag && strncmp(tag, "gimp-comment", strlen("gimp-comment")) == 0) {
@@ -474,7 +474,7 @@ bool XCFImageFormat::loadProperty(QDataStream &xcf_io, PropType &type, QByteArra
     xcf_io >> foo;
     type = PropType(foo); // TODO urks
 
-    char *data = 0;
+    char *data = nullptr;
     quint32 size;
 
     // The colormap property size is not the correct number of bytes:
@@ -1442,7 +1442,7 @@ void XCFImageFormat::copyLayerToImage(XCFImage &xcf_image)
 {
     Layer &layer(xcf_image.layer);
     QImage &image(xcf_image.image);
-    PixelCopyOperation copy = 0;
+    PixelCopyOperation copy = nullptr;
 
     switch (layer.type) {
     case RGB_GIMAGE:
@@ -1725,7 +1725,7 @@ void XCFImageFormat::mergeLayerIntoImage(XCFImage &xcf_image)
     Layer &layer(xcf_image.layer);
     QImage &image(xcf_image.image);
 
-    PixelMergeOperation merge = 0;
+    PixelMergeOperation merge = nullptr;
 
     if (!layer.opacity) {
         return;    // don't bother doing anything
@@ -2686,10 +2686,10 @@ QImageIOPlugin::Capabilities XCFPlugin::capabilities(QIODevice *device, const QB
         return Capabilities(CanRead);
     }
     if (!format.isEmpty()) {
-        return 0;
+        return nullptr;
     }
     if (!device->isOpen()) {
-        return 0;
+        return nullptr;
     }
 
     Capabilities cap;

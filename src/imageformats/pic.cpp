@@ -449,10 +449,10 @@ QImageIOPlugin::Capabilities SoftimagePICPlugin::capabilities(QIODevice *device,
         return Capabilities(CanRead | CanWrite);
     }
     if (!format.isEmpty()) {
-        return 0;
+        return nullptr;
     }
     if (!device->isOpen()) {
-        return 0;
+        return nullptr;
     }
 
     Capabilities cap;

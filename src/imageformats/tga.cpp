@@ -414,10 +414,10 @@ QImageIOPlugin::Capabilities TGAPlugin::capabilities(QIODevice *device, const QB
         return Capabilities(CanRead | CanWrite);
     }
     if (!format.isEmpty()) {
-        return 0;
+        return nullptr;
     }
     if (!device->isOpen()) {
-        return 0;
+        return nullptr;
     }
 
     Capabilities cap;

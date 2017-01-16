@@ -111,8 +111,8 @@ private:
 };
 
 SGIImage::SGIImage(QIODevice *io) :
-    _starttab(0),
-    _lengthtab(0)
+    _starttab(nullptr),
+    _lengthtab(nullptr)
 {
     _dev = io;
     _stream.setDevice(_dev);
@@ -714,10 +714,10 @@ QImageIOPlugin::Capabilities RGBPlugin::capabilities(QIODevice *device, const QB
         return Capabilities(CanRead | CanWrite);
     }
     if (!format.isEmpty()) {
-        return 0;
+        return nullptr;
     }
     if (!device->isOpen()) {
-        return 0;
+        return nullptr;
     }
 
     Capabilities cap;

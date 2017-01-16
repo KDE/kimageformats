@@ -300,10 +300,10 @@ QImageIOPlugin::Capabilities PSDPlugin::capabilities(QIODevice *device, const QB
         return Capabilities(CanRead);
     }
     if (!format.isEmpty()) {
-        return 0;
+        return nullptr;
     }
     if (!device->isOpen()) {
-        return 0;
+        return nullptr;
     }
 
     Capabilities cap;
