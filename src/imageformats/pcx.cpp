@@ -667,10 +667,10 @@ QImageIOPlugin::Capabilities PCXPlugin::capabilities(QIODevice *device, const QB
         return Capabilities(CanRead | CanWrite);
     }
     if (!format.isEmpty()) {
-        return nullptr;
+        return {};
     }
     if (!device->isOpen()) {
-        return nullptr;
+        return {};
     }
 
     Capabilities cap;
