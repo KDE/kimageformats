@@ -15,7 +15,6 @@ function(kimageformats_add_plugin plugin)
         message(FATAL_ERROR "JSON file doesn't exist: ${json}")
     endif()
 
-    set_property(SOURCE ${KIF_ADD_PLUGIN_SOURCES} APPEND PROPERTY OBJECT_DEPENDS ${json})
     add_library(${plugin} MODULE ${KIF_ADD_PLUGIN_SOURCES})
     set_property(TARGET ${plugin} APPEND PROPERTY AUTOGEN_TARGET_DEPENDS ${json})
     set_target_properties(${plugin} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/imageformats")
