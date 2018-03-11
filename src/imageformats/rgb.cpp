@@ -23,8 +23,8 @@
 
 #include "rgb_p.h"
 
-#include <QtCore/QMap>
-#include <QtCore/QVector>
+#include <QMap>
+#include <QVector>
 
 #include <QImage>
 // #include <QDebug>

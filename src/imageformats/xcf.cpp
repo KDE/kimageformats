@@ -24,9 +24,9 @@
 #include <stdlib.h>
 #include <QImage>
 #include <QPainter>
-#include <QtCore/QIODevice>
-#include <QtCore/QStack>
-#include <QtCore/QVector>
+#include <QIODevice>
+#include <QStack>
+#include <QVector>
 // #include <QDebug>
 
 #include "gimp_p.h"

@@ -12,7 +12,7 @@
 #include "ras_p.h"
 
 #include <QImage>
-#include <QtCore/QDataStream>
+#include <QDataStream>
 // #include <QDebug>
 
 namespace   // Private.

@@ -23,7 +23,7 @@
 #include <assert.h>
 
 #include <QImage>
-#include <QtCore/QDataStream>
+#include <QDataStream>
 // #include <QDebug>
 
 typedef quint32 uint;
