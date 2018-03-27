@@ -1323,9 +1323,7 @@ bool XCFImageFormat::initializeImage(XCFImage &xcf_image)
             image.fill(qRgb(255, 255, 255));
             break;
         } // else, fall through to 32-bit representation
-#if QT_VERSION >= QT_VERSION_CHECK(5,8,0)
         Q_FALLTHROUGH();
-#endif
     case RGBA_GIMAGE:
         image = QImage(xcf_image.width, xcf_image.height, QImage::Format_ARGB32);
         if (image.isNull()) {
@@ -1345,9 +1343,7 @@ bool XCFImageFormat::initializeImage(XCFImage &xcf_image)
             image.fill(255);
             break;
         } // else, fall through to 32-bit representation
-#if QT_VERSION >= QT_VERSION_CHECK(5,8,0)
         Q_FALLTHROUGH();
-#endif
     case GRAYA_GIMAGE:
         image = QImage(xcf_image.width, xcf_image.height, QImage::Format_ARGB32);
         if (image.isNull()) {

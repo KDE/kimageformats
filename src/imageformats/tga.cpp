@@ -145,9 +145,7 @@ struct TgaHeaderInfo {
         switch (tga.image_type) {
         case TGA_TYPE_RLE_INDEXED:
             rle = true;
-#if QT_VERSION >= QT_VERSION_CHECK(5,8,0)
         Q_FALLTHROUGH();
-#endif
         // no break is intended!
         case TGA_TYPE_INDEXED:
             pal = true;
@@ -155,9 +153,7 @@ struct TgaHeaderInfo {
 
         case TGA_TYPE_RLE_RGB:
             rle = true;
-#if QT_VERSION >= QT_VERSION_CHECK(5,8,0)
         Q_FALLTHROUGH();
-#endif
         // no break is intended!
         case TGA_TYPE_RGB:
             rgb = true;
@@ -165,9 +161,7 @@ struct TgaHeaderInfo {
 
         case TGA_TYPE_RLE_GREY:
             rle = true;
-#if QT_VERSION >= QT_VERSION_CHECK(5,8,0)
         Q_FALLTHROUGH();
-#endif
         // no break is intended!
         case TGA_TYPE_GREY:
             grey = true;
