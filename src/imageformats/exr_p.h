@@ -18,8 +18,8 @@ class EXRHandler : public QImageIOHandler
 public:
     EXRHandler();
 
-    bool canRead() const Q_DECL_OVERRIDE;
-    bool read(QImage *outImage) Q_DECL_OVERRIDE;
+    bool canRead() const override;
+    bool read(QImage *outImage) override;
 
     static bool canRead(QIODevice *device);
 };
@@ -30,8 +30,8 @@ class EXRPlugin : public QImageIOPlugin
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QImageIOHandlerFactoryInterface" FILE "exr.json")
 
 public:
-    Capabilities capabilities(QIODevice *device, const QByteArray &format) const Q_DECL_OVERRIDE;
-    QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const Q_DECL_OVERRIDE;
+    Capabilities capabilities(QIODevice *device, const QByteArray &format) const override;
+    QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const override;
 };
 
 #endif // KIMG_EXR_H

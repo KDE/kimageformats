@@ -154,13 +154,13 @@ struct PicChannel {
 class SoftimagePICHandler : public QImageIOHandler
 {
 public:
-    bool canRead() const Q_DECL_OVERRIDE;
-    bool read(QImage *image) Q_DECL_OVERRIDE;
-    bool write(const QImage &) Q_DECL_OVERRIDE;
+    bool canRead() const override;
+    bool read(QImage *image) override;
+    bool write(const QImage &) override;
 
-    QVariant option(ImageOption option) const Q_DECL_OVERRIDE;
-    void setOption(ImageOption option, const QVariant &value) Q_DECL_OVERRIDE;
-    bool supportsOption(ImageOption option) const Q_DECL_OVERRIDE;
+    QVariant option(ImageOption option) const override;
+    void setOption(ImageOption option, const QVariant &value) override;
+    bool supportsOption(ImageOption option) const override;
 
     static bool canRead(QIODevice *device);
 
@@ -195,8 +195,8 @@ class SoftimagePICPlugin : public QImageIOPlugin
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QImageIOHandlerFactoryInterface" FILE "pic.json")
 
 public:
-    Capabilities capabilities(QIODevice *device, const QByteArray &format) const Q_DECL_OVERRIDE;
-    QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const Q_DECL_OVERRIDE;
+    Capabilities capabilities(QIODevice *device, const QByteArray &format) const override;
+    QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const override;
 };
 
 #endif // KIMG_PIC_H

@@ -15,9 +15,9 @@ class EPSHandler : public QImageIOHandler
 public:
     EPSHandler();
 
-    bool canRead() const Q_DECL_OVERRIDE;
-    bool read(QImage *image) Q_DECL_OVERRIDE;
-    bool write(const QImage &image) Q_DECL_OVERRIDE;
+    bool canRead() const override;
+    bool read(QImage *image) override;
+    bool write(const QImage &image) override;
 
     static bool canRead(QIODevice *device);
 };
@@ -28,8 +28,8 @@ class EPSPlugin : public QImageIOPlugin
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QImageIOHandlerFactoryInterface" FILE "eps.json")
 
 public:
-    Capabilities capabilities(QIODevice *device, const QByteArray &format) const Q_DECL_OVERRIDE;
-    QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const Q_DECL_OVERRIDE;
+    Capabilities capabilities(QIODevice *device, const QByteArray &format) const override;
+    QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const override;
 };
 
 Q_DECLARE_LOGGING_CATEGORY(EPSPLUGIN)
