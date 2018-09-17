@@ -157,7 +157,7 @@ bool EPSHandler::read(QImage *image)
 
     QTemporaryFile tmpFile;
     if (!tmpFile.open()) {
-        qWarning() << "Could not create the temporary file" << tmpFile.fileName();
+        qCWarning(EPSPLUGIN) << "Could not create the temporary file" << tmpFile.fileName();
         return false;
     }
     qCDebug(EPSPLUGIN) << "temporary file:" << tmpFile.fileName();
@@ -199,7 +199,7 @@ bool EPSHandler::read(QImage *image)
     converter.setProcessChannelMode(QProcess::ForwardedErrorChannel);
     converter.start(QStringLiteral("gs"), gsArgs);
     if (!converter.waitForStarted(3000)) {
-        qWarning() << "Reading EPS files requires gs (from GhostScript)";
+        qCWarning(EPSPLUGIN) << "Reading EPS files requires gs (from GhostScript)";
         return false;
     }
 
@@ -298,7 +298,7 @@ bool EPSHandler::write(const QImage &image)
         converter.start(QStringLiteral("gs"), gsArgs);
 
         if (!converter.waitForStarted(3000)) {
-            qWarning() << "Creating EPS files requires pdftops (from Poppler) or gs (from GhostScript)";
+            qCWarning(EPSPLUGIN) << "Creating EPS files requires pdftops (from Poppler) or gs (from GhostScript)";
             return false;
         }
     }
@@ -313,7 +313,7 @@ bool EPSHandler::write(const QImage &image)
 bool EPSHandler::canRead(QIODevice *device)
 {
     if (!device) {
-        qWarning("EPSHandler::canRead() called with no device");
+        qCWarning(EPSPLUGIN) << "EPSHandler::canRead() called with no device";
         return false;
     }
 
