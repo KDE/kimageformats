@@ -686,8 +686,8 @@ bool RGBHandler::canRead(QIODevice *device)
         return false;
     }
 
-    qint64 oldPos = device->pos();
-    QByteArray head = device->readLine(64);
+    const qint64 oldPos = device->pos();
+    const QByteArray head = device->readLine(64);
     int readBytes = head.size();
 
     if (device->isSequential()) {
@@ -699,10 +699,7 @@ bool RGBHandler::canRead(QIODevice *device)
         device->seek(oldPos);
     }
 
-    const QRegExp regexp(QLatin1String("^\x01\xda\x01[\x01\x02]"));
-    QString data(QString::fromLocal8Bit(head));
-
-    return data.contains(regexp);
+    return head.size() >= 4 && head.startsWith("\x01\xda\x01") && (head[3] == 1 || head[3] == 2);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
