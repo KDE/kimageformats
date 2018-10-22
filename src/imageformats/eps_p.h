@@ -4,8 +4,8 @@
 *
 * This library is distributed under the conditions of the GNU LGPL.
 */
-#ifndef KIMG_EPS_H
-#define KIMG_EPS_H
+#ifndef KIMG_EPS_P_H
+#define KIMG_EPS_P_H
 
 #include <QImageIOPlugin>
 #include <QLoggingCategory>
@@ -34,5 +34,5 @@ public:
 
 Q_DECLARE_LOGGING_CATEGORY(EPSPLUGIN)
 
-#endif // KIMG_EPS_H
+#endif // KIMG_EPS_P_H
 

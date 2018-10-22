@@ -19,6 +19,9 @@
  * <http://www.gnu.org/licenses/>.
  */
 
+#ifndef FORMAT_ENUM_H
+#define FORMAT_ENUM_H
+
 #include <QImage>
 
 // Generated from QImage::Format enum
@@ -71,3 +74,4 @@ QString formatToString(QImage::Format format)
         QLatin1String(">");
 }
 
+#endif

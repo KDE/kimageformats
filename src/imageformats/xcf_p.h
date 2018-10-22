@@ -19,8 +19,8 @@
  *
  */
 
-#ifndef KIMG_XCF_H
-#define KIMG_XCF_H
+#ifndef KIMG_XCF_P_H
+#define KIMG_XCF_P_H
 
 #include <QImageIOPlugin>
 
@@ -46,4 +46,4 @@ public:
     QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const override;
 };
 
-#endif // KIMG_XCF_H
+#endif // KIMG_XCF_P_H

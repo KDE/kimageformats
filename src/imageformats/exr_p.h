@@ -8,8 +8,8 @@
 *
 */
 
-#ifndef KIMG_EXR_H
-#define KIMG_EXR_H
+#ifndef KIMG_EXR_P_H
+#define KIMG_EXR_P_H
 
 #include <QImageIOPlugin>
 
@@ -34,4 +34,4 @@ public:
     QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const override;
 };
 
-#endif // KIMG_EXR_H
+#endif // KIMG_EXR_P_H

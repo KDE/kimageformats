@@ -7,8 +7,8 @@
 // published by the Free Software Foundation; either version 2 of the
 // License, or (at your option) any later version.
 
-#ifndef KIMG_RGB_H
-#define KIMG_RGB_H
+#ifndef KIMG_RGB_P_H
+#define KIMG_RGB_P_H
 
 #include <QImageIOPlugin>
 
@@ -34,5 +34,5 @@ public:
     QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const override;
 };
 
-#endif // KIMG_RGB_H
+#endif // KIMG_RGB_P_H
 

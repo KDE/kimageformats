@@ -7,8 +7,8 @@
    version 2 of the License, or (at your option) any later version.
 */
 
-#ifndef KIMG_PCX_H
-#define KIMG_PCX_H
+#ifndef KIMG_PCX_P_H
+#define KIMG_PCX_P_H
 
 #include <QImageIOPlugin>
 
@@ -34,4 +34,4 @@ public:
     QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const override;
 };
 
-#endif // KIMG_PCX_H
+#endif // KIMG_PCX_P_H

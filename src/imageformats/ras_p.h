@@ -8,8 +8,8 @@
    version 2 of the License, or (at your option) any later version.
 */
 
-#ifndef KIMG_RAS_H
-#define KIMG_RAS_H
+#ifndef KIMG_RAS_P_H
+#define KIMG_RAS_P_H
 
 #include <QImageIOPlugin>
 
@@ -34,5 +34,5 @@ public:
     QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const override;
 };
 
-#endif // KIMG_RAS_H
+#endif // KIMG_RAS_P_H
 
