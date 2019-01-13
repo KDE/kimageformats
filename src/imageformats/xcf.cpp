@@ -112,6 +112,9 @@ private:
         {
             delete[] name;
         }
+
+        Layer(const Layer &) = delete;
+        Layer &operator=(const Layer &) = delete;
     };
 
     /*!
