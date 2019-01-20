@@ -189,7 +189,7 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
     }
 
     uint pixel_size = (tga.pixel_size / 8);
-    uint size = tga.width * tga.height * pixel_size;
+    qint64 size = qint64(tga.width) * qint64(tga.height) * pixel_size;
 
     if (size < 1) {
 //          qDebug() << "This TGA file is broken with size " << size;
@@ -204,20 +204,34 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
     }
 
     // Allocate image.
-    uchar *const image = new uchar[size];
+    uchar *const image = reinterpret_cast<uchar*>(malloc(size));
+    if (!image) {
+        return false;
+    }
+
+    bool valid = true;
 
     if (info.rle) {
         // Decode image.
         char *dst = (char *)image;
-        int num = size;
+        qint64 num = size;
 
         while (num > 0) {
+            if (s.atEnd()) {
+                valid = false;
+                break;
+            }
+
             // Get packet header.
             uchar c;
             s >> c;
 
             uint count = (c & 0x7f) + 1;
             num -= count * pixel_size;
+            if (num < 0) {
+                valid = false;
+                break;
+            }
 
             if (c & 0x80) {
                 // RLE pixels.
@@ -238,6 +252,11 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
     } else {
         // Read raw image.
         s.readRawData((char *)image, size);
+    }
+
+    if (!valid) {
+        free(image);
+        return false;
     }
 
     // Convert image to internal format.
@@ -294,7 +313,7 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
     }
 
     // Free image.
-    delete [] image;
+    free(image);
 
     return true;
 }

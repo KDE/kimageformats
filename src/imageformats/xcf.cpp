@@ -495,11 +495,12 @@ bool XCFImageFormat::loadProperty(QDataStream &xcf_io, PropType &type, QByteArra
         quint32 ncolors;
         xcf_io >> ncolors;
 
+        size = 3 * ncolors + 4;
+
         if (size > 65535 || size < 4) {
             return false;
         }
 
-        size = 3 * ncolors + 4;
         data = new char[size];
 
         // since we already read "ncolors" from the stream, we put that data back
