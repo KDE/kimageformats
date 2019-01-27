@@ -129,8 +129,8 @@ private:
         qint32 type;            //!< type of the XCF image (GimpImageBaseType)
 
         quint8 compression;     //!< tile compression method (CompressionType)
-        float x_resolution;     //!< x resolution in dots per inch
-        float y_resolution;     //!< y resolution in dots per inch
+        float x_resolution = -1;//!< x resolution in dots per inch
+        float y_resolution = -1;//!< y resolution in dots per inch
         qint32 tattoo;          //!< (unique identifier?)
         quint32 unit;           //!< Units of The GIMP (inch, mm, pica, etc...)
         qint32 num_colors = 0;  //!< number of colors in an indexed image
@@ -1440,14 +1440,16 @@ bool XCFImageFormat::initializeImage(XCFImage &xcf_image)
         break;
     }
 
-    const float dpmx = xcf_image.x_resolution * INCHESPERMETER;
-    if (dpmx > std::numeric_limits<int>::max())
-        return false;
-    const float dpmy = xcf_image.y_resolution * INCHESPERMETER;
-    if (dpmy > std::numeric_limits<int>::max())
-        return false;
-    image.setDotsPerMeterX((int)dpmx);
-    image.setDotsPerMeterY((int)dpmy);
+    if (xcf_image.x_resolution > 0 && xcf_image.y_resolution > 0) {
+        const float dpmx = xcf_image.x_resolution * INCHESPERMETER;
+        if (dpmx > std::numeric_limits<int>::max())
+            return false;
+        const float dpmy = xcf_image.y_resolution * INCHESPERMETER;
+        if (dpmy > std::numeric_limits<int>::max())
+            return false;
+        image.setDotsPerMeterX((int)dpmx);
+        image.setDotsPerMeterY((int)dpmy);
+    }
     return true;
 }
 
