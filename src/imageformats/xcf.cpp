@@ -1432,8 +1432,14 @@ bool XCFImageFormat::initializeImage(XCFImage &xcf_image)
         break;
     }
 
-    image.setDotsPerMeterX((int)(xcf_image.x_resolution * INCHESPERMETER));
-    image.setDotsPerMeterY((int)(xcf_image.y_resolution * INCHESPERMETER));
+    const float dpmx = xcf_image.x_resolution * INCHESPERMETER;
+    if (dpmx > std::numeric_limits<int>::max())
+        return false;
+    const float dpmy = xcf_image.y_resolution * INCHESPERMETER;
+    if (dpmy > std::numeric_limits<int>::max())
+        return false;
+    image.setDotsPerMeterX((int)dpmx);
+    image.setDotsPerMeterY((int)dpmy);
     return true;
 }
 
