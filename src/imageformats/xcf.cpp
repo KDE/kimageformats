@@ -133,7 +133,7 @@ private:
         float y_resolution;     //!< y resolution in dots per inch
         qint32 tattoo;          //!< (unique identifier?)
         quint32 unit;           //!< Units of The GIMP (inch, mm, pica, etc...)
-        qint32 num_colors;      //!< number of colors in an indexed image
+        qint32 num_colors = 0;  //!< number of colors in an indexed image
         QVector<QRgb> palette;          //!< indexed image color palette
 
         int num_layers;         //!< number of layers
