@@ -87,7 +87,7 @@ private:
 
         bool active;            //!< Is this layer the active layer?
         quint32 opacity;        //!< The opacity of the layer
-        quint32 visible;        //!< Is the layer visible?
+        quint32 visible = 1;    //!< Is the layer visible?
         quint32 linked;     //!< Is this layer linked (geometrically)
         quint32 preserve_transparency; //!< Preserve alpha when drawing on layer?
         quint32 apply_mask;     //!< Apply the layer mask?
