@@ -181,7 +181,7 @@ private:
     static const LayerModes layer_modes[];
 
     bool loadImageProperties(QDataStream &xcf_io, XCFImage &image);
-    bool loadProperty(QDataStream &xcf_io, PropType &type, QByteArray &bytes);
+    bool loadProperty(QDataStream &xcf_io, PropType &type, QByteArray &bytes, quint32 &rawType);
     bool loadLayer(QDataStream &xcf_io, XCFImage &xcf_image);
     bool loadLayerProperties(QDataStream &xcf_io, Layer &layer);
     bool composeTiles(XCFImage &xcf_image);
@@ -387,8 +387,9 @@ bool XCFImageFormat::loadImageProperties(QDataStream &xcf_io, XCFImage &xcf_imag
     while (true) {
         PropType type;
         QByteArray bytes;
+        quint32 rawType;
 
-        if (!loadProperty(xcf_io, type, bytes)) {
+        if (!loadProperty(xcf_io, type, bytes, rawType)) {
 //          qDebug() << "XCF: error loading global image properties";
             return false;
         }
@@ -457,7 +458,7 @@ bool XCFImageFormat::loadImageProperties(QDataStream &xcf_io, XCFImage &xcf_imag
             break;
 
         default:
-//                  qDebug() << "XCF: unimplemented image property" << type
+//                  qDebug() << "XCF: unimplemented image property" << rawType
 //                          << ", size " << bytes.size() << endl;
             break;
         }
@@ -471,11 +472,16 @@ bool XCFImageFormat::loadImageProperties(QDataStream &xcf_io, XCFImage &xcf_imag
  * \param type returns with the property type.
  * \param bytes returns with the property data.
  * \return true if there were no IO errors.  */
-bool XCFImageFormat::loadProperty(QDataStream &xcf_io, PropType &type, QByteArray &bytes)
+bool XCFImageFormat::loadProperty(QDataStream &xcf_io, PropType &type, QByteArray &bytes, quint32 &rawType)
 {
-    quint32 foo;
-    xcf_io >> foo;
-    type = PropType(foo); // TODO urks
+    xcf_io >> rawType;
+    if (rawType >= MAX_SUPPORTED_PROPTYPE) {
+        type = MAX_SUPPORTED_PROPTYPE;
+        // return true because we don't really want to totally fail on an unsupported property since it may not be fatal
+        return true;
+    }
+
+    type = PropType(rawType);
 
     char *data = nullptr;
     quint32 size;
@@ -634,8 +640,9 @@ bool XCFImageFormat::loadLayerProperties(QDataStream &xcf_io, Layer &layer)
     while (true) {
         PropType type;
         QByteArray bytes;
+        quint32 rawType;
 
-        if (!loadProperty(xcf_io, type, bytes)) {
+        if (!loadProperty(xcf_io, type, bytes, rawType)) {
 //          qDebug() << "XCF: error loading layer properties";
             return false;
         }
@@ -691,7 +698,7 @@ bool XCFImageFormat::loadLayerProperties(QDataStream &xcf_io, Layer &layer)
             break;
 
         default:
-//              qDebug() << "XCF: unimplemented layer property " << type
+//              qDebug() << "XCF: unimplemented layer property " << rawType
 //                      << ", size " << bytes.size() << endl;
             break;
         }
@@ -1218,8 +1225,9 @@ bool XCFImageFormat::loadChannelProperties(QDataStream &xcf_io, Layer &layer)
     while (true) {
         PropType type;
         QByteArray bytes;
+        quint32 rawType;
 
-        if (!loadProperty(xcf_io, type, bytes)) {
+        if (!loadProperty(xcf_io, type, bytes, rawType)) {
 //          qDebug() << "XCF: error loading channel properties";
             return false;
         }
@@ -1252,7 +1260,7 @@ bool XCFImageFormat::loadChannelProperties(QDataStream &xcf_io, Layer &layer)
             break;
 
         default:
-//              qDebug() << "XCF: unimplemented channel property " << type
+//              qDebug() << "XCF: unimplemented channel property " << rawType
 //                      << ", size " << bytes.size() << endl;
             break;
         }
