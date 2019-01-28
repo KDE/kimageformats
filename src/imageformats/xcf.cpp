@@ -540,7 +540,11 @@ bool XCFImageFormat::loadProperty(QDataStream &xcf_io, PropType &type, QByteArra
             return false;
         }
         data = new char[size];
-        xcf_io.readRawData(data, size);
+        const quint32 dataRead = xcf_io.readRawData(data, size);
+        if (dataRead < size) {
+//          qDebug() << "XCF: loadProperty read less data than expected" << data_length << dataRead;
+            memset(&data[dataRead], 0, size - dataRead);
+        }
     }
 
     if (size != 0 && data) {
