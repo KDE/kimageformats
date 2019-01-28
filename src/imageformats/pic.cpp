@@ -59,7 +59,10 @@ static QDataStream &operator>> (QDataStream &s, PicHeader &header)
     header.comment = QByteArray(comment);
 
     header.id.resize(4);
-    s.readRawData(header.id.data(), 4);
+    const int bytesRead = s.readRawData(header.id.data(), 4);
+    if (bytesRead != 4) {
+        header.id.resize(bytesRead);
+    }
 
     s >> header.width;
     s >> header.height;
