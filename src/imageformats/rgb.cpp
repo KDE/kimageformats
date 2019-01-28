@@ -144,6 +144,9 @@ bool SGIImage::getRow(uchar *dest)
         if (_bpc == 2) {
             _pos++;
         }
+        if (_pos >= _data.end()) {
+            return false;
+        }
         n = *_pos & 0x7f;
         if (!n) {
             break;
