@@ -1119,7 +1119,11 @@ bool XCFImageFormat::loadTileRLE(QDataStream &xcf_io, uchar *tile, int image_siz
 
     xcfdata = xcfodata = new uchar[data_length];
 
-    xcf_io.readRawData((char *)xcfdata, data_length);
+    const int dataRead = xcf_io.readRawData((char *)xcfdata, data_length);
+    if (dataRead < data_length) {
+//      qDebug() << "XCF: read less data than expected" << data_length << dataRead;
+        bzero(&xcfdata[dataRead], data_length - dataRead);
+    }
 
     if (!xcf_io.device()->isOpen()) {
         delete[] xcfodata;
