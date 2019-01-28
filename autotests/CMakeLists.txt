@@ -3,7 +3,7 @@
 include(ECMMarkAsTest)
 include(CMakeParseArguments)
 
-add_definitions(-DPLUGIN_DIR="${CMAKE_CURRENT_BINARY_DIR}/../src")
+add_definitions(-DPLUGIN_DIR="${CMAKE_CURRENT_BINARY_DIR}/../bin")
 remove_definitions(-DQT_NO_CAST_FROM_ASCII)
 
 macro(kimageformats_read_tests)

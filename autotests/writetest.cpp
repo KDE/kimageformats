@@ -34,6 +34,7 @@
 int main(int argc, char ** argv)
 {
     QCoreApplication app(argc, argv);
+    QCoreApplication::removeLibraryPath(QStringLiteral(PLUGIN_DIR));
     QCoreApplication::addLibraryPath(QStringLiteral(PLUGIN_DIR));
     QCoreApplication::setApplicationName(QStringLiteral("readtest"));
     QCoreApplication::setApplicationVersion(QStringLiteral("1.0.0"));
