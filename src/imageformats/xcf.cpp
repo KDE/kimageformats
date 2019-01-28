@@ -95,8 +95,8 @@ private:
         quint32 apply_mask;     //!< Apply the layer mask?
         quint32 edit_mask;      //!< Is the layer mask the being edited?
         quint32 show_mask;      //!< Show the layer mask rather than the image?
-        qint32 x_offset;        //!< x offset of the layer relative to the image
-        qint32 y_offset;        //!< y offset of the layer relative to the image
+        qint32 x_offset = 0;    //!< x offset of the layer relative to the image
+        qint32 y_offset = 0;    //!< y offset of the layer relative to the image
         quint32 mode = 0;       //!< Combining mode of layer (LayerModeEffects)
         quint32 tattoo;     //!< (unique identifier?)
 
