@@ -97,7 +97,7 @@ private:
         quint32 show_mask;      //!< Show the layer mask rather than the image?
         qint32 x_offset;        //!< x offset of the layer relative to the image
         qint32 y_offset;        //!< y offset of the layer relative to the image
-        quint32 mode;           //!< Combining mode of layer (LayerModeEffects)
+        quint32 mode = 0;       //!< Combining mode of layer (LayerModeEffects)
         quint32 tattoo;     //!< (unique identifier?)
 
         //! As each tile is read from the file, it is buffered here.
