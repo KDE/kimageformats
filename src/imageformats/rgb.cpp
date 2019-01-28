@@ -316,6 +316,9 @@ bool SGIImage::readImage(QImage &img)
 
     img = QImage(_xsize, _ysize, QImage::Format_RGB32);
 
+    if (_zsize == 0 )
+        return false;
+
     if (_zsize == 2 || _zsize == 4) {
         img = img.convertToFormat(QImage::Format_ARGB32);
     } else if (_zsize > 4) {
