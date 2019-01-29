@@ -153,7 +153,7 @@ bool SGIImage::getRow(uchar *dest)
         }
 
         if (*_pos++ & 0x80) {
-            for (; i < _xsize && n--; i++) {
+            for (; i < _xsize && _pos < _data.end() && n--; i++) {
                 *dest++ = *_pos;
                 _pos += _bpc;
             }
