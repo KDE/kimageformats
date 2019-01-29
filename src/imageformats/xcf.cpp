@@ -27,7 +27,7 @@
 #include <QIODevice>
 #include <QStack>
 #include <QVector>
-// #include <QDebug>
+#include <QDebug>
 
 #include <string.h>
 
@@ -969,6 +969,46 @@ bool XCFImageFormat::loadHierarchy(QDataStream &xcf_io, Layer &layer)
     quint32 offset;
 
     xcf_io >> width >> height >> bpp >> offset;
+
+    // make sure bpp is correct and complain if it is not
+    switch (layer.type) {
+        case RGB_GIMAGE:
+            if (bpp != 3) {
+                qWarning() << "Found layer of type RGB but with bpp != 3" << bpp;
+                bpp = 3;
+            }
+            break;
+        case RGBA_GIMAGE:
+            if (bpp != 4) {
+                qWarning() << "Found layer of type RGBA but with bpp != 4" << bpp;
+                bpp = 4;
+            }
+            break;
+        case GRAY_GIMAGE:
+            if (bpp != 1) {
+                qWarning() << "Found layer of type Gray but with bpp != 1" << bpp;
+                bpp = 1;
+            }
+            break;
+        case GRAYA_GIMAGE:
+            if (bpp != 2) {
+                qWarning() << "Found layer of type Gray+Alpha but with bpp != 2" << bpp;
+                bpp = 2;
+            }
+            break;
+        case INDEXED_GIMAGE:
+            if (bpp != 1) {
+                qWarning() << "Found layer of type Indexed but with bpp != 1" << bpp;
+                bpp = 1;
+            }
+            break;
+        case INDEXEDA_GIMAGE:
+            if (bpp != 2) {
+                qWarning() << "Found layer of type Indexed+Alpha but with bpp != 2" << bpp;
+                bpp = 2;
+            }
+            break;
+    }
 
     // GIMP stores images in a "mipmap"-like format (multiple levels of
     // increasingly lower resolution). Only the top level is used here,
