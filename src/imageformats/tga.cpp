@@ -186,6 +186,10 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
     // However alpha exists only in the 32 bit format.
     if ((tga.pixel_size == 32) && (tga.flags & 0xf)) {
         img = QImage(tga.width, tga.height, QImage::Format_ARGB32);
+
+        if (numAlphaBits > 8) {
+            return false;
+        }
     }
 
     uint pixel_size = (tga.pixel_size / 8);
