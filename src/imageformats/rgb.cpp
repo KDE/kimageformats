@@ -312,8 +312,6 @@ bool SGIImage::readImage(QImage &img)
         return false;
     }
 
-    _numrows = _ysize * _zsize;
-
     img = QImage(_xsize, _ysize, QImage::Format_RGB32);
 
     if (_zsize == 0 )
@@ -323,7 +321,13 @@ bool SGIImage::readImage(QImage &img)
         img = img.convertToFormat(QImage::Format_ARGB32);
     } else if (_zsize > 4) {
 //         qDebug() << "using first 4 of " << _zsize << " channels";
+        // Only let this continue if it won't cause a int overflow later
+        // this is most likely a broken file anyway
+        if (_ysize > std::numeric_limits<int>::max() / _zsize)
+            return false;
     }
+
+    _numrows = _ysize * _zsize;
 
     if (_rle) {
         uint l;
