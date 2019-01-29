@@ -92,7 +92,8 @@ private:
         quint32 visible = 1;    //!< Is the layer visible?
         quint32 linked;     //!< Is this layer linked (geometrically)
         quint32 preserve_transparency; //!< Preserve alpha when drawing on layer?
-        quint32 apply_mask;     //!< Apply the layer mask?
+        quint32 apply_mask = 9; //!< Apply the layer mask? Use 9 as "uninitilized". Spec says "If the property does not appear for a layer which has a layer mask, it defaults to true (1).
+                                //   Robust readers should force this to false if the layer has no layer mask.
         quint32 edit_mask;      //!< Is the layer mask the being edited?
         quint32 show_mask;      //!< Show the layer mask rather than the image?
         qint32 x_offset = 0;    //!< x offset of the layer relative to the image
@@ -611,11 +612,19 @@ bool XCFImageFormat::loadLayer(QDataStream &xcf_io, XCFImage &xcf_image)
     }
 
     if (layer.mask_offset != 0) {
+        // 9 means its not on the file. Spec says "If the property does not appear for a layer which has a layer mask, it defaults to true (1).
+        if (layer.apply_mask == 9) {
+            layer.apply_mask = 1;
+        }
+
         xcf_io.device()->seek(layer.mask_offset);
 
         if (!loadMask(xcf_io, layer)) {
             return false;
         }
+    } else {
+        // Spec says "Robust readers should force this to false if the layer has no layer mask."
+        layer.apply_mask = 0;
     }
 
     // Now we should have enough information to initialize the final
