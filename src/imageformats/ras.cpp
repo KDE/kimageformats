@@ -131,6 +131,9 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
     // Allocate image
     img = QImage(ras.Width, ras.Height, QImage::Format_ARGB32);
 
+    if (img.isNull())
+        return false;
+
     // Reconstruct image from RGB palette if we have a palette
     // TODO: make generic so it works with 24bit or 32bit palettes
     if (ras.ColorMapType == 1 && ras.Depth == 8) {
