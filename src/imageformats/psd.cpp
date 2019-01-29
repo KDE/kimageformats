@@ -177,6 +177,10 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
 
     QRgb *image_data = reinterpret_cast<QRgb*>(img.bits());
 
+    if (!image_data) {
+        return false;
+    }
+
     static const channelUpdater updaters[4] = {
         updateRed,
         updateGreen,
