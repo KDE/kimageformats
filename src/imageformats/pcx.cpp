@@ -253,6 +253,9 @@ static void readImage1(QImage &img, QDataStream &s, const PCXHEADER &header)
     img = QImage(header.width(), header.height(), QImage::Format_Mono);
     img.setColorCount(2);
 
+    if (img.isNull())
+        return;
+
     for (int y = 0; y < header.height(); ++y) {
         if (s.atEnd()) {
             img = QImage();
