@@ -251,6 +251,10 @@ bool RASHandler::read(QImage *outImage)
     // Read image header.
     RasHeader ras;
     s >> ras;
+
+    if (ras.ColorMapLength > std::numeric_limits<int>::max())
+        return false;
+
     // TODO: add support for old versions of RAS where Length may be zero in header
     s.device()->seek(RasHeader::SIZE + ras.Length + ras.ColorMapLength);
 
