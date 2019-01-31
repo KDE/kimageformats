@@ -451,6 +451,7 @@ bool XCFImageFormat::loadImageProperties(QDataStream &xcf_io, XCFImage &xcf_imag
                 return false;
             }
 
+            xcf_image.palette = QVector<QRgb>();
             xcf_image.palette.reserve(xcf_image.num_colors);
 
             for (int i = 0; i < xcf_image.num_colors; i++) {
