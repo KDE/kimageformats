@@ -24,7 +24,7 @@
 
 #include <QImage>
 #include <QDataStream>
-// #include <QDebug>
+#include <QDebug>
 
 typedef quint32 uint;
 typedef quint16 ushort;

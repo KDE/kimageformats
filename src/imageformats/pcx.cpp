@@ -11,7 +11,7 @@
 
 #include <QColor>
 #include <QDataStream>
-// #include <QDebug>
+#include <QDebug>
 #include <QImage>
 
 

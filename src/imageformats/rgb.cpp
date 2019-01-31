@@ -27,7 +27,7 @@
 #include <QVector>
 
 #include <QImage>
-// #include <QDebug>
+#include <QDebug>
 
 class RLEData : public QVector<uchar>
 {

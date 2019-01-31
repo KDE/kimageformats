@@ -13,7 +13,7 @@
 
 #include <QImage>
 #include <QDataStream>
-// #include <QDebug>
+#include <QDebug>
 
 namespace   // Private.
 {

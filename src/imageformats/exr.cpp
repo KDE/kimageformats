@@ -30,7 +30,7 @@
 
 #include <QImage>
 #include <QDataStream>
-// #include <QDebug>
+#include <QDebug>
 #include <QImageIOPlugin>
 
 class K_IStream: public Imf::IStream
