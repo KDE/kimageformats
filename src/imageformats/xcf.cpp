@@ -676,7 +676,7 @@ bool XCFImageFormat::loadLayerProperties(QDataStream &xcf_io, Layer &layer)
 
         case PROP_OPACITY:
             property >> layer.opacity;
-            layer.opacity = std::max(layer.opacity, 255u);
+            layer.opacity = std::min(layer.opacity, 255u);
             break;
 
         case PROP_VISIBLE:
@@ -1302,7 +1302,7 @@ bool XCFImageFormat::loadChannelProperties(QDataStream &xcf_io, Layer &layer)
 
         case PROP_OPACITY:
             property >> layer.mask_channel.opacity;
-            layer.mask_channel.opacity = std::max(layer.mask_channel.opacity, 255u);
+            layer.mask_channel.opacity = std::min(layer.mask_channel.opacity, 255u);
             break;
 
         case PROP_VISIBLE:
