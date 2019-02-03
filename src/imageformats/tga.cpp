@@ -206,6 +206,9 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
         // @todo Support palettes in other formats!
         const int size = 3 * tga.colormap_length;
         const int dataRead = s.readRawData(palette, size);
+        if (dataRead < 0) {
+            return false;
+        }
         if (dataRead < size) {
             memset(&palette[dataRead], 0, size - dataRead);
         }
@@ -260,6 +263,10 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
     } else {
         // Read raw image.
         const int dataRead = s.readRawData((char *)image, size);
+        if (dataRead < 0) {
+            free(image);
+            return false;
+        }
         if (dataRead < size) {
             memset(&image[dataRead], 0, size - dataRead);
         }
