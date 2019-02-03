@@ -2214,7 +2214,7 @@ void XCFImageFormat::mergeRGBToRGB(Layer &layer, uint i, uint j, int k, int l,
     uchar new_r, new_g, new_b, new_a;
     new_a = dst_a + INT_MULT(OPAQUE_OPACITY - dst_a, src_a);
 
-    float src_ratio = (float)src_a / new_a;
+    const float src_ratio = new_a == 0 ? 1.0 : (float)src_a / new_a;
     float dst_ratio = 1.0 - src_ratio;
 
     new_r = (uchar)(src_ratio * src_r + dst_ratio * dst_r + EPSILON);
@@ -2373,7 +2373,7 @@ void XCFImageFormat::mergeGrayAToGray(Layer &layer, uint i, uint j, int k, int l
 
     uchar new_a = OPAQUE_OPACITY;
 
-    float src_ratio = (float)src_a / new_a;
+    const float src_ratio = new_a == 0 ? 1.0 : (float)src_a / new_a;
     float dst_ratio = 1.0 - src_ratio;
 
     uchar new_g = (uchar)(src_ratio * src + dst_ratio * dst + EPSILON);
@@ -2546,7 +2546,7 @@ void XCFImageFormat::mergeGrayAToRGB(Layer &layer, uint i, uint j, int k, int l,
 
     uchar new_a = dst_a + INT_MULT(OPAQUE_OPACITY - dst_a, src_a);
 
-    float src_ratio = (float)src_a / new_a;
+    const float src_ratio = new_a == 0 ? 1.0 : (float)src_a / new_a;
     float dst_ratio = 1.0 - src_ratio;
 
     uchar new_g = (uchar)(src_ratio * src + dst_ratio * dst + EPSILON);
