@@ -110,9 +110,15 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
         }
     }
 
+    const int bpp = ras.Depth / 8;
+    if (ras.Length / ras.Height / bpp < ras.Width) {
+        qWarning() << "LoadRAS() mistmatch between height and width" << ras.Width << ras.Height << ras.Length << ras.Depth;
+        return false;
+    }
+
     // each line must be a factor of 16 bits, so they may contain padding
     // this will be 1 if padding required, 0 otherwise
-    int paddingrequired = (ras.Width * (ras.Depth / 8) % 2);
+    const int paddingrequired = (ras.Width * bpp % 2);
 
     // qDebug() << "paddingrequired: " << paddingrequired;
     // don't trust ras.Length
@@ -122,7 +128,7 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
     while (! s.atEnd()) {
         s >> input[i];
         // I guess we need to find out if we're at the end of a line
-        if (paddingrequired && i != 0 && !(i % (ras.Width * (ras.Depth / 8)))) {
+        if (paddingrequired && i != 0 && !(i % (ras.Width * bpp))) {
             s >> input[i];
         }
         i++;
