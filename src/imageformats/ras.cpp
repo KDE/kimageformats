@@ -111,6 +111,12 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
     }
 
     const int bpp = ras.Depth / 8;
+    if (ras.Height == 0) {
+        return false;
+    }
+    if (bpp == 0) {
+        return false;
+    }
     if (ras.Length / ras.Height / bpp < ras.Width) {
         qWarning() << "LoadRAS() mistmatch between height and width" << ras.Width << ras.Height << ras.Length << ras.Depth;
         return false;
