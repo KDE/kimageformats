@@ -121,7 +121,8 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
         qWarning() << "LoadRAS() mistmatch between height and width" << ras.Width << ras.Height << ras.Length << ras.Depth;
         return false;
     }
-    if (ras.Length > std::numeric_limits<int>::max()) {
+    // QVector uses some extra space for stuff, hence the 32 here suggested by thiago
+    if (ras.Length + 32 > std::numeric_limits<int>::max()) {
         qWarning() << "LoadRAS() unsupported image length in file header" << ras.Length;
         return false;
     }
