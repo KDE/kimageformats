@@ -1063,6 +1063,13 @@ bool XCFImageFormat::loadLevel(QDataStream &xcf_io, Layer &layer, qint32 bpp)
     xcf_io >> width >> height >> offset;
 
     if (offset == 0) {
+        // offset 0 with rowsxcols != 0 is probably an error since it means we have tiles
+        // without data but just clear the bits for now instead of returning false
+        for (uint j = 0; j < layer.nrows; j++) {
+            for (uint i = 0; i < layer.ncols; i++) {
+                layer.image_tiles[j][i].fill(Qt::transparent);
+            }
+        }
         return true;
     }
 
