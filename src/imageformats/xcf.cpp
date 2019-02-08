@@ -901,7 +901,7 @@ void XCFImageFormat::setPalette(XCFImage &xcf_image, QImage &image)
 void XCFImageFormat::assignImageBytes(Layer &layer, uint i, uint j)
 {
     QImage &image = layer.image_tiles[j][i];
-    uchar *tile = layer.tile;
+    const uchar *tile = layer.tile;
     const int width = image.width();
     const int height = image.height();
     const int bytesPerLine = image.bytesPerLine();
