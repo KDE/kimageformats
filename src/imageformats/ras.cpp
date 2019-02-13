@@ -102,6 +102,13 @@ static bool IsSupported(const RasHeader &head)
 static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
 {
     s.device()->seek(RasHeader::SIZE);
+
+    // QVector uses some extra space for stuff, hence the 32 here suggested by thiago
+    if (ras.ColorMapLength > std::numeric_limits<int>::max() - 32) {
+        qWarning() << "LoadRAS() unsupported image color map length in file header" << ras.ColorMapLength;
+        return false;
+    }
+
     // Read palette if needed.
     QVector<quint8> palette(ras.ColorMapLength);
     if (ras.ColorMapType == 1) {
