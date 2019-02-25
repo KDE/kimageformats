@@ -64,11 +64,13 @@ int main(int argc, char **argv)
     if (parser.isSet(listformats)) {
         QTextStream out(stdout);
         out << "Input formats:\n";
-        foreach (const QByteArray &fmt, QImageReader::supportedImageFormats()) {
+        const auto lstReaderSupportedFormats = QImageReader::supportedImageFormats();
+        for (const QByteArray &fmt : lstReaderSupportedFormats) {
             out << "  " << fmt << '\n';
         }
         out << "Output formats:\n";
-        foreach (const QByteArray &fmt, QImageWriter::supportedImageFormats()) {
+        const auto lstWriterSupportedFormats = QImageWriter::supportedImageFormats();
+        for (const QByteArray &fmt : lstWriterSupportedFormats) {
             out << "  " << fmt << '\n';
         }
         return 0;

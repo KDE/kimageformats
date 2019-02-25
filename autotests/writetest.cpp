@@ -73,8 +73,8 @@ int main(int argc, char ** argv)
     QTextStream(stdout) << "********* "
         << "Starting basic write tests for "
         << suffix << " images *********\n";
-
-    foreach (QFileInfo fi, imgdir.entryInfoList()) {
+    const QFileInfoList lstImgDir = imgdir.entryInfoList();
+    for (const QFileInfo &fi : lstImgDir) {
         int suffixPos = fi.filePath().count() - suffix.count();
         QString pngfile = fi.filePath().replace(suffixPos, suffix.count(), QStringLiteral("png"));
         QString pngfilename = QFileInfo(pngfile).fileName();

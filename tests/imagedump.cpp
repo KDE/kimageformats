@@ -72,7 +72,8 @@ int main(int argc, char **argv)
     if (parser.isSet(listformats)) {
         QTextStream out(stdout);
         out << "File formats:\n";
-        foreach (const QByteArray &fmt, QImageReader::supportedImageFormats()) {
+        const QList<QByteArray> lstSupportedFormats = QImageReader::supportedImageFormats();
+        for (const QByteArray &fmt : lstSupportedFormats) {
             out << "  " << fmt << '\n';
         }
         return 0;

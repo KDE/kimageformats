@@ -45,7 +45,7 @@ set_package_properties(OpenEXR PROPERTIES
     TYPE OPTIONAL
     PURPOSE "Required for the QImage plugin for OpenEXR images"
 )
-
+add_definitions(-DQT_NO_FOREACH)
 add_subdirectory(src)
 if (BUILD_TESTING)
     add_subdirectory(autotests)

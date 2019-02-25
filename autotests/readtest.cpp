@@ -127,7 +127,8 @@ int main(int argc, char ** argv)
         << "Starting basic read tests for "
         << suffix << " images *********\n";
 
-    foreach (QFileInfo fi, imgdir.entryInfoList()) {
+    const QFileInfoList lstImgDir = imgdir.entryInfoList();
+    for (const QFileInfo &fi : lstImgDir) {
         int suffixPos = fi.filePath().count() - suffix.count();
         QString inputfile = fi.filePath();
         QString expfile = fi.filePath().replace(suffixPos, suffix.count(), QStringLiteral("png"));
