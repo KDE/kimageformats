@@ -164,9 +164,9 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
         quint8 red, green, blue;
         for (quint32 y = 0; y < ras.Height; y++) {
             for (quint32 x = 0; x < ras.Width; x++) {
-                red = palette[(int)input[y * ras.Width + x]];
-                green = palette[(int)input[y * ras.Width + x] + (ras.ColorMapLength / 3)];
-                blue = palette[(int)input[y * ras.Width + x] + 2 * (ras.ColorMapLength / 3)];
+                red = palette.value((int)input[y * ras.Width + x]);
+                green = palette.value((int)input[y * ras.Width + x] + (ras.ColorMapLength / 3));
+                blue = palette.value((int)input[y * ras.Width + x] + 2 * (ras.ColorMapLength / 3));
                 img.setPixel(x, y, qRgb(red, green, blue));
             }
         }
