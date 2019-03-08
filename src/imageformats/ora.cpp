@@ -38,7 +38,7 @@ bool OraHandler::read(QImage *image)
     KZip zip(device());
     if (!zip.open(QIODevice::ReadOnly)) return false;
 
-    const KArchiveEntry *entry = zip.directory()->entry(QLatin1String("mergedimage.png"));
+    const KArchiveEntry *entry = zip.directory()->entry(QStringLiteral("mergedimage.png"));
     if (!entry || !entry->isFile()) return false;
 
     const KZipFileEntry* fileZipEntry = static_cast<const KZipFileEntry*>(entry);
