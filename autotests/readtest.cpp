@@ -148,6 +148,14 @@ int main(int argc, char ** argv)
             ++failed;
             continue;
         }
+        if (!inputReader.canRead()) {
+            QTextStream(stdout) << "FAIL : " << fi.fileName()
+                << ": failed can read: "
+                << inputReader.errorString()
+                << "\n";
+            ++failed;
+            continue;
+        }
         if (!inputReader.read(&inputImage)) {
             QTextStream(stdout) << "FAIL : " << fi.fileName()
                 << ": failed to load: "
