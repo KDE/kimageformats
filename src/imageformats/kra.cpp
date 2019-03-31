@@ -19,7 +19,7 @@
 #include <QFile>
 
 static constexpr char s_magic[] = "application/x-krita";
-static constexpr int s_magic_size = strlen(s_magic);
+static constexpr int s_magic_size = sizeof(s_magic) - 1; // -1 to remove the last \0
 
 KraHandler::KraHandler()
 {
