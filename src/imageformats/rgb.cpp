@@ -709,7 +709,7 @@ bool RGBHandler::canRead(QIODevice *device)
         device->seek(oldPos);
     }
 
-    return head.size() >= 4 && head.startsWith("\x01\xda\x01") && (head[3] == 1 || head[3] == 2);
+    return head.size() >= 4 && head.startsWith("\x01\xda") && (head[2] == 0 || head[2] == 1) && (head[3] == 1 || head[3] == 2);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
