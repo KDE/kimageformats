@@ -18,6 +18,9 @@
 #include <QIODevice>
 #include <QFile>
 
+static constexpr char s_magic[] = "application/x-krita";
+static constexpr int s_magic_size = strlen(s_magic);
+
 KraHandler::KraHandler()
 {
 }
@@ -55,7 +58,7 @@ bool KraHandler::canRead(QIODevice *device)
 
     char buff[57];
     if (device->peek(buff, sizeof(buff)) == sizeof(buff))
-        return qstrcmp(buff + 0x26, "application/x-krita") == 0;
+        return memcmp(buff + 0x26, s_magic, s_magic_size) == 0;
 
     return false;
 }

@@ -17,6 +17,9 @@
 
 #include <kzip.h>
 
+static constexpr char s_magic[] = "image/openraster";
+static constexpr int s_magic_size = strlen(s_magic);
+
 OraHandler::OraHandler()
 {
 }
@@ -54,7 +57,7 @@ bool OraHandler::canRead(QIODevice *device)
 
     char buff[54];
     if (device->peek(buff, sizeof(buff)) == sizeof(buff))
-        return qstrcmp(buff + 0x26, "image/openraster") == 0;
+        return memcmp(buff + 0x26, s_magic, s_magic_size) == 0;
 
     return false;
 }
