@@ -244,6 +244,12 @@ bool XCFImageFormat::random_table_initialized;
 
 QVector<QRgb> XCFImageFormat::grayTable;
 
+template <typename T, size_t N>
+constexpr size_t countof(T(&)[N])
+{
+    return N;
+}
+
 const XCFImageFormat::LayerModes XCFImageFormat::layer_modes[] = {
     {true},     // NORMAL_MODE
     {true},     // DISSOLVE_MODE
@@ -709,6 +715,10 @@ bool XCFImageFormat::loadLayerProperties(QDataStream &xcf_io, Layer &layer)
 
         case PROP_MODE:
             property >> layer.mode;
+            if (layer.mode >= countof(layer_modes)) {
+                qWarning() << "Found layer with unsupported mode" << layer.mode << "Defaulting to mode 0";
+                layer.mode = 0;
+            }
             break;
 
         case PROP_TATTOO:
