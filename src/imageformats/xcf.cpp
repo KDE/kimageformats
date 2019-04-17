@@ -1078,6 +1078,9 @@ bool XCFImageFormat::loadLevel(QDataStream &xcf_io, Layer &layer, qint32 bpp)
         for (uint j = 0; j < layer.nrows; j++) {
             for (uint i = 0; i < layer.ncols; i++) {
                 layer.image_tiles[j][i].fill(Qt::transparent);
+                if (layer.type == GRAYA_GIMAGE || layer.type == INDEXEDA_GIMAGE) {
+                    layer.alpha_tiles[j][i].fill(Qt::transparent);
+                }
             }
         }
         return true;
