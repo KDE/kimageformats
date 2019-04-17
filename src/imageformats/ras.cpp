@@ -143,7 +143,7 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
     QVector<quint8> input(ras.Length);
 
     int i = 0;
-    while (! s.atEnd()) {
+    while (! s.atEnd() && i < input.size()) {
         s >> input[i];
         // I guess we need to find out if we're at the end of a line
         if (paddingrequired && i != 0 && !(i % (ras.Width * bpp))) {
