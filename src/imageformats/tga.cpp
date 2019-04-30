@@ -257,7 +257,14 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
             } else {
                 // Raw pixels.
                 count *= pixel_size;
-                s.readRawData(dst, count);
+                const int dataRead = s.readRawData(dst, count);
+                if (dataRead < 0) {
+                    free(image);
+                    return false;
+                }
+                if ((uint)dataRead < count) {
+                    memset(&dst[dataRead], 0, count - dataRead);
+                }
                 dst += count;
             }
         }
