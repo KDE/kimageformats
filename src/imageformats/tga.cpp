@@ -201,16 +201,17 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
     }
 
     // Read palette.
-    char palette[768];
+    static const int max_palette_size = 768;
+    char palette[max_palette_size];
     if (info.pal) {
         // @todo Support palettes in other formats!
-        const int size = 3 * tga.colormap_length;
-        const int dataRead = s.readRawData(palette, size);
+        const int palette_size = 3 * tga.colormap_length;
+        const int dataRead = s.readRawData(palette, palette_size);
         if (dataRead < 0) {
             return false;
         }
-        if (dataRead < size) {
-            memset(&palette[dataRead], 0, size - dataRead);
+        if (dataRead < max_palette_size) {
+            memset(&palette[dataRead], 0, max_palette_size - dataRead);
         }
     }
 
