@@ -116,8 +116,8 @@ int main(int argc, char **argv)
         }
         img = img.convertToFormat(qformat);
     }
-    qint64 written = output.write(reinterpret_cast<const char *>(img.bits()), img.byteCount());
-    if (written != img.byteCount()) {
+    qint64 written = output.write(reinterpret_cast<const char *>(img.bits()), img.sizeInBytes());
+    if (written != img.sizeInBytes()) {
         QTextStream(stderr) << "Could not write image data to " << files.at(1)
                             << ":" << output.errorString() << "\n";
         return 5;

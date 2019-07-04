@@ -210,11 +210,11 @@ private Q_SLOTS:
             QFile picDumpFile(fileNameBase + QStringLiteral("-expected.data"));
             QVERIFY2(picDumpFile.open(QIODevice::WriteOnly), qPrintable(picDumpFile.errorString()));
             picDumpFile.write(reinterpret_cast<const char *>(inputImage.bits()),
-                              inputImage.byteCount());
+                              inputImage.sizeInBytes());
             QFile pngDumpFile(fileNameBase + QStringLiteral("-actual.data"));
             QVERIFY2(pngDumpFile.open(QIODevice::WriteOnly), qPrintable(pngDumpFile.errorString()));
             pngDumpFile.write(reinterpret_cast<const char *>(expImage.bits()),
-                              expImage.byteCount());
+                              expImage.sizeInBytes());
             QString msg = QStringLiteral("Read image (")
                         + picDumpFile.fileName()
                         + QStringLiteral(") differed from expected image (")

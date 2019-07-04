@@ -35,8 +35,8 @@ static void writeImageData(const char *name, const QString &filename, const QIma
 {
     QFile file(filename);
     if (file.open(QIODevice::WriteOnly)) {
-        qint64 written = file.write(reinterpret_cast<const char *>(image.bits()), image.byteCount());
-        if (written == image.byteCount()) {
+        qint64 written = file.write(reinterpret_cast<const char *>(image.bits()), image.sizeInBytes());
+        if (written == image.sizeInBytes()) {
             QTextStream(stdout) << "       " << name
                                 << " written to " << filename << "\n";
         } else {
