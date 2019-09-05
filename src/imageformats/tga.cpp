@@ -252,7 +252,10 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
                 // RLE pixels.
                 assert(pixel_size <= 8);
                 char pixel[8];
-                s.readRawData(pixel, pixel_size);
+                const int dataRead = s.readRawData(pixel, pixel_size);
+                if (dataRead < (int)pixel_size) {
+                    memset(&pixel[dataRead], 0, pixel_size - dataRead);
+                }
                 do {
                     memcpy(dst, pixel, pixel_size);
                     dst += pixel_size;
