@@ -55,6 +55,7 @@ endmacro()
 # Loads each <format> image in read/<format>/, and compares the
 # result against the data read from the corresponding png file
 kimageformats_read_tests(
+    hdr
     pcx
     psd
     ras

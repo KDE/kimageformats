@@ -53,6 +53,11 @@ endif()
 
 ##################################
 
+kimageformats_add_plugin(kimg_hdr JSON "hdr.json" SOURCES hdr.cpp)
+install(FILES hdr.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
+
+##################################
+
 kimageformats_add_plugin(kimg_pcx JSON "pcx.json" SOURCES pcx.cpp)
 install(FILES pcx.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
 
