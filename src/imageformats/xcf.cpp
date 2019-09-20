@@ -414,6 +414,7 @@ bool XCFImageFormat::loadImageProperties(QDataStream &xcf_io, XCFImage &xcf_imag
             break;
 
         case PROP_RESOLUTION:
+            property.setFloatingPointPrecision(QDataStream::SinglePrecision);
             property >> xcf_image.x_resolution >> xcf_image.y_resolution;
             break;
 
