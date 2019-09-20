@@ -485,9 +485,15 @@ bool XCFImageFormat::loadImageProperties(QDataStream &xcf_io, XCFImage &xcf_imag
  * \return true if there were no IO errors.  */
 bool XCFImageFormat::loadProperty(QDataStream &xcf_io, PropType &type, QByteArray &bytes, quint32 &rawType)
 {
+    quint32 size;
+
     xcf_io >> rawType;
     if (rawType >= MAX_SUPPORTED_PROPTYPE) {
         type = MAX_SUPPORTED_PROPTYPE;
+        // we don't support the property, but we still need to read from the device, assume it's like all the
+        // non custom properties that is data_length + data
+        xcf_io >> size;
+        xcf_io.skipRawData(size);
         // return true because we don't really want to totally fail on an unsupported property since it may not be fatal
         return true;
     }
@@ -495,7 +501,6 @@ bool XCFImageFormat::loadProperty(QDataStream &xcf_io, PropType &type, QByteArra
     type = PropType(rawType);
 
     char *data = nullptr;
-    quint32 size;
 
     // The colormap property size is not the correct number of bytes:
     // The GIMP source xcf.c has size = 4 + ncolors, but it should be
