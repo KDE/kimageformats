@@ -171,9 +171,19 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
         channel_num = 4;
     }
     img = QImage(header.width, header.height, fmt);
+    if (img.isNull()) {
+        qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width, header.height);
+        return false;
+    }
     img.fill(qRgb(0,0,0));
 
     const quint32 pixel_count = header.height * header.width;
+
+    // Verify this, as this is used to write into the memory of the QImage
+    if (pixel_count > img.sizeInBytes() / sizeof(QRgb)) {
+        qWarning() << "Invalid pixel count!" << pixel_count << "bytes available:" << img.sizeInBytes();
+        return false;
+    }
 
     QRgb *image_data = reinterpret_cast<QRgb*>(img.bits());
 
@@ -276,6 +286,11 @@ bool PSDHandler::canRead(QIODevice *device)
 
     char head[4];
     qint64 readBytes = device->read(head, sizeof(head));
+    if (readBytes < 0) {
+        qWarning() << "Read failed" << device->errorString();
+        return false;
+    }
+
     if (readBytes != sizeof(head)) {
         if (device->isSequential()) {
             while (readBytes > 0) {

@@ -253,8 +253,10 @@ static void readImage1(QImage &img, QDataStream &s, const PCXHEADER &header)
     img = QImage(header.width(), header.height(), QImage::Format_Mono);
     img.setColorCount(2);
 
-    if (img.isNull())
+    if (img.isNull()) {
+        qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
         return;
+    }
 
     for (int y = 0; y < header.height(); ++y) {
         if (s.atEnd()) {
@@ -282,6 +284,10 @@ static void readImage4(QImage &img, QDataStream &s, const PCXHEADER &header)
 
     img = QImage(header.width(), header.height(), QImage::Format_Indexed8);
     img.setColorCount(16);
+    if (img.isNull()) {
+        qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
+        return;
+    }
 
     for (int y = 0; y < header.height(); ++y) {
         if (s.atEnd()) {
@@ -301,6 +307,9 @@ static void readImage4(QImage &img, QDataStream &s, const PCXHEADER &header)
         }
 
         uchar *p = img.scanLine(y);
+        if (!p) {
+            qWarning() << "Failed to get scanline for" << y << "might be out of bounds";
+        }
         for (int x = 0; x < header.width(); ++x) {
             p[ x ] = pixbuf[ x ];
         }
@@ -318,6 +327,11 @@ static void readImage8(QImage &img, QDataStream &s, const PCXHEADER &header)
 
     img = QImage(header.width(), header.height(), QImage::Format_Indexed8);
     img.setColorCount(256);
+
+    if (img.isNull()) {
+        qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
+        return;
+    }
 
     for (int y = 0; y < header.height(); ++y) {
         if (s.atEnd()) {
@@ -359,6 +373,11 @@ static void readImage24(QImage &img, QDataStream &s, const PCXHEADER &header)
     QByteArray b_buf(header.BytesPerLine, 0);
 
     img = QImage(header.width(), header.height(), QImage::Format_RGB32);
+
+    if (img.isNull()) {
+        qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
+        return;
+    }
 
     for (int y = 0; y < header.height(); ++y) {
         if (s.atEnd()) {

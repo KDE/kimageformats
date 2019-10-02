@@ -253,6 +253,11 @@ bool SoftimagePICHandler::read(QImage *image)
     }
 
     QImage img(m_header.width, m_header.height, fmt);
+    if (img.isNull()) {
+        qDebug() << "Failed to allocate image, invalid dimensions?" << QSize(m_header.width, m_header.height) << fmt;
+        return false;
+    }
+
     img.fill(qRgb(0,0,0));
 
     for (int y = 0; y < m_header.height; y++) {
@@ -362,6 +367,7 @@ bool SoftimagePICHandler::readHeader()
             m_state = ReadHeader;
         }
     }
+
     return m_state != Error;
 }
 

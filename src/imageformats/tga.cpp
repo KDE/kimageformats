@@ -178,6 +178,10 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
 {
     // Create image.
     img = QImage(tga.width, tga.height, QImage::Format_RGB32);
+    if (img.isNull()) {
+        qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(tga.width, tga.height);
+        return false;
+    }
 
     TgaHeaderInfo info(tga);
 
@@ -186,6 +190,10 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
     // However alpha exists only in the 32 bit format.
     if ((tga.pixel_size == 32) && (tga.flags & 0xf)) {
         img = QImage(tga.width, tga.height, QImage::Format_ARGB32);
+        if (img.isNull()) {
+            qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(tga.width, tga.height);
+            return false;
+        }
 
         if (numAlphaBits > 8) {
             return false;
@@ -229,9 +237,10 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
     if (info.rle) {
         // Decode image.
         char *dst = (char *)image;
+        char *imgEnd = dst + size;
         qint64 num = size;
 
-        while (num > 0) {
+        while (num > 0 && valid) {
             if (s.atEnd()) {
                 valid = false;
                 break;
@@ -257,6 +266,12 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
                     memset(&pixel[dataRead], 0, pixel_size - dataRead);
                 }
                 do {
+                    if (dst + pixel_size > imgEnd) {
+                        qWarning() << "Trying to write out of bounds!" << ptrdiff_t(dst) << (ptrdiff_t(imgEnd) - ptrdiff_t(pixel_size));
+                        valid = false;
+                        break;
+                    }
+
                     memcpy(dst, pixel, pixel_size);
                     dst += pixel_size;
                 } while (--count);
@@ -268,8 +283,17 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
                     free(image);
                     return false;
                 }
+
+
                 if ((uint)dataRead < count) {
-                    memset(&dst[dataRead], 0, count - dataRead);
+                    const size_t toCopy = count - dataRead;
+                    if (&dst[dataRead] + toCopy > imgEnd) {
+                        qWarning() << "Trying to write out of bounds!" << ptrdiff_t(image) << ptrdiff_t(&dst[dataRead]);;
+                        valid = false;
+                        break;
+                    }
+
+                    memset(&dst[dataRead], 0, toCopy);
                 }
                 dst += count;
             }

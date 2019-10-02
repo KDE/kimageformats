@@ -172,16 +172,17 @@ bool EXRHandler::read(QImage *outImage)
         width  = dw.max.x - dw.min.x + 1;
         height = dw.max.y - dw.min.y + 1;
 
+        QImage image(width, height, QImage::Format_RGB32);
+        if (image.isNull()) {
+            qWarning() << "Failed to allocate image, invalid size?" << QSize(width, height);
+            return false;
+        }
+
         Imf::Array2D<Imf::Rgba> pixels;
         pixels.resizeErase(height, width);
 
         file.setFrameBuffer(&pixels[0][0] - dw.min.x - dw.min.y * width, 1, width);
         file.readPixels(dw.min.y, dw.max.y);
-
-        QImage image(width, height, QImage::Format_RGB32);
-        if (image.isNull()) {
-            return false;
-        }
 
         // somehow copy pixels into image
         for (int y = 0; y < height; y++) {
