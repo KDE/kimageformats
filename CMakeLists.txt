@@ -46,7 +46,9 @@ set_package_properties(OpenEXR PROPERTIES
     PURPOSE "Required for the QImage plugin for OpenEXR images"
 )
 add_definitions(-DQT_NO_FOREACH)
-add_definitions(-DQT_DISABLE_DEPRECATED_BEFORE=0x050d00)
+# 050d00 (5.13) triggers a BIC in qimageiohandler.h, in Qt 5.13, so do not enable that until we can require 5.14
+# https://codereview.qt-project.org/c/qt/qtbase/+/279215
+add_definitions(-DQT_DISABLE_DEPRECATED_BEFORE=0x050c00)
 add_definitions(-DQT_DEPRECATED_WARNINGS_SINCE=0x060000)
 add_definitions(-DKF_DISABLE_DEPRECATED_BEFORE_AND_AT=0x053f00)
 add_subdirectory(src)
