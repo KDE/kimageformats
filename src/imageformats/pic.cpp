@@ -130,9 +130,7 @@ static QDataStream &operator>> (QDataStream &s, QList<PicChannel> &channels)
         PicChannel channel;
         s >> chained;
         s >> channel.size;
-        quint8 encoding;
-        s >> encoding;
-        channel.encoding = PicChannelEncoding(encoding);
+        s >> channel.encoding;
         s >> channel.code;
         channels << channel;
         ++count;

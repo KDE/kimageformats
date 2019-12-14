@@ -119,7 +119,7 @@ struct PicHeader {
  */
 struct PicChannel {
     quint8 size; /**< Bits per component per pixel. */
-    PicChannelEncoding encoding; /**< How the channel's data is encoded. */
+    quint8 encoding; /**< How the channel's data is encoded. */
     quint8 code; /**< Flag field to describe which components are encoded in
                       this channel. */
 
