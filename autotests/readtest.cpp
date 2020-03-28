@@ -127,6 +127,12 @@ int main(int argc, char ** argv)
         << "Starting basic read tests for "
         << suffix << " images *********\n";
 
+    const QList<QByteArray> formats = QImageReader::supportedImageFormats();
+    QStringList formatStrings;
+    formatStrings.reserve(formats.size());
+    std::transform(formats.begin(), formats.end(), std::back_inserter(formatStrings), [](const QByteArray &format) { return QString(format); });
+    QTextStream(stdout) << "QImageReader::supportedImageFormats: " << formatStrings.join(", ");
+
     const QFileInfoList lstImgDir = imgdir.entryInfoList();
     for (const QFileInfo &fi : lstImgDir) {
         int suffixPos = fi.filePath().count() - suffix.count();
@@ -134,7 +140,7 @@ int main(int argc, char ** argv)
         QString expfile = fi.filePath().replace(suffixPos, suffix.count(), QStringLiteral("png"));
         QString expfilename = QFileInfo(expfile).fileName();
 
-        QImageReader inputReader(inputfile, format.constData());
+        QImageReader inputReader(inputfile, format);
         QImageReader expReader(expfile, "png");
 
         QImage inputImage;
