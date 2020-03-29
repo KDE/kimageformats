@@ -13,6 +13,7 @@
 #include <QImage>
 #include <QDataStream>
 #include <QLoggingCategory>
+#include <QRegularExpressionMatch>
 
 #include <QDebug>
 
@@ -188,33 +189,48 @@ static bool LoadHDR(QDataStream &s, const int width, const int height, QImage &i
 bool HDRHandler::read(QImage *outImage)
 {
     int len;
-    char line[MAXLINE];
-    bool validFormat = false;
+    QByteArray line(MAXLINE + 1, Qt::Uninitialized);
+    QByteArray format;
 
     // Parse header
     do {
-        len = device()->readLine(line, MAXLINE);
+        len = device()->readLine(line.data(), MAXLINE);
 
-        if (strcmp(line, "FORMAT=32-bit_rle_rgbe\n") == 0) {
-            validFormat = true;
+        if (line.startsWith("FORMAT=")) {
+            format = line.mid(7, len - 7 - 1 /*\n*/);
         }
 
     } while ((len > 0) && (line[0] != '\n'));
 
-    if (!validFormat) {
-        qCDebug(HDRPLUGIN) << "Unknown HDR format, the header didn't contain FORMAT=32-bit_rle_rgbe";
+    if (format != "32-bit_rle_rgbe") {
+        qCDebug(HDRPLUGIN) << "Unknown HDR format:" << format;
         return false;
     }
 
-    device()->readLine(line, MAXLINE);
+    len = device()->readLine(line.data(), MAXLINE);
+    line.resize(len);
 
-    char s1[3], s2[3];
-    int width, height;
-    if (sscanf(line, "%2[+-XY] %d %2[+-XY] %d\n", s1, &height, s2, &width) != 4)
-    {
-        qCDebug(HDRPLUGIN) << "Invalid HDR file, the first line after the header didn't have the expected format";
+    /*
+       TODO: handle flipping and rotation, as per the spec below
+       The single resolution line consists of 4 values, a X and Y label each followed by a numerical
+       integer value. The X and Y are immediately preceded by a sign which can be used to indicate
+       flipping, the order of the X and Y indicate rotation. The standard coordinate system for
+       Radiance images would have the following resolution string -Y N +X N. This indicates that the
+       vertical axis runs down the file and the X axis is to the right (imagining the image as a
+       rectangular block of data). A -X would indicate a horizontal flip of the image. A +Y would
+       indicate a vertical flip. If the X value appears before the Y value then that indicates that
+       the image is stored in column order rather than row order, that is, it is rotated by 90 degrees.
+       The reader can convince themselves that the 8 combinations cover all the possible image orientations
+       and rotations.
+    */
+    QRegularExpression resolutionRegExp(QStringLiteral("([+\\-][XY]) ([0-9]+) ([+\\-][XY]) ([0-9]+)\n"));
+    QRegularExpressionMatch match = resolutionRegExp.match(QString::fromLatin1(line));
+    if (!match.hasMatch()) {
+        qCDebug(HDRPLUGIN) << "Invalid HDR file, the first line after the header didn't have the expected format:" << line;
         return false;
     }
+    const int width = match.captured(2).toInt();
+    const int height = match.captured(4).toInt();
 
     QDataStream s(device());
 
