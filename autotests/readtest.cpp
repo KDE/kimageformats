@@ -131,7 +131,7 @@ int main(int argc, char ** argv)
     QStringList formatStrings;
     formatStrings.reserve(formats.size());
     std::transform(formats.begin(), formats.end(), std::back_inserter(formatStrings), [](const QByteArray &format) { return QString(format); });
-    QTextStream(stdout) << "QImageReader::supportedImageFormats: " << formatStrings.join(", ");
+    QTextStream(stdout) << "QImageReader::supportedImageFormats: " << formatStrings.join(", ") << "\n";
 
     const QFileInfoList lstImgDir = imgdir.entryInfoList();
     for (const QFileInfo &fi : lstImgDir) {
