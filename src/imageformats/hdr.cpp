@@ -12,10 +12,13 @@
 
 #include <QImage>
 #include <QDataStream>
+#include <QLoggingCategory>
 
 #include <QDebug>
 
 typedef unsigned char uchar;
+
+Q_LOGGING_CATEGORY(HDRPLUGIN, "kf5.kimageformats.hdrplugin", QtWarningMsg)
 
 namespace   // Private.
 {
@@ -95,6 +98,7 @@ static bool LoadHDR(QDataStream &s, const int width, const int height, QImage &i
     // Create dst image.
     img = QImage(width, height, QImage::Format_RGB32);
     if (img.isNull()) {
+        qCDebug(HDRPLUGIN) << "Couldn't create image with size" << width << height << "and format RGB32";
         return false;
     }
 
@@ -141,6 +145,7 @@ static bool LoadHDR(QDataStream &s, const int width, const int height, QImage &i
         }
 
         if ((image[2] << 8 | image[3]) != width) {
+            qCDebug(HDRPLUGIN) << "Line of pixels had width" << (image[2] << 8 | image[3]) << "instead of" << width;
             return false;
         }
 
@@ -149,6 +154,7 @@ static bool LoadHDR(QDataStream &s, const int width, const int height, QImage &i
             for (int j = 0; j < width;) {
                 s >> code;
                 if (s.atEnd()) {
+                    qCDebug(HDRPLUGIN) << "Truncated HDR file";
                     return false;
                 }
                 if (code > 128) {
@@ -183,25 +189,20 @@ bool HDRHandler::read(QImage *outImage)
 {
     int len;
     char line[MAXLINE];
-    //bool validHeader = false;
     bool validFormat = false;
 
     // Parse header
     do {
         len = device()->readLine(line, MAXLINE);
 
-        /*if (strcmp(line, "#?RADIANCE\n") == 0 || strcmp(line, "#?RGBE\n") == 0)
-        {
-            validHeader = true;
-        }*/
         if (strcmp(line, "FORMAT=32-bit_rle_rgbe\n") == 0) {
             validFormat = true;
         }
 
     } while ((len > 0) && (line[0] != '\n'));
 
-    if (/*!validHeader ||*/ !validFormat) {
-        // qDebug() << "Unknown HDR format.";
+    if (!validFormat) {
+        qCDebug(HDRPLUGIN) << "Unknown HDR format, the header didn't contain FORMAT=32-bit_rle_rgbe";
         return false;
     }
 
@@ -210,9 +211,8 @@ bool HDRHandler::read(QImage *outImage)
     char s1[3], s2[3];
     int width, height;
     if (sscanf(line, "%2[+-XY] %d %2[+-XY] %d\n", s1, &height, s2, &width) != 4)
-        //if( sscanf(line, "-Y %d +X %d", &height, &width) < 2 )
     {
-        // qDebug() << "Invalid HDR file.";
+        qCDebug(HDRPLUGIN) << "Invalid HDR file, the first line after the header didn't have the expected format";
         return false;
     }
 
