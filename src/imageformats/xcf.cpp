@@ -3179,7 +3179,7 @@ void XCFImageFormat::dissolveRGBPixels(QImage &image, int x, int y)
         }
 
         for (int k = 0; k < image.width(); k++) {
-            int rand_val = rand_r(&next) & 0xff;
+            int rand_val = RandomTable::rand_r(&next) & 0xff;
             QRgb pixel = image.pixel(k, l);
 
             if (rand_val > qAlpha(pixel)) {
@@ -3211,7 +3211,7 @@ void XCFImageFormat::dissolveAlphaPixels(QImage &image, int x, int y)
         }
 
         for (int k = 0; k < image.width(); k++) {
-            int rand_val = rand_r(&next) & 0xff;
+            int rand_val = RandomTable::rand_r(&next) & 0xff;
             uchar alpha = image.pixelIndex(k, l);
 
             if (rand_val > alpha) {
