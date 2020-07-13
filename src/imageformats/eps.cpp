@@ -178,7 +178,7 @@ bool EPSHandler::read(QImage *image)
     QStringList gsArgs;
     gsArgs << QLatin1String("-sOutputFile=") + tmpFile.fileName()
            << QStringLiteral("-q")
-           << QString(QStringLiteral("-g%1x%2")).arg(wantedWidth).arg(wantedHeight)
+           << QStringLiteral("-g%1x%2").arg(wantedWidth).arg(wantedHeight)
            << QStringLiteral("-dSAFER")
            << QStringLiteral("-dPARANOIDSAFER")
            << QStringLiteral("-dNOPAUSE")
