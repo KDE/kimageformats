@@ -19,7 +19,7 @@
 
 typedef unsigned char uchar;
 
-Q_LOGGING_CATEGORY(HDRPLUGIN, "kf5.kimageformats.hdrplugin", QtWarningMsg)
+Q_LOGGING_CATEGORY(HDRPLUGIN, "kf.imageformats.plugins.hdr", QtWarningMsg)
 
 namespace   // Private.
 {

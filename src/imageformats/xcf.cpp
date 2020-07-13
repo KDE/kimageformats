@@ -36,7 +36,7 @@
 #include "gimp_p.h"
 
 Q_DECLARE_LOGGING_CATEGORY(XCFPLUGIN)
-Q_LOGGING_CATEGORY(XCFPLUGIN, "xcfplugin", QtWarningMsg)
+Q_LOGGING_CATEGORY(XCFPLUGIN, "kf.imageformats.plugins.xcf", QtWarningMsg)
 
 const float INCHESPERMETER = (100.0f / 2.54f);
 

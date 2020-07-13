@@ -17,7 +17,7 @@
 #include <QCoreApplication>
 
 // logging category for this framework, default: log stuff >= warning
-Q_LOGGING_CATEGORY(EPSPLUGIN, "kf5.kimageformats.epsplugin", QtWarningMsg)
+Q_LOGGING_CATEGORY(EPSPLUGIN, "kf.imageformats.plugins.eps", QtWarningMsg)
 
 //#define EPS_PERFORMANCE_DEBUG 1
 
