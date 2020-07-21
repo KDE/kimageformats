@@ -1,10 +1,10 @@
-
 /*
-* KImageIO Routines to read (and perhaps in the future, write) images
-* in the high dynamic range EXR format.
-* Copyright (c) 2003, Brad Hards <bradh@frogmouth.net>
-*
-* This library is distributed under the conditions of the GNU LGPL.
+    KImageIO Routines to read (and perhaps in the future, write) images
+    in the high dynamic range EXR format.
+
+    SPDX-FileCopyrightText: 2003 Brad Hards <bradh@frogmouth.net>
+
+    SPDX-License-Identifier: LGPL-2.0-or-later
 */
 
 #include "exr_p.h"

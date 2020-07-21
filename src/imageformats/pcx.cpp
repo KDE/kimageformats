@@ -1,10 +1,8 @@
-/* This file is part of the KDE project
-   Copyright (C) 2002-2005 Nadeem Hasan <nhasan@kde.org>
+/*
+    This file is part of the KDE project
+    SPDX-FileCopyrightText: 2002-2005 Nadeem Hasan <nhasan@kde.org>
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License (LGPL) as published by the Free Software Foundation; either
-   version 2 of the License, or (at your option) any later version.
+    SPDX-License-Identifier: LGPL-2.0-or-later
 */
 
 #include "pcx_p.h"
