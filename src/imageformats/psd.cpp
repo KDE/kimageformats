@@ -194,6 +194,10 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
     };
 
     if (compression) {
+        if (header.depth != 8) {
+            qWarning() << "RLE compressed PSD image with depth != 8 is not supported.";
+            return false;
+        }
         // Skip row lengths.
         int skip_count = header.height * header.channel_count * sizeof(quint16);
         if (stream.skipRawData(skip_count) != skip_count) {
