@@ -165,6 +165,14 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
         // Ignore the other channels.
         channel_num = 4;
     }
+
+    if (compression == 1 && header.depth == 16) {
+        fmt = QImage::Format_RGBX64;
+        if (channel_num >= 4) {
+            fmt = QImage::Format_RGBA64;
+        }
+    }
+
     img = QImage(header.width, header.height, fmt);
     if (img.isNull()) {
         qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width, header.height);
@@ -193,11 +201,15 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
         updateAlpha
     };
 
+    typedef QRgba64(*channelUpdater16)(QRgba64, quint16);
+    static const channelUpdater16 updaters64[4] = {
+        [](QRgba64 oldPixel, quint16 redPixel)  {return qRgba64((oldPixel & ~(0xFFFFull <<  0)) | (quint64(  redPixel) <<  0));},
+        [](QRgba64 oldPixel, quint16 greenPixel){return qRgba64((oldPixel & ~(0xFFFFull << 16)) | (quint64(greenPixel) << 16));},
+        [](QRgba64 oldPixel, quint16 bluePixel) {return qRgba64((oldPixel & ~(0xFFFFull << 32)) | (quint64( bluePixel) << 32));},
+        [](QRgba64 oldPixel, quint16 alphaPixel){return qRgba64((oldPixel & ~(0xFFFFull << 48)) | (quint64(alphaPixel) << 48));}
+    };
+
     if (compression) {
-        if (header.depth != 8) {
-            qWarning() << "RLE compressed PSD image with depth != 8 is not supported.";
-            return false;
-        }
         // Skip row lengths.
         int skip_count = header.height * header.channel_count * sizeof(quint16);
         if (stream.skipRawData(skip_count) != skip_count) {
@@ -205,9 +217,18 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
         }
 
         for (unsigned short channel = 0; channel < channel_num; channel++) {
-            bool success = decodeRLEData(RLEVariant::PackBits, stream,
+            bool success = false;
+            if (header.depth == 8) {
+                success = decodeRLEData(RLEVariant::PackBits, stream,
                                          image_data, pixel_count,
                                          &readPixel_u8, updaters[channel]);
+            } else if (header.depth == 16) {
+                QRgba64 *image_data = reinterpret_cast<QRgba64*>(img.bits());
+                success = decodeRLEData(RLEVariant::PackBits16, stream,
+                                         image_data, pixel_count * 2,
+                                         &readPixel_u8, updaters64[channel]);
+            }
+
             if (!success) {
                 qDebug() << "decodeRLEData on channel" << channel << "failed";
                 return false;

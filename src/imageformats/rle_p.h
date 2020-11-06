@@ -25,6 +25,11 @@ enum class RLEVariant {
      */
     PackBits,
     /**
+     * Same as PackBits, but treat unpacked data as
+     * 16-bit integers.
+     */
+    PackBits16,
+    /**
      * PIC-style RLE
      *
      * Value 128 indicates a 16-bit repetition count
@@ -67,6 +72,8 @@ static inline bool decodeRLEData(RLEVariant variant,
                                  Func2 updateItem)
 {
     unsigned offset = 0; // in dest
+    bool is_msb = true; // only used for 16-bit PackBits, data is big-endian
+    quint16 temp_data = 0;
     while (offset < length) {
         unsigned remaining = length - offset;
         quint8 count1;
@@ -85,7 +92,7 @@ static inline bool decodeRLEData(RLEVariant variant,
                     // 2 to 128 repetitions
                     length = count1 - 127u;
                 }
-            } else if (variant == RLEVariant::PackBits) {
+            } else if (variant == RLEVariant::PackBits || variant == RLEVariant::PackBits16) {
                 if (count1 == 128u) {
                     // Ignore value 128
                     continue;
@@ -102,7 +109,18 @@ static inline bool decodeRLEData(RLEVariant variant,
             }
             auto datum = readData(stream);
             for (unsigned i = offset; i < offset + length; ++i) {
-                dest[i] = updateItem(dest[i], datum);
+                if (variant == RLEVariant::PackBits16) {
+                    if (is_msb) {
+                        temp_data = datum << 8;
+                        is_msb = false;
+                    } else {
+                        temp_data |= datum;
+                        dest[i >> 1] = updateItem(dest[i >> 1], temp_data);
+                        is_msb = true;
+                    }
+                } else {
+                    dest[i] = updateItem(dest[i], datum);
+                }
             }
             offset += length;
         } else {
@@ -114,7 +132,18 @@ static inline bool decodeRLEData(RLEVariant variant,
             }
             for (unsigned i = offset; i < offset + length; ++i) {
                 auto datum = readData(stream);
-                dest[i] = updateItem(dest[i], datum);
+                if (variant == RLEVariant::PackBits16) {
+                    if (is_msb) {
+                        temp_data = datum << 8;
+                        is_msb = false;
+                    } else {
+                        temp_data |= datum;
+                        dest[i >> 1] = updateItem(dest[i >> 1], temp_data);
+                        is_msb = true;
+                    }
+                } else {
+                    dest[i] = updateItem(dest[i], datum);
+                }
             }
             offset += length;
         }
