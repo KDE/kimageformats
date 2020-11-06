@@ -7,56 +7,24 @@
 #ifndef FORMAT_ENUM_H
 #define FORMAT_ENUM_H
 
+#include <QMetaEnum>
 #include <QImage>
-
-// Generated from QImage::Format enum
-static const char * qimage_format_enum_names[] = {
-    "Invalid",
-    "Mono",
-    "MonoLSB",
-    "Indexed8",
-    "RGB32",
-    "ARGB32",
-    "ARGB32_Premultiplied",
-    "RGB16",
-    "ARGB8565_Premultiplied",
-    "RGB666",
-    "ARGB6666_Premultiplied",
-    "RGB555",
-    "ARGB8555_Premultiplied",
-    "RGB888",
-    "RGB444",
-    "ARGB4444_Premultiplied",
-    "RGBX8888",
-    "RGBA8888",
-    "RGBA8888_Premultiplied"
-};
-// Never claim there are more than QImage::NImageFormats supported formats.
-// This is future-proofing against the above list being extended.
-static const int qimage_format_enum_names_count =
-    (sizeof(qimage_format_enum_names) / sizeof(*qimage_format_enum_names) > int(QImage::NImageFormats))
-    ? int(QImage::NImageFormats)
-    : (sizeof(qimage_format_enum_names) / sizeof(*qimage_format_enum_names));
 
 QImage::Format formatFromString(const QString &str)
 {
-    for (int i = 0; i < qimage_format_enum_names_count; ++i) {
-        if (str.compare(QLatin1String(qimage_format_enum_names[i]), Qt::CaseInsensitive) == 0) {
-            return (QImage::Format)(i);
-        }
-    }
-    return QImage::Format_Invalid;
+    const QMetaEnum metaEnum = QMetaEnum::fromType<QImage::Format>();
+    const QString enumString = QStringLiteral("Format_") + str;
+
+    bool ok;
+    const int res = metaEnum.keyToValue(enumString.toLatin1().constData(), &ok);
+
+    return ok ? static_cast<QImage::Format>(res) : QImage::Format_Invalid;
 }
 
 QString formatToString(QImage::Format format)
 {
-    int index = int(format);
-    if (index > 0 && index < qimage_format_enum_names_count) {
-        return QLatin1String(qimage_format_enum_names[index]);
-    }
-    return QLatin1String("<unknown:") +
-        QString::number(index) +
-        QLatin1String(">");
+    const QMetaEnum metaEnum = QMetaEnum::fromType<QImage::Format>();
+    return QString::fromLatin1(metaEnum.valueToKey(format)).remove(QStringLiteral("Format_"));
 }
 
 #endif

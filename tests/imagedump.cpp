@@ -67,8 +67,8 @@ int main(int argc, char **argv)
         QTextStream out(stdout);
         out << "QImage formats:\n";
         // skip QImage::Format_Invalid
-        for (int i = 1; i < qimage_format_enum_names_count; ++i) {
-            out << "  " << qimage_format_enum_names[i] << '\n';
+        for (int i = 1; i < QImage::NImageFormats; ++i) {
+            out << "  " << formatToString(static_cast<QImage::Format>(i)) << '\n';
         }
         return 0;
     }
