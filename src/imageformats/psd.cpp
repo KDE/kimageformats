@@ -104,14 +104,9 @@ static void skip_section(QDataStream &s)
     s.skipRawData(section_length);
 }
 
-static quint8 readPixel_u16(QDataStream &stream) {
-    quint16 pixel;
-    stream >> pixel;
-    return pixel / (1 << 8);
-}
-
-static int readPixel_u8(QDataStream &stream) {
-    quint8 pixel;
+template <class Trait>
+static Trait readPixel(QDataStream &stream) {
+    Trait pixel;
     stream >> pixel;
     return pixel;
 }
@@ -156,21 +151,16 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
 
     quint32 channel_num = header.channel_count;
 
-    QImage::Format fmt = QImage::Format_RGB32;
+    QImage::Format fmt = header.depth == 8 ? QImage::Format_RGB32
+                                           : QImage::Format_RGBX64;
     // Clear the image.
     if (channel_num >= 4) {
         // Enable alpha.
-        fmt = QImage::Format_ARGB32;
+        fmt = header.depth == 8 ? QImage::Format_ARGB32
+                                : QImage::Format_RGBA64;
 
         // Ignore the other channels.
         channel_num = 4;
-    }
-
-    if (compression == 1 && header.depth == 16) {
-        fmt = QImage::Format_RGBX64;
-        if (channel_num >= 4) {
-            fmt = QImage::Format_RGBA64;
-        }
     }
 
     img = QImage(header.width, header.height, fmt);
@@ -181,9 +171,10 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
     img.fill(qRgb(0,0,0));
 
     const quint32 pixel_count = header.height * header.width;
+    const quint32 channel_size = pixel_count * header.depth / 8;
 
     // Verify this, as this is used to write into the memory of the QImage
-    if (pixel_count > img.sizeInBytes() / sizeof(QRgb)) {
+    if (pixel_count > img.sizeInBytes() / (header.depth == 8 ? sizeof(QRgb) : sizeof(QRgba64))) {
         qWarning() << "Invalid pixel count!" << pixel_count << "bytes available:" << img.sizeInBytes();
         return false;
     }
@@ -220,13 +211,13 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
             bool success = false;
             if (header.depth == 8) {
                 success = decodeRLEData(RLEVariant::PackBits, stream,
-                                         image_data, pixel_count,
-                                         &readPixel_u8, updaters[channel]);
+                                         image_data, channel_size,
+                                         &readPixel<quint8>, updaters[channel]);
             } else if (header.depth == 16) {
                 QRgba64 *image_data = reinterpret_cast<QRgba64*>(img.bits());
                 success = decodeRLEData(RLEVariant::PackBits16, stream,
-                                         image_data, pixel_count * 2,
-                                         &readPixel_u8, updaters64[channel]);
+                                         image_data, channel_size,
+                                         &readPixel<quint8>, updaters64[channel]);
             }
 
             if (!success) {
@@ -236,11 +227,15 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
         }
     } else {
         for (unsigned short channel = 0; channel < channel_num; channel++) {
-            for (unsigned i = 0; i < pixel_count; ++i) {
-                image_data[i] = updaters[channel](
-                                        image_data[i],
-                                        header.depth == 8 ? readPixel_u8(stream)
-                                                          : readPixel_u16(stream));
+            if (header.depth == 8) {
+                for (unsigned i = 0; i < pixel_count; ++i) {
+                    image_data[i] = updaters[channel](image_data[i], readPixel<quint8>(stream));
+                }
+            } else if (header.depth == 16) {
+                QRgba64 *image_data = reinterpret_cast<QRgba64*>(img.bits());
+                for (unsigned i = 0; i < pixel_count; ++i) {
+                    image_data[i] = updaters64[channel](image_data[i], readPixel<quint16>(stream));
+                }
             }
             // make sure we didn't try to read past the end of the stream
             if (stream.status() != QDataStream::Ok) {
