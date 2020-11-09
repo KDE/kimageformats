@@ -36,14 +36,17 @@ static void writeImageData(const char *name, const QString &filename, const QIma
     }
 }
 
-// allow each byte to be different by up to 1, to allow for rounding errors
+template<class Trait>
 static bool fuzzyeq(const QImage &im1, const QImage &im2, uchar fuzziness)
 {
+    Q_ASSERT(im1.format() == im2.format());
+    Q_ASSERT(im1.depth() == 24 || im1.depth() == 32 || im1.depth() == 64);
+
     const int height = im1.height();
     const int width = im1.width();
     for (int i = 0; i < height; ++i) {
-        const uchar *line1 = im1.scanLine(i);
-        const uchar *line2 = im2.scanLine(i);
+        const Trait *line1 = reinterpret_cast<const Trait*>(im1.scanLine(i));
+        const Trait *line2 = reinterpret_cast<const Trait*>(im2.scanLine(i));
         for (int j = 0; j < width; ++j) {
             if (line1[j] > line2[j]) {
                 if (line1[j] - line2[j] > fuzziness)
@@ -55,6 +58,30 @@ static bool fuzzyeq(const QImage &im1, const QImage &im2, uchar fuzziness)
         }
     }
     return true;
+}
+
+// allow each byte to be different by up to 1, to allow for rounding errors
+static bool fuzzyeq(const QImage &im1, const QImage &im2, uchar fuzziness)
+{
+    return (im1.depth() == 64) ? fuzzyeq<quint16>(im1, im2, fuzziness)
+                               : fuzzyeq<quint8>(im1, im2, fuzziness);
+}
+
+// Returns the original format if we support, or returns
+// format which we preferred to use for `fuzzyeq()`.
+// We do only support formats with 8-bits/16-bits pre pixel.
+// If that changed, don't forget to update `fuzzyeq()` too
+static QImage::Format preferredFormat(QImage::Format fmt)
+{
+    switch (fmt) {
+    case QImage::Format_RGB32:
+    case QImage::Format_ARGB32:
+    case QImage::Format_RGBX64:
+    case QImage::Format_RGBA64:
+        return fmt;
+    default:
+        return QImage::Format_ARGB32;
+    }
 }
 
 int main(int argc, char ** argv)
@@ -168,19 +195,23 @@ int main(int argc, char ** argv)
                 << expImage.height() << "\n";
             ++failed;
         } else {
-            if (inputImage.format() != QImage::Format_ARGB32) {
+            QImage::Format inputFormat = preferredFormat(inputImage.format());
+            QImage::Format expFormat = preferredFormat(expImage.format());
+            QImage::Format cmpFormat = inputFormat == expFormat ? inputFormat : QImage::Format_ARGB32;
+
+            if (inputImage.format() != cmpFormat) {
                 QTextStream(stdout) << "INFO : " << fi.fileName()
                     << ": converting " << fi.fileName()
                     << " from " << formatToString(inputImage.format())
-                    << " to ARGB32\n";
-                inputImage = inputImage.convertToFormat(QImage::Format_ARGB32);
+                    << " to " << formatToString(cmpFormat) << '\n';
+                inputImage = inputImage.convertToFormat(cmpFormat);
             }
-            if (expImage.format() != QImage::Format_ARGB32) {
+            if (expImage.format() != cmpFormat) {
                 QTextStream(stdout) << "INFO : " << fi.fileName()
                     << ": converting " << expfilename
                     << " from " << formatToString(expImage.format())
-                    << " to ARGB32\n";
-                expImage = expImage.convertToFormat(QImage::Format_ARGB32);
+                    << " to " << formatToString(cmpFormat) << '\n';
+                expImage = expImage.convertToFormat(cmpFormat);
             }
             if (fuzzyeq(inputImage, expImage, fuzziness)) {
                 QTextStream(stdout) << "PASS : " << fi.fileName() << "\n";
