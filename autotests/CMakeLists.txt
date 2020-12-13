@@ -70,6 +70,12 @@ if (KF5Archive_FOUND)
     )
 endif()
 
+if (TARGET avif)
+    kimageformats_read_tests(
+        avif
+    )
+endif()
+
 # Allow some fuzziness when reading this formats, to allow for
 # rounding errors (eg: in alpha blending).
 kimageformats_read_tests(FUZZ 1

@@ -24,6 +24,14 @@ endfunction()
 
 ##################################
 
+if (TARGET avif)
+    kimageformats_add_plugin(kimg_avif JSON "avif.json" SOURCES "avif.cpp")
+    target_link_libraries(kimg_avif "avif")
+    install(FILES avif.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
+endif()
+
+##################################
+
 install(FILES dds-qt.desktop RENAME dds.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
 
 ##################################

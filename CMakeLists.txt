@@ -47,6 +47,13 @@ set_package_properties(OpenEXR PROPERTIES
     TYPE OPTIONAL
     PURPOSE "Required for the QImage plugin for OpenEXR images"
 )
+
+find_package(libavif 0.8.2 CONFIG)
+set_package_properties(libavif PROPERTIES
+    TYPE OPTIONAL
+    PURPOSE "Required for the QImage plugin for AVIF images"
+)
+
 add_definitions(-DQT_NO_FOREACH)
 # 050d00 (5.13) triggers a BIC in qimageiohandler.h, in Qt 5.13, so do not enable that until we can require 5.14
 # https://codereview.qt-project.org/c/qt/qtbase/+/279215
