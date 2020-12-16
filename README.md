@@ -20,6 +20,7 @@ The following image formats have read-only support:
 
 The following image formats have read and write support:
 
+- AV1 Image File Format (AVIF)
 - Encapsulated PostScript (eps)
 - Personal Computer Exchange (pcx)
 - SGI images (rgb, rgba, sgi, bw)
