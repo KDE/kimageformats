@@ -9,9 +9,7 @@
 #include <QtGlobal>
 #include <QThread>
 
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
 #include <QColorSpace>
-#endif
 
 #include "avif_p.h"
 
@@ -194,7 +192,6 @@ bool QAVIFHandler::decode_one_frame()
         return false;
     }
 
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
     if (m_decoder->image->icc.data && (m_decoder->image->icc.size > 0)) {
         result.setColorSpace(QColorSpace::fromIccProfile(QByteArray::fromRawData((const char *) m_decoder->image->icc.data, (int) m_decoder->image->icc.size)));
         if (! result.colorSpace().isValid()) {
@@ -276,7 +273,6 @@ bool QAVIFHandler::decode_one_frame()
             qWarning("Invalid QColorSpace created from NCLX/CICP!\n");
         }
     }
-#endif
 
     avifRGBImage rgb;
     avifRGBImageSetDefaults(&rgb, m_decoder->image);
@@ -288,11 +284,9 @@ bool QAVIFHandler::decode_one_frame()
         if (!loadalpha) {
             rgb.ignoreAlpha = AVIF_TRUE;
             result.fill(Qt::black);
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 13, 0))
             if (m_decoder->image->yuvFormat == AVIF_PIXEL_FORMAT_YUV400) {
                 resultformat = QImage::Format_Grayscale16;
             }
-#endif
         }
     } else {
         rgb.depth = 8;
@@ -445,9 +439,7 @@ bool QAVIFHandler::write(const QImage &image)
     case QImage::Format_Mono:
     case QImage::Format_MonoLSB:
     case QImage::Format_Grayscale8:
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 13, 0))
     case QImage::Format_Grayscale16:
-#endif
         save_grayscale = true;
         break;
     case QImage::Format_Indexed8:
@@ -464,9 +456,7 @@ bool QAVIFHandler::write(const QImage &image)
     case QImage::Format_A2BGR30_Premultiplied:
     case QImage::Format_RGB30:
     case QImage::Format_A2RGB30_Premultiplied:
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 13, 0))
     case QImage::Format_Grayscale16:
-#endif
     case QImage::Format_RGBX64:
     case QImage::Format_RGBA64:
     case QImage::Format_RGBA64_Premultiplied:
@@ -490,22 +480,16 @@ bool QAVIFHandler::write(const QImage &image)
     }
 
     if (save_grayscale && !image.hasAlphaChannel()) { //we are going to save grayscale image without alpha channel
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 13, 0))
         if (save_depth > 8) {
             tmpformat = QImage::Format_Grayscale16;
         } else {
             tmpformat = QImage::Format_Grayscale8;
         }
-#else
-        tmpformat = QImage::Format_Grayscale8;
-        save_depth = 8;
-#endif
         QImage tmpgrayimage = image.convertToFormat(tmpformat);
 
         avif = avifImageCreate(tmpgrayimage.width(), tmpgrayimage.height(), save_depth, AVIF_PIXEL_FORMAT_YUV400);
         avifImageAllocatePlanes(avif, AVIF_PLANES_YUV);
 
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
         if (tmpgrayimage.colorSpace().isValid()) {
             avif->colorPrimaries = (avifColorPrimaries)1;
             avif->matrixCoefficients = (avifMatrixCoefficients)1;
@@ -525,7 +509,6 @@ bool QAVIFHandler::write(const QImage &image)
             }
 
         }
-#endif
 
         if (save_depth > 8) { // QImage::Format_Grayscale16
             for (int y = 0; y < tmpgrayimage.height(); y++) {
@@ -577,8 +560,6 @@ bool QAVIFHandler::write(const QImage &image)
         }
 
         avifMatrixCoefficients matrix_to_save = (avifMatrixCoefficients)1; //default for Qt 5.12 and 5.13;
-
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
 
         avifColorPrimaries primaries_to_save = (avifColorPrimaries)2;
         avifTransferCharacteristics transfer_to_save = (avifTransferCharacteristics)2;
@@ -678,14 +659,11 @@ bool QAVIFHandler::write(const QImage &image)
                 }
             }
         }
-#endif
         avif = avifImageCreate(tmpcolorimage.width(), tmpcolorimage.height(), save_depth, pixel_format);
         avif->matrixCoefficients = matrix_to_save;
 
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
         avif->colorPrimaries = primaries_to_save;
         avif->transferCharacteristics = transfer_to_save;
-#endif
 
         avifRGBImage rgb;
         avifRGBImageSetDefaults(&rgb, avif);
