@@ -13,6 +13,7 @@ image formats.
 
 The following image formats have read-only support:
 
+- Animated Windows cursors (ani)
 - Gimp (xcf)
 - OpenEXR (exr)
 - Photoshop documents (psd)

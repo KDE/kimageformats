@@ -116,3 +116,8 @@ add_executable(pictest pictest.cpp)
 target_link_libraries(pictest Qt5::Gui Qt5::Test)
 ecm_mark_as_test(pictest)
 add_test(NAME kimageformats-pic COMMAND pictest)
+
+add_executable(anitest anitest.cpp)
+target_link_libraries(anitest Qt5::Gui Qt5::Test)
+ecm_mark_as_test(anitest)
+add_test(NAME kimageformats-ani COMMAND anitest)
