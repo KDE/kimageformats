@@ -6,9 +6,11 @@
 
 #include "ani_p.h"
 
+#include <QDebug>
 #include <QImage>
 #include <QScopeGuard>
 #include <QtEndian>
+#include <QVariant>
 
 namespace
 {
