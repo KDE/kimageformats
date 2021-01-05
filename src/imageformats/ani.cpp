@@ -325,6 +325,9 @@ bool ANIHandler::ensureScanned() const
     }
 
     const auto riffSizeData = device()->read(sizeof(quint32_le));
+    if (riffSizeData.size() != sizeof(quint32_le)) {
+        return false;
+    }
     const auto riffSize = *(reinterpret_cast<const quint32_le *>(riffSizeData.data()));
     // TODO do a basic sanity check if the size is enough to hold some metadata and a frame?
     if (riffSize == 0) {
