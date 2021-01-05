@@ -109,6 +109,9 @@ bool ANIHandler::read(QImage *outImage)
     if (!m_imageSequence.isEmpty()) {
         if (m_currentImageNumber < m_imageSequence.count()) {
             const int nextFrame = m_imageSequence.at(m_currentImageNumber);
+            if (nextFrame < 0 || nextFrame >= m_frameOffsets.count()) {
+                return false;
+            }
             const auto nextOffset = m_frameOffsets.at(nextFrame);
             device()->seek(nextOffset);
         } else if (m_currentImageNumber == m_imageSequence.count()) {
