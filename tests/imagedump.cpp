@@ -45,6 +45,10 @@ int main(int argc, char **argv)
         QStringList() << QStringLiteral("l") << QStringLiteral("list-file-formats"),
         QStringLiteral("List supported image file formats"));
     parser.addOption(listformats);
+    QCommandLineOption listmimetypes(
+        QStringList() << QStringLiteral("m") << QStringLiteral("list-mime-types"),
+        QStringLiteral("List supported image mime types"));
+    parser.addOption(listmimetypes);
     QCommandLineOption listqformats(
         QStringList() << QStringLiteral("p") << QStringLiteral("list-qimage-formats"),
         QStringLiteral("List supported QImage data formats"));
@@ -59,6 +63,15 @@ int main(int argc, char **argv)
         out << "File formats:\n";
         const auto lstSupportedFormats = QImageReader::supportedImageFormats();
         for (const auto &fmt : lstSupportedFormats) {
+            out << "  " << fmt << '\n';
+        }
+        return 0;
+    }
+    if (parser.isSet(listmimetypes)) {
+        QTextStream out(stdout);
+        out << "MIME types:\n";
+        const auto lstSupportedMimeTypes = QImageReader::supportedMimeTypes();
+        for (const auto &fmt : lstSupportedMimeTypes) {
             out << "  " << fmt << '\n';
         }
         return 0;
