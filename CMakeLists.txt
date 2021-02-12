@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.6)
 
 project(KImageFormats)
 
@@ -53,6 +53,13 @@ set_package_properties(libavif PROPERTIES
     TYPE OPTIONAL
     PURPOSE "Required for the QImage plugin for AVIF images"
 )
+
+option(KIMAGEFORMATS_HEIF "Enable plugin for HEIF format" OFF)
+if(KIMAGEFORMATS_HEIF)
+    include(FindPkgConfig)
+    pkg_check_modules(LibHeif IMPORTED_TARGET libheif>=1.10.0)
+endif()
+add_feature_info(LibHeif LibHeif_FOUND "required for the QImage plugin for HEIF/HEIC images")
 
 add_definitions(-DQT_NO_FOREACH)
 # 050d00 (5.13) triggers a BIC in qimageiohandler.h, in Qt 5.13, so do not enable that until we can require 5.14

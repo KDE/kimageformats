@@ -71,6 +71,15 @@ install(FILES hdr.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugi
 
 ##################################
 
+if (LibHeif_FOUND)
+    kimageformats_add_plugin(kimg_heif JSON "heif.json" SOURCES heif.cpp)
+    target_link_libraries(kimg_heif PkgConfig::LibHeif)
+    kde_target_enable_exceptions(kimg_heif PRIVATE)
+    install(FILES heif.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
+endif()
+
+##################################
+
 kimageformats_add_plugin(kimg_pcx JSON "pcx.json" SOURCES pcx.cpp)
 install(FILES pcx.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
 
