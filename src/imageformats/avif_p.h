@@ -14,6 +14,7 @@
 #include <qimageiohandler.h>
 #include <QImageIOPlugin>
 #include <QByteArray>
+#include <QPointF>
 #include <avif/avif.h>
 
 class QAVIFHandler : public QImageIOHandler
@@ -41,6 +42,7 @@ public:
 
   int loopCount() const override;
 private:
+  static QPointF CompatibleChromacity(qreal chrX, qreal chrY);
   bool ensureParsed() const;
   bool ensureDecoder();
   bool decode_one_frame();
