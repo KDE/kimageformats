@@ -10,6 +10,7 @@
 #ifndef KIMG_HEIF_P_H
 #define KIMG_HEIF_P_H
 
+#include <QByteArray>
 #include <QImage>
 #include <QImageIOPlugin>
 
@@ -28,6 +29,7 @@ public:
     void setOption(ImageOption option, const QVariant &value) override;
     bool supportsOption(ImageOption option) const override;
 private:
+    static bool isSupportedBMFFType(const QByteArray &header);
     bool ensureParsed() const;
     bool ensureDecoder();
 

@@ -261,6 +261,11 @@ bool HEIFHandler::canRead(QIODevice *device)
     }
 
     const QByteArray header = device->peek(28);
+    return HEIFHandler::isSupportedBMFFType(header);
+}
+
+bool HEIFHandler::isSupportedBMFFType(const QByteArray &header)
+{
     if (header.size() < 28) {
         return false;
     }
@@ -364,7 +369,7 @@ bool HEIFHandler::ensureDecoder()
     }
 
     const QByteArray buffer = device()->readAll();
-    if (buffer.isEmpty()) {
+    if (!HEIFHandler::isSupportedBMFFType(buffer)) {
         m_parseState = ParseHeicError;
         return false;
     }
