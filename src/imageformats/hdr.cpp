@@ -227,8 +227,15 @@ bool HDRHandler::read(QImage *outImage)
         qCDebug(HDRPLUGIN) << "Invalid HDR file, the first line after the header didn't have the expected format:" << line;
         return false;
     }
-    const int width = match.captured(2).toInt();
-    const int height = match.captured(4).toInt();
+
+    if ( (match.captured(1).at(1) != u'Y') ||
+         (match.captured(3).at(1) != u'X') ) {
+        qCDebug(HDRPLUGIN) << "Unsupported image orientation in HDR file.";
+        return false;
+    }
+
+    const int width = match.captured(4).toInt();
+    const int height = match.captured(2).toInt();
 
     QDataStream s(device());
 
