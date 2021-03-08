@@ -25,7 +25,7 @@ enum PicFields {
     NoPicture = 0, /**< No picture */
     OddScanlines = 1, /**< Odd scanlines */
     EvenScanlines = 2, /**< Even scanlines */
-    BothScanlines = 3 /**< Every scanline */
+    BothScanlines = 3, /**< Every scanline */
 };
 
 /**
@@ -33,7 +33,7 @@ enum PicFields {
  */
 enum PicChannelEncoding {
     Uncompressed = 0, /**< Image is uncompressed */
-    MixedRLE = 2 /**< Run length compression */
+    MixedRLE = 2, /**< Run length compression */
 };
 
 /**
@@ -43,7 +43,7 @@ enum PicChannelCode {
     RED = 0x80, /**< Red channel */
     GREEN = 0x40, /**< Green channel */
     BLUE = 0x20, /**< Blue channel */
-    ALPHA = 0x10 /**< Alpha channel */
+    ALPHA = 0x10, /**< Alpha channel */
 };
 
 /**
@@ -155,7 +155,7 @@ public:
         Error,
         Ready,
         ReadHeader,
-        ReadChannels
+        ReadChannels,
     };
 
     SoftimagePICHandler()

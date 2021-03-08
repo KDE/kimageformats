@@ -37,7 +37,7 @@ enum class RLEVariant {
      * of size 128, 130 of size 127, down to 255 of
      * size 2.
      */
-    PIC
+    PIC,
 };
 
 /**

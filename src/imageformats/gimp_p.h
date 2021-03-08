@@ -41,7 +41,7 @@ const uchar OPAQUE_OPACITY = 255; //!< Opaque value for 8-bit alpha component.
 typedef enum {
     RGB,
     GRAY,
-    INDEXED
+    INDEXED,
 } GimpImageBaseType;
 
 

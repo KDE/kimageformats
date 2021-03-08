@@ -40,7 +40,7 @@ enum ColorMode {
     CM_CMYK = 4,
     CM_MULTICHANNEL = 7,
     CM_DUOTONE = 8,
-    CM_LABCOLOR = 9
+    CM_LABCOLOR = 9,
 };
 
 struct PSDHeader {

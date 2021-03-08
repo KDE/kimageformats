@@ -74,7 +74,7 @@ public:
     bool writeImage(const QImage &);
 
 private:
-    enum { NORMAL, DITHERED, SCREEN, COLORMAP }; // colormap
+    enum { NORMAL, DITHERED, SCREEN, COLORMAP, }; // colormap
     QIODevice *_dev;
     QDataStream _stream;
 

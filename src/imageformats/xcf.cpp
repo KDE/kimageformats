@@ -131,7 +131,7 @@ public:
         PROP_BLEND_SPACE        = 37,
         PROP_FLOAT_COLOR        = 38,
         PROP_SAMPLE_POINTS      = 39,
-        MAX_SUPPORTED_PROPTYPE // should always be at the end so its value is last + 1
+        MAX_SUPPORTED_PROPTYPE, // should always be at the end so its value is last + 1
     };
     Q_ENUM(PropType);
 
@@ -141,7 +141,7 @@ public:
         COMPRESS_NONE              =  0,
         COMPRESS_RLE               =  1,
         COMPRESS_ZLIB              =  2,  /* unused */
-        COMPRESS_FRACTAL           =  3   /* unused */
+        COMPRESS_FRACTAL           =  3,   /* unused */
     };
     Q_ENUM(XcfCompressionType);
 
@@ -208,7 +208,7 @@ public:
         GIMP_LAYER_MODE_MERGE,
         GIMP_LAYER_MODE_SPLIT,
         GIMP_LAYER_MODE_PASS_THROUGH,
-        GIMP_LAYER_MODE_COUNT
+        GIMP_LAYER_MODE_COUNT,
     };
     Q_ENUM(LayerModeType);
 
@@ -219,7 +219,7 @@ public:
         GRAY_GIMAGE,
         GRAYA_GIMAGE,
         INDEXED_GIMAGE,
-        INDEXEDA_GIMAGE
+        INDEXEDA_GIMAGE,
     };
     Q_ENUM(GimpImageType);
 
@@ -227,7 +227,7 @@ public:
     enum GimpColorSpace {
         RgbLinearSpace,
         RgbPerceptualSpace,
-        LabSpace
+        LabSpace,
     };
 
     //! Mode to use when compositing layer

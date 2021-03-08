@@ -36,7 +36,7 @@ private:
     enum ParseHeicState {
         ParseHeicError = -1,
         ParseHeicNotParsed = 0,
-        ParseHeicSuccess = 1
+        ParseHeicSuccess = 1,
     };
 
     ParseHeicState m_parseState;

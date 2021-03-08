@@ -28,13 +28,13 @@ enum RASType {
     RAS_TYPE_RGB_FORMAT     = 0x3,
     RAS_TYPE_TIFF_FORMAT        = 0x4,
     RAS_TYPE_IFF_FORMAT     = 0x5,
-    RAS_TYPE_EXPERIMENTAL       = 0xFFFF
+    RAS_TYPE_EXPERIMENTAL       = 0xFFFF,
 };
 
 enum RASColorMapType {
     RAS_COLOR_MAP_TYPE_NONE     = 0x0,
     RAS_COLOR_MAP_TYPE_RGB      = 0x1,
-    RAS_COLOR_MAP_TYPE_RAW      = 0x2
+    RAS_COLOR_MAP_TYPE_RAW      = 0x2,
 };
 
 struct RasHeader {
@@ -46,7 +46,7 @@ struct RasHeader {
     quint32 Type;
     quint32 ColorMapType;
     quint32 ColorMapLength;
-    enum { SIZE = 32 }; // 8 fields of four bytes each
+    enum { SIZE = 32, }; // 8 fields of four bytes each
 };
 
 static QDataStream &operator>> (QDataStream &s, RasHeader &head)

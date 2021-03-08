@@ -40,7 +40,7 @@ enum TGAType {
     TGA_TYPE_GREY           = 3,
     TGA_TYPE_RLE_INDEXED    = 9,
     TGA_TYPE_RLE_RGB        = 10,
-    TGA_TYPE_RLE_GREY       = 11
+    TGA_TYPE_RLE_GREY       = 11,
 };
 
 #define TGA_INTERLEAVE_MASK 0xc0
@@ -69,7 +69,7 @@ struct TgaHeader {
     uchar pixel_size;
     uchar flags;
 
-    enum { SIZE = 18 }; // const static int SIZE = 18;
+    enum { SIZE = 18, }; // const static int SIZE = 18;
 };
 
 static QDataStream &operator>> (QDataStream &s, TgaHeader &head)

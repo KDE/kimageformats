@@ -51,7 +51,7 @@ private:
   {
     ParseAvifError = -1,
     ParseAvifNotParsed = 0,
-    ParseAvifSuccess = 1
+    ParseAvifSuccess = 1,
   };
 
   ParseAvifState m_parseState;
