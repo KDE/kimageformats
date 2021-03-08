@@ -9,12 +9,11 @@
 #include <QDebug>
 #include <QImage>
 #include <QScopeGuard>
-#include <QtEndian>
 #include <QVariant>
+#include <QtEndian>
 
 namespace
 {
-
 struct ChunkHeader {
     char magic[4];
     quint32_le size;
@@ -33,16 +32,16 @@ struct AniHeader {
 };
 
 struct CurHeader {
-   quint16_le wReserved; // always 0
-   quint16_le wResID; // always 2
-   quint16_le wNumImages;
+    quint16_le wReserved; // always 0
+    quint16_le wResID; // always 2
+    quint16_le wNumImages;
 };
 
 struct CursorDirEntry {
     quint8 bWidth;
     quint8 bHeight;
     quint8 bColorCount;
-    quint8 bReserved;	// always 0
+    quint8 bReserved; // always 0
     quint16_le wHotspotX;
     quint16_le wHotspotY;
     quint32_le dwBytesInImage;
@@ -64,8 +63,7 @@ bool ANIHandler::canRead() const
     const QByteArray nextFrame = device()->peek(sizeof(ChunkHeader));
     if (nextFrame.size() == sizeof(ChunkHeader)) {
         const auto *header = reinterpret_cast<const ChunkHeader *>(nextFrame.data());
-        if (qstrncmp(header->magic, "icon", sizeof(header->magic)) == 0
-                && header->size > 0) {
+        if (qstrncmp(header->magic, "icon", sizeof(header->magic)) == 0 && header->size > 0) {
             setFormat("ani");
             return true;
         }
@@ -377,8 +375,7 @@ bool ANIHandler::ensureScanned() const
             mutableThis->m_displayRate = aniHeader->iDispRate;
         } else if (chunkId == "rate" || chunkId == "seq ") {
             const QByteArray data = device()->read(chunkSize);
-            if (static_cast<quint32_le>(data.size()) != chunkSize
-                    || data.size() % sizeof(quint32_le) != 0) {
+            if (static_cast<quint32_le>(data.size()) != chunkSize || data.size() % sizeof(quint32_le) != 0) {
                 return false;
             }
 
@@ -407,8 +404,8 @@ bool ANIHandler::ensureScanned() const
                     mutableThis->m_imageSequence = list;
                 }
             }
-        // IART and INAM are technically inside LIST->INFO but "INFO" is supposedly optional
-        // so just handle those two attributes wherever we encounter them
+            // IART and INAM are technically inside LIST->INFO but "INFO" is supposedly optional
+            // so just handle those two attributes wherever we encounter them
         } else if (chunkId == "INAM" || chunkId == "IART") {
             const QByteArray value = device()->read(chunkSize);
 
@@ -455,8 +452,7 @@ bool ANIHandler::ensureScanned() const
                             const QByteArray curHeaderData = device()->read(sizeof(CurHeader));
                             const QByteArray cursorDirEntryData = device()->read(sizeof(CursorDirEntry));
 
-                            if (curHeaderData.length() == sizeof(CurHeader)
-                                    && cursorDirEntryData.length() == sizeof(CursorDirEntry)) {
+                            if (curHeaderData.length() == sizeof(CurHeader) && cursorDirEntryData.length() == sizeof(CursorDirEntry)) {
                                 auto *cursorDirEntry = reinterpret_cast<const CursorDirEntry *>(cursorDirEntryData.data());
                                 mutableThis->m_size = QSize(cursorDirEntry->bWidth, cursorDirEntry->bHeight);
                             }

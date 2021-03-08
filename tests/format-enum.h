@@ -7,8 +7,8 @@
 #ifndef FORMAT_ENUM_H
 #define FORMAT_ENUM_H
 
-#include <QMetaEnum>
 #include <QImage>
+#include <QMetaEnum>
 
 QImage::Format formatFromString(const QString &str)
 {

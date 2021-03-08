@@ -32,4 +32,3 @@ public:
 };
 
 #endif // KIMG_PSD_P_H
-

@@ -27,19 +27,15 @@ int main(int argc, char **argv)
     parser.addVersionOption();
     parser.addPositionalArgument(QStringLiteral("in"), QStringLiteral("input image file"));
     parser.addPositionalArgument(QStringLiteral("out"), QStringLiteral("output image file"));
-    QCommandLineOption informat(
-        QStringList() << QStringLiteral("i") << QStringLiteral("informat"),
-        QStringLiteral("Image format for input file"),
-        QStringLiteral("format"));
+    QCommandLineOption informat(QStringList() << QStringLiteral("i") << QStringLiteral("informat"),
+                                QStringLiteral("Image format for input file"),
+                                QStringLiteral("format"));
     parser.addOption(informat);
-    QCommandLineOption outformat(
-        QStringList() << QStringLiteral("o") << QStringLiteral("outformat"),
-        QStringLiteral("Image format for output file"),
-        QStringLiteral("format"));
+    QCommandLineOption outformat(QStringList() << QStringLiteral("o") << QStringLiteral("outformat"),
+                                 QStringLiteral("Image format for output file"),
+                                 QStringLiteral("format"));
     parser.addOption(outformat);
-    QCommandLineOption listformats(
-        QStringList() << QStringLiteral("l") << QStringLiteral("list"),
-        QStringLiteral("List supported image formats"));
+    QCommandLineOption listformats(QStringList() << QStringLiteral("l") << QStringLiteral("list"), QStringLiteral("List supported image formats"));
     parser.addOption(listformats);
 
     parser.process(app);

@@ -9,11 +9,11 @@
 
 #include "ras_p.h"
 
-#include <QImage>
 #include <QDataStream>
 #include <QDebug>
+#include <QImage>
 
-namespace   // Private.
+namespace // Private.
 {
 // format info from http://www.fileformat.info/format/sunraster/egff.htm
 
@@ -22,19 +22,19 @@ quint32 rasMagicBigEndian = 0x59a66a95;
 // quint32 rasMagicLittleEndian = 0x956aa659; # used to support wrong encoded files
 
 enum RASType {
-    RAS_TYPE_OLD            = 0x0,
-    RAS_TYPE_STANDARD       = 0x1,
-    RAS_TYPE_BYTE_ENCODED       = 0x2,
-    RAS_TYPE_RGB_FORMAT     = 0x3,
-    RAS_TYPE_TIFF_FORMAT        = 0x4,
-    RAS_TYPE_IFF_FORMAT     = 0x5,
-    RAS_TYPE_EXPERIMENTAL       = 0xFFFF,
+    RAS_TYPE_OLD = 0x0,
+    RAS_TYPE_STANDARD = 0x1,
+    RAS_TYPE_BYTE_ENCODED = 0x2,
+    RAS_TYPE_RGB_FORMAT = 0x3,
+    RAS_TYPE_TIFF_FORMAT = 0x4,
+    RAS_TYPE_IFF_FORMAT = 0x5,
+    RAS_TYPE_EXPERIMENTAL = 0xFFFF,
 };
 
 enum RASColorMapType {
-    RAS_COLOR_MAP_TYPE_NONE     = 0x0,
-    RAS_COLOR_MAP_TYPE_RGB      = 0x1,
-    RAS_COLOR_MAP_TYPE_RAW      = 0x2,
+    RAS_COLOR_MAP_TYPE_NONE = 0x0,
+    RAS_COLOR_MAP_TYPE_RGB = 0x1,
+    RAS_COLOR_MAP_TYPE_RAW = 0x2,
 };
 
 struct RasHeader {
@@ -46,10 +46,12 @@ struct RasHeader {
     quint32 Type;
     quint32 ColorMapType;
     quint32 ColorMapLength;
-    enum { SIZE = 32, }; // 8 fields of four bytes each
+    enum {
+        SIZE = 32,
+    }; // 8 fields of four bytes each
 };
 
-static QDataStream &operator>> (QDataStream &s, RasHeader &head)
+static QDataStream &operator>>(QDataStream &s, RasHeader &head)
 {
     s >> head.MagicNumber;
     s >> head.Width;
@@ -79,8 +81,7 @@ static bool IsSupported(const RasHeader &head)
     // check for an appropriate depth
     // we support 8bit+palette, 24bit and 32bit ONLY!
     // TODO: add support for 1bit
-    if (!((head.Depth == 8 && head.ColorMapType == 1)
-            || head.Depth == 24 || head.Depth == 32)) {
+    if (!((head.Depth == 8 && head.ColorMapType == 1) || head.Depth == 24 || head.Depth == 32)) {
         return false;
     }
     // the Type field adds support for RLE(BGR), RGB and other encodings
@@ -141,7 +142,7 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
     QVector<quint8> input(ras.Length);
 
     int i = 0;
-    while (! s.atEnd() && i < input.size()) {
+    while (!s.atEnd() && i < input.size()) {
         s >> input[i];
         // I guess we need to find out if we're at the end of a line
         if (paddingrequired && i != 0 && !(i % (ras.Width * bpp))) {
@@ -168,7 +169,6 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
                 img.setPixel(x, y, qRgb(red, green, blue));
             }
         }
-
     }
 
     if (ras.ColorMapType == 0 && ras.Depth == 24 && (ras.Type == 1 || ras.Type == 2)) {
@@ -282,13 +282,13 @@ bool RASHandler::read(QImage *outImage)
 
     // Check image file format. Type 2 is RLE, which causing seeking to be silly.
     if (!s.atEnd() && ras.Type != 2) {
-//         qDebug() << "This RAS file is not valid, or an older version of the format.";
+        //         qDebug() << "This RAS file is not valid, or an older version of the format.";
         return false;
     }
 
     // Check supported file types.
     if (!IsSupported(ras)) {
-//         qDebug() << "This RAS file is not supported.";
+        //         qDebug() << "This RAS file is not supported.";
         return false;
     }
 
@@ -296,7 +296,7 @@ bool RASHandler::read(QImage *outImage)
     bool result = LoadRAS(s, ras, img);
 
     if (result == false) {
-//         qDebug() << "Error loading RAS file.";
+        //         qDebug() << "Error loading RAS file.";
         return false;
     }
 
@@ -306,7 +306,6 @@ bool RASHandler::read(QImage *outImage)
 
 QImageIOPlugin::Capabilities RASPlugin::capabilities(QIODevice *device, const QByteArray &format) const
 {
-
     if (format == "ras") {
         return Capabilities(CanRead);
     }

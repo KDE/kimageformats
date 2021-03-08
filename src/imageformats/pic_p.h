@@ -8,8 +8,8 @@
 #ifndef KIMG_PIC_P_H
 #define KIMG_PIC_P_H
 
-#include <QImageIOPlugin>
 #include <QDataStream>
+#include <QImageIOPlugin>
 
 /**
  * The magic number at the start of a SoftImage PIC file.
@@ -70,9 +70,12 @@ struct PicHeader {
         , height(_height)
         , ratio(1.0f)
         , fields(BothScanlines)
-    {}
+    {
+    }
     /** Construct an invalid header. */
-    PicHeader() {}
+    PicHeader()
+    {
+    }
 
     quint32 magic; /**< Should be PIC_MAGIC_NUMBER */
     float version; /**< Version of something (header? file format?) (ignored) */
@@ -88,9 +91,9 @@ struct PicHeader {
     /**
      * Returns true if the @p magic and @p id fields are set correctly.
      */
-    bool isValid() const {
-        return magic == PIC_MAGIC_NUMBER
-            && id == "PICT";
+    bool isValid() const
+    {
+        return magic == PIC_MAGIC_NUMBER && id == "PICT";
     }
 
     /**
@@ -123,7 +126,8 @@ struct PicChannel {
         : size(_size)
         , encoding(_encoding)
         , code(_code)
-    {}
+    {
+    }
     /**
      * Constructs a default channel description for a SoftImage PIC file.
      *
@@ -135,7 +139,8 @@ struct PicChannel {
      */
     PicChannel()
         : size(8)
-    {}
+    {
+    }
 };
 
 class SoftimagePICHandler : public QImageIOHandler
@@ -161,7 +166,8 @@ public:
     SoftimagePICHandler()
         : m_state(Ready)
         , m_compression(true)
-    {}
+    {
+    }
 
     bool readHeader();
     bool readChannels();

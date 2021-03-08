@@ -9,74 +9,74 @@
 #ifndef KIMG_AVIF_P_H
 #define KIMG_AVIF_P_H
 
-#include <QImage>
-#include <QVariant>
-#include <qimageiohandler.h>
-#include <QImageIOPlugin>
 #include <QByteArray>
+#include <QImage>
+#include <QImageIOPlugin>
 #include <QPointF>
+#include <QVariant>
 #include <avif/avif.h>
+#include <qimageiohandler.h>
 
 class QAVIFHandler : public QImageIOHandler
 {
 public:
-  QAVIFHandler();
-  ~QAVIFHandler();
+    QAVIFHandler();
+    ~QAVIFHandler();
 
-  bool canRead() const override;
-  bool read (QImage *image) override;
-  bool write (const QImage &image) override;
+    bool canRead() const override;
+    bool read(QImage *image) override;
+    bool write(const QImage &image) override;
 
-  static bool canRead (QIODevice *device);
+    static bool canRead(QIODevice *device);
 
-  QVariant option (ImageOption option) const override;
-  void setOption (ImageOption option, const QVariant &value) override;
-  bool supportsOption (ImageOption option) const override;
+    QVariant option(ImageOption option) const override;
+    void setOption(ImageOption option, const QVariant &value) override;
+    bool supportsOption(ImageOption option) const override;
 
-  int imageCount() const override;
-  int currentImageNumber() const override;
-  bool jumpToNextImage() override;
-  bool jumpToImage (int imageNumber) override;
+    int imageCount() const override;
+    int currentImageNumber() const override;
+    bool jumpToNextImage() override;
+    bool jumpToImage(int imageNumber) override;
 
-  int nextImageDelay() const override;
+    int nextImageDelay() const override;
 
-  int loopCount() const override;
+    int loopCount() const override;
+
 private:
-  static QPointF CompatibleChromacity(qreal chrX, qreal chrY);
-  bool ensureParsed() const;
-  bool ensureDecoder();
-  bool decode_one_frame();
+    static QPointF CompatibleChromacity(qreal chrX, qreal chrY);
+    bool ensureParsed() const;
+    bool ensureDecoder();
+    bool decode_one_frame();
 
-  enum ParseAvifState
-  {
-    ParseAvifError = -1,
-    ParseAvifNotParsed = 0,
-    ParseAvifSuccess = 1,
-  };
+    enum ParseAvifState {
+        ParseAvifError = -1,
+        ParseAvifNotParsed = 0,
+        ParseAvifSuccess = 1,
+    };
 
-  ParseAvifState m_parseState;
-  int m_quality;
+    ParseAvifState m_parseState;
+    int m_quality;
 
-  uint32_t m_container_width;
-  uint32_t m_container_height;
+    uint32_t m_container_width;
+    uint32_t m_container_height;
 
-  QByteArray m_rawData;
-  avifROData m_rawAvifData;
+    QByteArray m_rawData;
+    avifROData m_rawAvifData;
 
-  avifDecoder *m_decoder;
-  QImage        m_current_image;
+    avifDecoder *m_decoder;
+    QImage m_current_image;
 
-  bool m_must_jump_to_next_image;
+    bool m_must_jump_to_next_image;
 };
 
 class QAVIFPlugin : public QImageIOPlugin
 {
-  Q_OBJECT
-  Q_PLUGIN_METADATA (IID "org.qt-project.Qt.QImageIOHandlerFactoryInterface" FILE "avif.json")
+    Q_OBJECT
+    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QImageIOHandlerFactoryInterface" FILE "avif.json")
 
 public:
-  Capabilities capabilities (QIODevice *device, const QByteArray &format) const override;
-  QImageIOHandler *create (QIODevice *device, const QByteArray &format = QByteArray()) const override;
+    Capabilities capabilities(QIODevice *device, const QByteArray &format) const override;
+    QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const override;
 };
 
 #endif // KIMG_AVIF_P_H

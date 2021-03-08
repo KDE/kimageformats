@@ -53,7 +53,6 @@ private:
     QString m_name;
     QString m_artist;
     QSize m_size;
-
 };
 
 class ANIPlugin : public QImageIOPlugin

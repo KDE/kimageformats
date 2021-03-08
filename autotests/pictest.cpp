@@ -35,61 +35,27 @@ private:
         QTest::addColumn<QImage::Format>("pngformat");
         QTest::addColumn<bool>("compress");
 
-        QTest::newRow("4x4 no alpha RLE")
-            << QFINDTESTDATA("pic/4x4-simple-color.pic")
-            << QFINDTESTDATA("pic/4x4-simple-color.png")
-            << QString()
-            << false
-            << QImage::Format_RGB32
-            << true;
+        QTest::newRow("4x4 no alpha RLE") << QFINDTESTDATA("pic/4x4-simple-color.pic") << QFINDTESTDATA("pic/4x4-simple-color.png") << QString() << false
+                                          << QImage::Format_RGB32 << true;
 
-        QTest::newRow("4x4 no alpha raw")
-            << QFINDTESTDATA("pic/4x4-simple-color-uncompressed.pic")
-            << QFINDTESTDATA("pic/4x4-simple-color.png")
-            << QString()
-            << false
-            << QImage::Format_RGB32
-            << false;
+        QTest::newRow("4x4 no alpha raw") << QFINDTESTDATA("pic/4x4-simple-color-uncompressed.pic") << QFINDTESTDATA("pic/4x4-simple-color.png") << QString()
+                                          << false << QImage::Format_RGB32 << false;
 
-        QTest::newRow("Short comment")
-            << QFINDTESTDATA("pic/short-comment.pic")
-            << QFINDTESTDATA("pic/4x4-simple-color.png")
-            << QStringLiteral("Test comment value")
-            << false
-            << QImage::Format_RGB32
-            << true;
+        QTest::newRow("Short comment") << QFINDTESTDATA("pic/short-comment.pic") << QFINDTESTDATA("pic/4x4-simple-color.png")
+                                       << QStringLiteral("Test comment value") << false << QImage::Format_RGB32 << true;
 
-        QTest::newRow("Long comment")
-            << QFINDTESTDATA("pic/long-comment.pic")
-            << QFINDTESTDATA("pic/4x4-simple-color.png")
-            << QStringLiteral("Test comment value that goes right up to the end of the comment field and has no")
-            << false
-            << QImage::Format_RGB32
-            << true;
+        QTest::newRow("Long comment") << QFINDTESTDATA("pic/long-comment.pic") << QFINDTESTDATA("pic/4x4-simple-color.png")
+                                      << QStringLiteral("Test comment value that goes right up to the end of the comment field and has no") << false
+                                      << QImage::Format_RGB32 << true;
 
-        QTest::newRow("Long run-lengths")
-            << QFINDTESTDATA("pic/long-runs.pic")
-            << QFINDTESTDATA("pic/long-runs.png")
-            << QString()
-            << false
-            << QImage::Format_RGB32
-            << true;
+        QTest::newRow("Long run-lengths") << QFINDTESTDATA("pic/long-runs.pic") << QFINDTESTDATA("pic/long-runs.png") << QString() << false
+                                          << QImage::Format_RGB32 << true;
 
-        QTest::newRow("4x4 with alpha RLE")
-            << QFINDTESTDATA("pic/4x4-alpha.pic")
-            << QFINDTESTDATA("pic/4x4-alpha.png")
-            << QString()
-            << true
-            << QImage::Format_ARGB32
-            << true;
+        QTest::newRow("4x4 with alpha RLE") << QFINDTESTDATA("pic/4x4-alpha.pic") << QFINDTESTDATA("pic/4x4-alpha.png") << QString() << true
+                                            << QImage::Format_ARGB32 << true;
 
-        QTest::newRow("4x4 with alpha raw")
-            << QFINDTESTDATA("pic/4x4-alpha-uncompressed.pic")
-            << QFINDTESTDATA("pic/4x4-alpha.png")
-            << QString()
-            << true
-            << QImage::Format_ARGB32
-            << false;
+        QTest::newRow("4x4 with alpha raw") << QFINDTESTDATA("pic/4x4-alpha-uncompressed.pic") << QFINDTESTDATA("pic/4x4-alpha.png") << QString() << true
+                                            << QImage::Format_ARGB32 << false;
     }
 
 private Q_SLOTS:
@@ -106,13 +72,8 @@ private Q_SLOTS:
         //     so there is no actual data loss in converting to RGB16.
         //     This just tests that the pic plugin can deal with different
         //     input formats.
-        QTest::newRow("altered format")
-            << QFINDTESTDATA("pic/4x4-simple-color.pic")
-            << QFINDTESTDATA("pic/4x4-simple-color.png")
-            << QString()
-            << false
-            << QImage::Format_RGB16
-            << true;
+        QTest::newRow("altered format") << QFINDTESTDATA("pic/4x4-simple-color.pic") << QFINDTESTDATA("pic/4x4-simple-color.png") << QString() << false
+                                        << QImage::Format_RGB16 << true;
     }
 
     void testRead_data()
@@ -148,17 +109,12 @@ private Q_SLOTS:
         imgWriter.write(pngImage);
 
         if (expData != picData) {
-            QString fileNameBase = QUuid::createUuid().toString()
-                .remove(QLatin1Char('{'))
-                .remove(QLatin1Char('}'));
+            QString fileNameBase = QUuid::createUuid().toString().remove(QLatin1Char('{')).remove(QLatin1Char('}'));
             QFile dumpFile(fileNameBase + QStringLiteral(".pic"));
             QVERIFY2(dumpFile.open(QIODevice::WriteOnly), qPrintable(dumpFile.errorString()));
             dumpFile.write(picData);
-            QString msg = QStringLiteral("Written data (")
-                        + dumpFile.fileName()
-                        + QStringLiteral(") differed from expected data (")
-                        + picfile
-                        + QLatin1Char(')');
+            QString msg =
+                QStringLiteral("Written data (") + dumpFile.fileName() + QStringLiteral(") differed from expected data (") + picfile + QLatin1Char(')');
             QFAIL(qPrintable(msg));
         }
     }
@@ -182,29 +138,20 @@ private Q_SLOTS:
         QCOMPARE(inputImage.width(), expImage.width());
         QCOMPARE(inputImage.height(), expImage.height());
         QCOMPARE(inputImage.hasAlphaChannel(), alpha);
-        QCOMPARE(inputImage.format(), alpha ? QImage::Format_ARGB32
-                                            : QImage::Format_RGB32);
+        QCOMPARE(inputImage.format(), alpha ? QImage::Format_ARGB32 : QImage::Format_RGB32);
 
         expImage = expImage.convertToFormat(pngformat);
-        expImage = expImage.convertToFormat(alpha ? QImage::Format_ARGB32
-                                                  : QImage::Format_RGB32);
+        expImage = expImage.convertToFormat(alpha ? QImage::Format_ARGB32 : QImage::Format_RGB32);
         if (inputImage != expImage) {
-            QString fileNameBase = QUuid::createUuid().toString()
-                .remove(QLatin1Char('{'))
-                .remove(QLatin1Char('}'));
+            QString fileNameBase = QUuid::createUuid().toString().remove(QLatin1Char('{')).remove(QLatin1Char('}'));
             QFile picDumpFile(fileNameBase + QStringLiteral("-expected.data"));
             QVERIFY2(picDumpFile.open(QIODevice::WriteOnly), qPrintable(picDumpFile.errorString()));
-            picDumpFile.write(reinterpret_cast<const char *>(inputImage.bits()),
-                              inputImage.sizeInBytes());
+            picDumpFile.write(reinterpret_cast<const char *>(inputImage.bits()), inputImage.sizeInBytes());
             QFile pngDumpFile(fileNameBase + QStringLiteral("-actual.data"));
             QVERIFY2(pngDumpFile.open(QIODevice::WriteOnly), qPrintable(pngDumpFile.errorString()));
-            pngDumpFile.write(reinterpret_cast<const char *>(expImage.bits()),
-                              expImage.sizeInBytes());
-            QString msg = QStringLiteral("Read image (")
-                        + picDumpFile.fileName()
-                        + QStringLiteral(") differed from expected image (")
-                        + pngDumpFile.fileName()
-                        + QLatin1Char(')');
+            pngDumpFile.write(reinterpret_cast<const char *>(expImage.bits()), expImage.sizeInBytes());
+            QString msg = QStringLiteral("Read image (") + picDumpFile.fileName() + QStringLiteral(") differed from expected image (") + pngDumpFile.fileName()
+                + QLatin1Char(')');
             QFAIL(qPrintable(msg));
         }
     }
@@ -252,8 +199,7 @@ private Q_SLOTS:
 
         QImageReader inputReader(picfile, "pic");
 
-        QCOMPARE(inputReader.imageFormat(),
-                 alpha ? QImage::Format_ARGB32 : QImage::Format_RGB32);
+        QCOMPARE(inputReader.imageFormat(), alpha ? QImage::Format_ARGB32 : QImage::Format_RGB32);
     }
 };
 

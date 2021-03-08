@@ -22,17 +22,12 @@ static void writeImageData(const char *name, const QString &filename, const QIma
     if (file.open(QIODevice::WriteOnly)) {
         qint64 written = file.write(reinterpret_cast<const char *>(image.bits()), image.sizeInBytes());
         if (written == image.sizeInBytes()) {
-            QTextStream(stdout) << "       " << name
-                                << " written to " << filename << "\n";
+            QTextStream(stdout) << "       " << name << " written to " << filename << "\n";
         } else {
-            QTextStream(stdout) << "       could not write " << name
-                                << " to " << filename << ":"
-                                << file.errorString() << "\n";
+            QTextStream(stdout) << "       could not write " << name << " to " << filename << ":" << file.errorString() << "\n";
         }
     } else {
-        QTextStream(stdout) << "       could not open "
-                            << filename << ":"
-                            << file.errorString() << "\n";
+        QTextStream(stdout) << "       could not open " << filename << ":" << file.errorString() << "\n";
     }
 }
 
@@ -45,8 +40,8 @@ static bool fuzzyeq(const QImage &im1, const QImage &im2, uchar fuzziness)
     const int height = im1.height();
     const int width = im1.width();
     for (int i = 0; i < height; ++i) {
-        const Trait *line1 = reinterpret_cast<const Trait*>(im1.scanLine(i));
-        const Trait *line2 = reinterpret_cast<const Trait*>(im2.scanLine(i));
+        const Trait *line1 = reinterpret_cast<const Trait *>(im1.scanLine(i));
+        const Trait *line2 = reinterpret_cast<const Trait *>(im2.scanLine(i));
         for (int j = 0; j < width; ++j) {
             if (line1[j] > line2[j]) {
                 if (line1[j] - line2[j] > fuzziness)
@@ -63,8 +58,7 @@ static bool fuzzyeq(const QImage &im1, const QImage &im2, uchar fuzziness)
 // allow each byte to be different by up to 1, to allow for rounding errors
 static bool fuzzyeq(const QImage &im1, const QImage &im2, uchar fuzziness)
 {
-    return (im1.depth() == 64) ? fuzzyeq<quint16>(im1, im2, fuzziness)
-                               : fuzzyeq<quint8>(im1, im2, fuzziness);
+    return (im1.depth() == 64) ? fuzzyeq<quint16>(im1, im2, fuzziness) : fuzzyeq<quint8>(im1, im2, fuzziness);
 }
 
 // Returns the original format if we support, or returns
@@ -84,7 +78,7 @@ static QImage::Format preferredFormat(QImage::Format fmt)
     }
 }
 
-int main(int argc, char ** argv)
+int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
     QCoreApplication::removeLibraryPath(QStringLiteral(PLUGIN_DIR));
@@ -97,10 +91,9 @@ int main(int argc, char ** argv)
     parser.addHelpOption();
     parser.addVersionOption();
     parser.addPositionalArgument(QStringLiteral("format"), QStringLiteral("format to test"));
-    QCommandLineOption fuzz(
-        QStringList() << QStringLiteral("f") << QStringLiteral("fuzz"),
-        QStringLiteral("Allow for some deviation in ARGB data."),
-        QStringLiteral("max"));
+    QCommandLineOption fuzz(QStringList() << QStringLiteral("f") << QStringLiteral("fuzz"),
+                            QStringLiteral("Allow for some deviation in ARGB data."),
+                            QStringLiteral("max"));
     parser.addOption(fuzz);
 
     parser.process(app);
@@ -136,13 +129,14 @@ int main(int argc, char ** argv)
     int failed = 0;
 
     QTextStream(stdout) << "********* "
-        << "Starting basic read tests for "
-        << suffix << " images *********\n";
+                        << "Starting basic read tests for " << suffix << " images *********\n";
 
     const QList<QByteArray> formats = QImageReader::supportedImageFormats();
     QStringList formatStrings;
     formatStrings.reserve(formats.size());
-    std::transform(formats.begin(), formats.end(), std::back_inserter(formatStrings), [](const QByteArray &format) { return QString(format); });
+    std::transform(formats.begin(), formats.end(), std::back_inserter(formatStrings), [](const QByteArray &format) {
+        return QString(format);
+    });
     QTextStream(stdout) << "QImageReader::supportedImageFormats: " << formatStrings.join(", ") << "\n";
 
     const QFileInfoList lstImgDir = imgdir.entryInfoList();
@@ -159,40 +153,27 @@ int main(int argc, char ** argv)
         QImage expImage;
 
         if (!expReader.read(&expImage)) {
-            QTextStream(stdout) << "ERROR: " << fi.fileName()
-                << ": could not load " << expfilename
-                << ": " << expReader.errorString()
-                << "\n";
+            QTextStream(stdout) << "ERROR: " << fi.fileName() << ": could not load " << expfilename << ": " << expReader.errorString() << "\n";
             ++failed;
             continue;
         }
         if (!inputReader.canRead()) {
-            QTextStream(stdout) << "FAIL : " << fi.fileName()
-                << ": failed can read: "
-                << inputReader.errorString()
-                << "\n";
+            QTextStream(stdout) << "FAIL : " << fi.fileName() << ": failed can read: " << inputReader.errorString() << "\n";
             ++failed;
             continue;
         }
         if (!inputReader.read(&inputImage)) {
-            QTextStream(stdout) << "FAIL : " << fi.fileName()
-                << ": failed to load: "
-                << inputReader.errorString()
-                << "\n";
+            QTextStream(stdout) << "FAIL : " << fi.fileName() << ": failed to load: " << inputReader.errorString() << "\n";
             ++failed;
             continue;
         }
         if (expImage.width() != inputImage.width()) {
-            QTextStream(stdout) << "FAIL : " << fi.fileName()
-                << ": width was " << inputImage.width()
-                << " but " << expfilename << " width was "
-                << expImage.width() << "\n";
+            QTextStream(stdout) << "FAIL : " << fi.fileName() << ": width was " << inputImage.width() << " but " << expfilename << " width was "
+                                << expImage.width() << "\n";
             ++failed;
         } else if (expImage.height() != inputImage.height()) {
-            QTextStream(stdout) << "FAIL : " << fi.fileName()
-                << ": height was " << inputImage.height()
-                << " but " << expfilename << " height was "
-                << expImage.height() << "\n";
+            QTextStream(stdout) << "FAIL : " << fi.fileName() << ": height was " << inputImage.height() << " but " << expfilename << " height was "
+                                << expImage.height() << "\n";
             ++failed;
         } else {
             QImage::Format inputFormat = preferredFormat(inputImage.format());
@@ -200,42 +181,30 @@ int main(int argc, char ** argv)
             QImage::Format cmpFormat = inputFormat == expFormat ? inputFormat : QImage::Format_ARGB32;
 
             if (inputImage.format() != cmpFormat) {
-                QTextStream(stdout) << "INFO : " << fi.fileName()
-                    << ": converting " << fi.fileName()
-                    << " from " << formatToString(inputImage.format())
-                    << " to " << formatToString(cmpFormat) << '\n';
+                QTextStream(stdout) << "INFO : " << fi.fileName() << ": converting " << fi.fileName() << " from " << formatToString(inputImage.format())
+                                    << " to " << formatToString(cmpFormat) << '\n';
                 inputImage = inputImage.convertToFormat(cmpFormat);
             }
             if (expImage.format() != cmpFormat) {
-                QTextStream(stdout) << "INFO : " << fi.fileName()
-                    << ": converting " << expfilename
-                    << " from " << formatToString(expImage.format())
-                    << " to " << formatToString(cmpFormat) << '\n';
+                QTextStream(stdout) << "INFO : " << fi.fileName() << ": converting " << expfilename << " from " << formatToString(expImage.format()) << " to "
+                                    << formatToString(cmpFormat) << '\n';
                 expImage = expImage.convertToFormat(cmpFormat);
             }
             if (fuzzyeq(inputImage, expImage, fuzziness)) {
                 QTextStream(stdout) << "PASS : " << fi.fileName() << "\n";
                 ++passed;
             } else {
-                QTextStream(stdout) << "FAIL : " << fi.fileName()
-                    << ": differs from " << expfilename << "\n";
-                writeImageData("expected data",
-                               fi.fileName() + QLatin1String("-expected.data"),
-                               expImage);
-                writeImageData("actual data",
-                               fi.fileName() + QLatin1String("-actual.data"),
-                               inputImage);
+                QTextStream(stdout) << "FAIL : " << fi.fileName() << ": differs from " << expfilename << "\n";
+                writeImageData("expected data", fi.fileName() + QLatin1String("-expected.data"), expImage);
+                writeImageData("actual data", fi.fileName() + QLatin1String("-actual.data"), inputImage);
                 ++failed;
             }
         }
     }
 
-    QTextStream(stdout) << "Totals: "
-        << passed << " passed, "
-        << failed << " failed\n";
+    QTextStream(stdout) << "Totals: " << passed << " passed, " << failed << " failed\n";
     QTextStream(stdout) << "********* "
-        << "Finished basic read tests for "
-        << suffix << " images *********\n";
+                        << "Finished basic read tests for " << suffix << " images *********\n";
 
     return failed == 0 ? 0 : 1;
 }

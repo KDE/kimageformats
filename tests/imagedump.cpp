@@ -10,10 +10,10 @@
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QDebug>
-#include <QImageReader>
 #include <QFile>
-#include <QMetaObject>
+#include <QImageReader>
 #include <QMetaEnum>
+#include <QMetaObject>
 #include <QTextStream>
 
 #include "format-enum.h"
@@ -31,27 +31,22 @@ int main(int argc, char **argv)
     parser.addVersionOption();
     parser.addPositionalArgument(QStringLiteral("image"), QStringLiteral("image file"));
     parser.addPositionalArgument(QStringLiteral("datafile"), QStringLiteral("file QImage data should be written to"));
-    QCommandLineOption informat(
-        QStringList() << QStringLiteral("f") << QStringLiteral("file-format"),
-        QStringLiteral("Image file format"),
-        QStringLiteral("format"));
+    QCommandLineOption informat(QStringList() << QStringLiteral("f") << QStringLiteral("file-format"),
+                                QStringLiteral("Image file format"),
+                                QStringLiteral("format"));
     parser.addOption(informat);
-    QCommandLineOption qimgformat(
-        QStringList() << QStringLiteral("q") << QStringLiteral("qimage-format"),
-        QStringLiteral("QImage data format"),
-        QStringLiteral("format"));
+    QCommandLineOption qimgformat(QStringList() << QStringLiteral("q") << QStringLiteral("qimage-format"),
+                                  QStringLiteral("QImage data format"),
+                                  QStringLiteral("format"));
     parser.addOption(qimgformat);
-    QCommandLineOption listformats(
-        QStringList() << QStringLiteral("l") << QStringLiteral("list-file-formats"),
-        QStringLiteral("List supported image file formats"));
+    QCommandLineOption listformats(QStringList() << QStringLiteral("l") << QStringLiteral("list-file-formats"),
+                                   QStringLiteral("List supported image file formats"));
     parser.addOption(listformats);
-    QCommandLineOption listmimetypes(
-        QStringList() << QStringLiteral("m") << QStringLiteral("list-mime-types"),
-        QStringLiteral("List supported image mime types"));
+    QCommandLineOption listmimetypes(QStringList() << QStringLiteral("m") << QStringLiteral("list-mime-types"),
+                                     QStringLiteral("List supported image mime types"));
     parser.addOption(listmimetypes);
-    QCommandLineOption listqformats(
-        QStringList() << QStringLiteral("p") << QStringLiteral("list-qimage-formats"),
-        QStringLiteral("List supported QImage data formats"));
+    QCommandLineOption listqformats(QStringList() << QStringLiteral("p") << QStringLiteral("list-qimage-formats"),
+                                    QStringLiteral("List supported QImage data formats"));
     parser.addOption(listqformats);
 
     parser.process(app);
@@ -93,35 +88,29 @@ int main(int argc, char **argv)
     QImageReader reader(files.at(0), parser.value(informat).toLatin1());
     QImage img = reader.read();
     if (img.isNull()) {
-        QTextStream(stderr) << "Could not read image: "
-                            << reader.errorString() << '\n';
+        QTextStream(stderr) << "Could not read image: " << reader.errorString() << '\n';
         return 2;
     }
 
     QFile output(files.at(1));
     if (!output.open(QIODevice::WriteOnly)) {
-        QTextStream(stderr) << "Could not open " << files.at(1)
-                            << " for writing: "
-                            << output.errorString() << '\n';
+        QTextStream(stderr) << "Could not open " << files.at(1) << " for writing: " << output.errorString() << '\n';
         return 3;
     }
     if (parser.isSet(qimgformat)) {
         QImage::Format qformat = formatFromString(parser.value(qimgformat));
         if (qformat == QImage::Format_Invalid) {
-            QTextStream(stderr) << "Unknown QImage data format "
-                                << parser.value(qimgformat) << '\n';
+            QTextStream(stderr) << "Unknown QImage data format " << parser.value(qimgformat) << '\n';
             return 4;
         }
         img = img.convertToFormat(qformat);
     }
     qint64 written = output.write(reinterpret_cast<const char *>(img.bits()), img.sizeInBytes());
     if (written != img.sizeInBytes()) {
-        QTextStream(stderr) << "Could not write image data to " << files.at(1)
-                            << ":" << output.errorString() << "\n";
+        QTextStream(stderr) << "Could not write image data to " << files.at(1) << ":" << output.errorString() << "\n";
         return 5;
     }
-    QTextStream(stdout) << "Created " << files.at(1) << " with data format "
-                        << formatToString(img.format()) << "\n";
+    QTextStream(stdout) << "Created " << files.at(1) << " with data format " << formatToString(img.format()) << "\n";
 
     return 0;
 }

@@ -10,17 +10,19 @@
 #include "heif_p.h"
 #include "libheif/heif_cxx.h"
 
-#include <QPointF>
 #include <QColorSpace>
 #include <QDebug>
+#include <QPointF>
 #include <QSysInfo>
 #include <string.h>
 
-namespace   // Private.
+namespace // Private.
 {
-
 struct HeifQIODeviceWriter : public heif::Context::Writer {
-    HeifQIODeviceWriter(QIODevice *device) : m_ioDevice(device) {}
+    HeifQIODeviceWriter(QIODevice *device)
+        : m_ioDevice(device)
+    {
+    }
 
     heif_error write(const void *data, size_t size) override
     {
@@ -49,9 +51,9 @@ private:
 
 } // namespace
 
-HEIFHandler::HEIFHandler() :
-    m_parseState(ParseHeicNotParsed),
-    m_quality(100)
+HEIFHandler::HEIFHandler()
+    : m_parseState(ParseHeicNotParsed)
+    , m_quality(100)
 {
 }
 
@@ -85,8 +87,8 @@ bool HEIFHandler::write(const QImage &image)
         return false;
     }
 
-    int save_depth; //8 or 10bit per channel
-    QImage::Format tmpformat; //format for temporary image
+    int save_depth; // 8 or 10bit per channel
+    QImage::Format tmpformat; // format for temporary image
     const bool save_alpha = image.hasAlphaChannel();
 
     switch (image.format()) {
@@ -126,7 +128,6 @@ bool HEIFHandler::write(const QImage &image)
             tmpformat = QImage::Format_RGB888;
             chroma = heif_chroma_interleaved_RGB;
         }
-
     }
 
     const QImage tmpimage = image.convertToFormat(tmpformat);
@@ -157,50 +158,50 @@ bool HEIFHandler::write(const QImage &image)
                     uint16_t *dest_word = reinterpret_cast<uint16_t *>(dst + (y * stride));
                     for (int x = 0; x < tmpimage.width(); x++) {
                         int tmp_pixelval;
-                        //R
+                        // R
                         tmp_pixelval = (int)(((float)(*src_word) / 65535.0f) * 1023.0f + 0.5f);
                         *dest_word = qBound(0, tmp_pixelval, 1023);
                         src_word++;
                         dest_word++;
-                        //G
+                        // G
                         tmp_pixelval = (int)(((float)(*src_word) / 65535.0f) * 1023.0f + 0.5f);
                         *dest_word = qBound(0, tmp_pixelval, 1023);
                         src_word++;
                         dest_word++;
-                        //B
+                        // B
                         tmp_pixelval = (int)(((float)(*src_word) / 65535.0f) * 1023.0f + 0.5f);
                         *dest_word = qBound(0, tmp_pixelval, 1023);
                         src_word++;
                         dest_word++;
-                        //A
+                        // A
                         tmp_pixelval = (int)(((float)(*src_word) / 65535.0f) * 1023.0f + 0.5f);
                         *dest_word = qBound(0, tmp_pixelval, 1023);
                         src_word++;
                         dest_word++;
                     }
                 }
-            } else { //no alpha channel
+            } else { // no alpha channel
                 for (int y = 0; y < tmpimage.height(); y++) {
                     const uint16_t *src_word = reinterpret_cast<const uint16_t *>(tmpimage.constScanLine(y));
                     uint16_t *dest_word = reinterpret_cast<uint16_t *>(dst + (y * stride));
                     for (int x = 0; x < tmpimage.width(); x++) {
                         int tmp_pixelval;
-                        //R
+                        // R
                         tmp_pixelval = (int)(((float)(*src_word) / 65535.0f) * 1023.0f + 0.5f);
                         *dest_word = qBound(0, tmp_pixelval, 1023);
                         src_word++;
                         dest_word++;
-                        //G
+                        // G
                         tmp_pixelval = (int)(((float)(*src_word) / 65535.0f) * 1023.0f + 0.5f);
                         *dest_word = qBound(0, tmp_pixelval, 1023);
                         src_word++;
                         dest_word++;
-                        //B
+                        // B
                         tmp_pixelval = (int)(((float)(*src_word) / 65535.0f) * 1023.0f + 0.5f);
                         *dest_word = qBound(0, tmp_pixelval, 1023);
                         src_word++;
                         dest_word++;
-                        //X
+                        // X
                         src_word++;
                     }
                 }
@@ -342,8 +343,7 @@ void HEIFHandler::setOption(ImageOption option, const QVariant &value)
 
 bool HEIFHandler::supportsOption(ImageOption option) const
 {
-    return option == Quality
-           || option == Size;
+    return option == Quality || option == Size;
 }
 
 bool HEIFHandler::ensureParsed() const
@@ -376,8 +376,7 @@ bool HEIFHandler::ensureDecoder()
 
     try {
         heif::Context ctx;
-        ctx.read_from_memory_without_copy((const void *)(buffer.constData()),
-                                          buffer.size());
+        ctx.read_from_memory_without_copy((const void *)(buffer.constData()), buffer.size());
 
         heif::ImageHandle handle = ctx.get_primary_image_handle();
 
@@ -412,7 +411,6 @@ bool HEIFHandler::ensureDecoder()
             }
             return false;
         }
-
 
         heif::Image img = handle.decode_image(heif_colorspace_RGB, chroma);
 
@@ -451,57 +449,57 @@ bool HEIFHandler::ensureDecoder()
                     uint16_t *dest_data = reinterpret_cast<uint16_t *>(m_current_image.scanLine(y));
                     for (int x = 0; x < imageWidth; x++) {
                         int tmpvalue;
-                        //R
+                        // R
                         tmpvalue = (int)(((float)(0x0fff & (*src_word)) / 4095.0f) * 65535.0f + 0.5f);
                         tmpvalue = qBound(0, tmpvalue, 65535);
-                        *dest_data = (uint16_t) tmpvalue;
+                        *dest_data = (uint16_t)tmpvalue;
                         src_word++;
                         dest_data++;
-                        //G
+                        // G
                         tmpvalue = (int)(((float)(0x0fff & (*src_word)) / 4095.0f) * 65535.0f + 0.5f);
                         tmpvalue = qBound(0, tmpvalue, 65535);
-                        *dest_data = (uint16_t) tmpvalue;
+                        *dest_data = (uint16_t)tmpvalue;
                         src_word++;
                         dest_data++;
-                        //B
+                        // B
                         tmpvalue = (int)(((float)(0x0fff & (*src_word)) / 4095.0f) * 65535.0f + 0.5f);
                         tmpvalue = qBound(0, tmpvalue, 65535);
-                        *dest_data = (uint16_t) tmpvalue;
+                        *dest_data = (uint16_t)tmpvalue;
                         src_word++;
                         dest_data++;
-                        //A
+                        // A
                         tmpvalue = (int)(((float)(0x0fff & (*src_word)) / 4095.0f) * 65535.0f + 0.5f);
                         tmpvalue = qBound(0, tmpvalue, 65535);
-                        *dest_data = (uint16_t) tmpvalue;
+                        *dest_data = (uint16_t)tmpvalue;
                         src_word++;
                         dest_data++;
                     }
                 }
-            } else { //no alpha channel
+            } else { // no alpha channel
                 for (int y = 0; y < imageHeight; y++) {
                     const uint16_t *src_word = reinterpret_cast<const uint16_t *>(src + (y * stride));
                     uint16_t *dest_data = reinterpret_cast<uint16_t *>(m_current_image.scanLine(y));
                     for (int x = 0; x < imageWidth; x++) {
                         int tmpvalue;
-                        //R
+                        // R
                         tmpvalue = (int)(((float)(0x0fff & (*src_word)) / 4095.0f) * 65535.0f + 0.5f);
                         tmpvalue = qBound(0, tmpvalue, 65535);
-                        *dest_data = (uint16_t) tmpvalue;
+                        *dest_data = (uint16_t)tmpvalue;
                         src_word++;
                         dest_data++;
-                        //G
+                        // G
                         tmpvalue = (int)(((float)(0x0fff & (*src_word)) / 4095.0f) * 65535.0f + 0.5f);
                         tmpvalue = qBound(0, tmpvalue, 65535);
-                        *dest_data = (uint16_t) tmpvalue;
+                        *dest_data = (uint16_t)tmpvalue;
                         src_word++;
                         dest_data++;
-                        //B
+                        // B
                         tmpvalue = (int)(((float)(0x0fff & (*src_word)) / 4095.0f) * 65535.0f + 0.5f);
                         tmpvalue = qBound(0, tmpvalue, 65535);
-                        *dest_data = (uint16_t) tmpvalue;
+                        *dest_data = (uint16_t)tmpvalue;
                         src_word++;
                         dest_data++;
-                        //X = 0xffff
+                        // X = 0xffff
                         *dest_data = 0xffff;
                         dest_data++;
                     }
@@ -515,57 +513,57 @@ bool HEIFHandler::ensureDecoder()
                     uint16_t *dest_data = reinterpret_cast<uint16_t *>(m_current_image.scanLine(y));
                     for (int x = 0; x < imageWidth; x++) {
                         int tmpvalue;
-                        //R
+                        // R
                         tmpvalue = (int)(((float)(0x03ff & (*src_word)) / 1023.0f) * 65535.0f + 0.5f);
                         tmpvalue = qBound(0, tmpvalue, 65535);
-                        *dest_data = (uint16_t) tmpvalue;
+                        *dest_data = (uint16_t)tmpvalue;
                         src_word++;
                         dest_data++;
-                        //G
+                        // G
                         tmpvalue = (int)(((float)(0x03ff & (*src_word)) / 1023.0f) * 65535.0f + 0.5f);
                         tmpvalue = qBound(0, tmpvalue, 65535);
-                        *dest_data = (uint16_t) tmpvalue;
+                        *dest_data = (uint16_t)tmpvalue;
                         src_word++;
                         dest_data++;
-                        //B
+                        // B
                         tmpvalue = (int)(((float)(0x03ff & (*src_word)) / 1023.0f) * 65535.0f + 0.5f);
                         tmpvalue = qBound(0, tmpvalue, 65535);
-                        *dest_data = (uint16_t) tmpvalue;
+                        *dest_data = (uint16_t)tmpvalue;
                         src_word++;
                         dest_data++;
-                        //A
+                        // A
                         tmpvalue = (int)(((float)(0x03ff & (*src_word)) / 1023.0f) * 65535.0f + 0.5f);
                         tmpvalue = qBound(0, tmpvalue, 65535);
-                        *dest_data = (uint16_t) tmpvalue;
+                        *dest_data = (uint16_t)tmpvalue;
                         src_word++;
                         dest_data++;
                     }
                 }
-            } else { //no alpha channel
+            } else { // no alpha channel
                 for (int y = 0; y < imageHeight; y++) {
                     const uint16_t *src_word = reinterpret_cast<const uint16_t *>(src + (y * stride));
                     uint16_t *dest_data = reinterpret_cast<uint16_t *>(m_current_image.scanLine(y));
                     for (int x = 0; x < imageWidth; x++) {
                         int tmpvalue;
-                        //R
+                        // R
                         tmpvalue = (int)(((float)(0x03ff & (*src_word)) / 1023.0f) * 65535.0f + 0.5f);
                         tmpvalue = qBound(0, tmpvalue, 65535);
-                        *dest_data = (uint16_t) tmpvalue;
+                        *dest_data = (uint16_t)tmpvalue;
                         src_word++;
                         dest_data++;
-                        //G
+                        // G
                         tmpvalue = (int)(((float)(0x03ff & (*src_word)) / 1023.0f) * 65535.0f + 0.5f);
                         tmpvalue = qBound(0, tmpvalue, 65535);
-                        *dest_data = (uint16_t) tmpvalue;
+                        *dest_data = (uint16_t)tmpvalue;
                         src_word++;
                         dest_data++;
-                        //B
+                        // B
                         tmpvalue = (int)(((float)(0x03ff & (*src_word)) / 1023.0f) * 65535.0f + 0.5f);
                         tmpvalue = qBound(0, tmpvalue, 65535);
-                        *dest_data = (uint16_t) tmpvalue;
+                        *dest_data = (uint16_t)tmpvalue;
                         src_word++;
                         dest_data++;
-                        //X = 0xffff
+                        // X = 0xffff
                         *dest_data = 0xffff;
                         dest_data++;
                     }
@@ -586,7 +584,7 @@ bool HEIFHandler::ensureDecoder()
                         dest_pixel++;
                     }
                 }
-            } else { //no alpha channel
+            } else { // no alpha channel
                 for (int y = 0; y < imageHeight; y++) {
                     const uint8_t *src_byte = src + (y * stride);
                     uint32_t *dest_pixel = reinterpret_cast<uint32_t *>(m_current_image.scanLine(y));
@@ -598,7 +596,6 @@ bool HEIFHandler::ensureDecoder()
                         dest_pixel++;
                     }
                 }
-
             }
             break;
         default:
@@ -611,7 +608,7 @@ bool HEIFHandler::ensureDecoder()
         heif_color_profile_type profileType = heif_image_handle_get_color_profile_type(handle.get_raw_image_handle());
         struct heif_error err;
         if (profileType == heif_color_profile_type_prof || profileType == heif_color_profile_type_rICC) {
-            int rawProfileSize = (int) heif_image_handle_get_raw_color_profile_size(handle.get_raw_image_handle());
+            int rawProfileSize = (int)heif_image_handle_get_raw_color_profile_size(handle.get_raw_image_handle());
             if (rawProfileSize > 0) {
                 QByteArray ba(rawProfileSize, 0);
                 err = heif_image_handle_get_raw_color_profile(handle.get_raw_image_handle(), ba.data());
@@ -655,16 +652,17 @@ bool HEIFHandler::ensureDecoder()
                     break;
                 case 2:
                 case 13:
-                    q_trc =  QColorSpace::TransferFunction::SRgb;
+                    q_trc = QColorSpace::TransferFunction::SRgb;
                     break;
                 default:
                     qWarning("CICP color_primaries: %d, transfer_characteristics: %d\nThe colorspace is unsupported by this plug-in yet.",
-                             nclx->color_primaries, nclx->transfer_characteristics);
+                             nclx->color_primaries,
+                             nclx->transfer_characteristics);
                     q_trc = QColorSpace::TransferFunction::SRgb;
                     break;
                 }
 
-                if (q_trc != QColorSpace::TransferFunction::Custom) {   //we create new colorspace using Qt
+                if (q_trc != QColorSpace::TransferFunction::Custom) { // we create new colorspace using Qt
                     switch (nclx->color_primaries) {
                     case 1:
                     case 2:
@@ -683,7 +681,6 @@ bool HEIFHandler::ensureDecoder()
                 if (!m_current_image.colorSpace().isValid()) {
                     qWarning() << "invalid color profile created from NCLX";
                 }
-
             }
 
         } else {

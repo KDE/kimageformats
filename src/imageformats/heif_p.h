@@ -28,6 +28,7 @@ public:
     QVariant option(ImageOption option) const override;
     void setOption(ImageOption option, const QVariant &value) override;
     bool supportsOption(ImageOption option) const override;
+
 private:
     static bool isSupportedBMFFType(const QByteArray &header);
     bool ensureParsed() const;
