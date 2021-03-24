@@ -38,6 +38,9 @@ int main(int argc, char **argv)
     QCommandLineOption listformats(QStringList() << QStringLiteral("l") << QStringLiteral("list"), QStringLiteral("List supported image formats"));
     parser.addOption(listformats);
 
+    QCommandLineOption listmimes(QStringList() << QStringLiteral("m") << QStringLiteral("listmime"), QStringLiteral("List supported image mime formats"));
+    parser.addOption(listmimes);
+
     parser.process(app);
 
     const QStringList files = parser.positionalArguments();
@@ -52,6 +55,21 @@ int main(int argc, char **argv)
         out << "Output formats:\n";
         const auto lstWriterSupportedFormats = QImageWriter::supportedImageFormats();
         for (const QByteArray &fmt : lstWriterSupportedFormats) {
+            out << "  " << fmt << '\n';
+        }
+        return 0;
+    }
+
+    if (parser.isSet(listmimes)) {
+        QTextStream out(stdout);
+        out << "Input mime formats:\n";
+        const auto lstReaderSupportedMimes = QImageReader::supportedMimeTypes();
+        for (const QByteArray &fmt : lstReaderSupportedMimes) {
+            out << "  " << fmt << '\n';
+        }
+        out << "Output mime formats:\n";
+        const auto lstWriterSupportedMimes = QImageWriter::supportedMimeTypes();
+        for (const QByteArray &fmt : lstWriterSupportedMimes) {
             out << "  " << fmt << '\n';
         }
         return 0;
