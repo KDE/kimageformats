@@ -504,7 +504,7 @@ bool ANIHandler::ensureScanned() const
         return false;
     }
 
-    if (!m_frameOffsets.isEmpty() && m_frameOffsets.count() != m_frameCount + 1) {
+    if (!m_frameOffsets.isEmpty() && m_frameOffsets.count() - 1 != m_frameCount) {
         qWarning("ANIHandler: number of actual frames does not match 'nFrames' in anih");
         return false;
     }
