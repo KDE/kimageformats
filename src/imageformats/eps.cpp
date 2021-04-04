@@ -251,7 +251,8 @@ bool EPSHandler::write(const QImage &image)
     psOut.setOutputFileName(tmpFile.fileName());
     psOut.setOutputFormat(QPrinter::PdfFormat);
     psOut.setFullPage(true);
-    psOut.setPaperSize(image.size(), QPrinter::DevicePixel);
+    const double multiplier = psOut.resolution() <= 0 ? 1.0 : 72.0 / psOut.resolution();
+    psOut.setPageSize(QPageSize(image.size() * multiplier, QPageSize::Point));
 
     // painting the pixmap to the "printer" which is a file
     p.begin(&psOut);
