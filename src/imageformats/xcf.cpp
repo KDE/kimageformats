@@ -1491,7 +1491,7 @@ bool XCFImageFormat::loadMask(QDataStream &xcf_io, Layer &layer)
 
     xcf_io >> width >> height >> name;
 
-    delete name;
+    delete[] name;
 
     if (!loadChannelProperties(xcf_io, layer)) {
         return false;
