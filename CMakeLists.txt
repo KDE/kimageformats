@@ -43,7 +43,10 @@ if (UNIX)
     endif()
 endif()
 
-find_package(OpenEXR)
+find_package(OpenEXR 3.0 CONFIG QUIET)
+if(NOT OpenEXR_FOUND)
+    find_package(OpenEXR)
+endif()
 set_package_properties(OpenEXR PROPERTIES
     TYPE OPTIONAL
     PURPOSE "Required for the QImage plugin for OpenEXR images"

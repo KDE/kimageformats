@@ -18,6 +18,7 @@
 #include <ImfConvert.h>
 #include <ImfFloatAttribute.h>
 #include <ImfInputFile.h>
+#include <ImfInt64.h>
 #include <ImfIntAttribute.h>
 #include <ImfLineOrderAttribute.h>
 #include <ImfRgbaFile.h>

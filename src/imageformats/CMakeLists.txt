@@ -58,7 +58,11 @@ install(FILES jp2.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugi
 
 if(OpenEXR_FOUND)
     kimageformats_add_plugin(kimg_exr JSON "exr.json" SOURCES exr.cpp)
-    target_link_libraries(kimg_exr OpenEXR::IlmImf)
+    if(TARGET OpenEXR::OpenEXR)
+        target_link_libraries(kimg_exr OpenEXR::OpenEXR)
+    else()
+        target_link_libraries(kimg_exr OpenEXR::IlmImf)
+    endif()
     kde_target_enable_exceptions(kimg_exr PRIVATE)
 
     install(FILES exr.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
