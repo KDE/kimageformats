@@ -537,6 +537,7 @@ inline QRgb qRgba(const QRgb rgb, int a)
  */
 XCFImageFormat::XCFImageFormat()
 {
+    static_assert(sizeof(QRgb) == 4, "the code assumes sizeof(QRgb) == 4, if that's not your case, help us fix it :)");
 }
 
 /*!
@@ -1359,6 +1360,11 @@ bool XCFImageFormat::loadHierarchy(QDataStream &xcf_io, Layer &layer)
             }
         }
         break;
+    }
+
+    if (bpp > 4) {
+        qCDebug(XCFPLUGIN) << "bpp is" << bpp << "We don't support layers with bpp > 4";
+        return false;
     }
 
     // GIMP stores images in a "mipmap"-like format (multiple levels of
