@@ -627,10 +627,15 @@ bool XCFImageFormat::readXCF(QIODevice *device, QImage *outImage)
     QStack<qint64> layer_offsets;
 
     while (true) {
-        qint64 layer_offset = readOffsetPtr(xcf_io);
+        const qint64 layer_offset = readOffsetPtr(xcf_io);
 
         if (layer_offset == 0) {
             break;
+        }
+
+        if (layer_offset < 0) {
+            qCDebug(XCFPLUGIN) << "XCF: negative layer offset";
+            return false;
         }
 
         layer_offsets.push(layer_offset);
@@ -888,6 +893,16 @@ bool XCFImageFormat::loadLayer(QDataStream &xcf_io, XCFImage &xcf_image)
 
     layer.hierarchy_offset = readOffsetPtr(xcf_io);
     layer.mask_offset = readOffsetPtr(xcf_io);
+
+    if (layer.hierarchy_offset < 0) {
+        qCDebug(XCFPLUGIN) << "XCF: negative layer hierarchy_offset";
+        return false;
+    }
+
+    if (layer.mask_offset < 0) {
+        qCDebug(XCFPLUGIN) << "XCF: negative layer mask_offset";
+        return false;
+    }
 
     // Allocate the individual tile QImages based on the size and type
     // of this layer.
@@ -1304,9 +1319,14 @@ bool XCFImageFormat::loadHierarchy(QDataStream &xcf_io, Layer &layer)
     quint32 bpp;
 
     xcf_io >> width >> height >> bpp;
-    qint64 offset = readOffsetPtr(xcf_io);
+    const qint64 offset = readOffsetPtr(xcf_io);
 
     qCDebug(XCFPLUGIN) << "width" << width << "height" << height << "bpp" << bpp << "offset" << offset;
+
+    if (offset < 0) {
+        qCDebug(XCFPLUGIN) << "XCF: negative hierarchy offset";
+        return false;
+    }
 
     const bool isMask = layer.assignBytes == assignMaskBytes;
 
@@ -1408,6 +1428,11 @@ bool XCFImageFormat::loadLevel(QDataStream &xcf_io, Layer &layer, qint32 bpp)
     xcf_io >> width >> height;
     qint64 offset = readOffsetPtr(xcf_io);
 
+    if (offset < 0) {
+        qCDebug(XCFPLUGIN) << "XCF: negative level offset";
+        return false;
+    }
+
     if (offset == 0) {
         // offset 0 with rowsxcols != 0 is probably an error since it means we have tiles
         // without data but just clear the bits for now instead of returning false
@@ -1431,6 +1456,11 @@ bool XCFImageFormat::loadLevel(QDataStream &xcf_io, Layer &layer, qint32 bpp)
 
             qint64 saved_pos = xcf_io.device()->pos();
             qint64 offset2 = readOffsetPtr(xcf_io);
+
+            if (offset2 < 0) {
+                qCDebug(XCFPLUGIN) << "XCF: negative level offset";
+                return false;
+            }
 
             // Evidently, RLE can occasionally expand a tile instead of compressing it!
             if (offset2 == 0) {
@@ -1477,6 +1507,11 @@ bool XCFImageFormat::loadLevel(QDataStream &xcf_io, Layer &layer, qint32 bpp)
 
             xcf_io.device()->seek(saved_pos);
             offset = readOffsetPtr(xcf_io);
+
+            if (offset < 0) {
+                qCDebug(XCFPLUGIN) << "XCF: negative level offset";
+                return false;
+            }
         }
     }
 
@@ -1503,7 +1538,12 @@ bool XCFImageFormat::loadMask(QDataStream &xcf_io, Layer &layer)
         return false;
     }
 
-    qint64 hierarchy_offset = readOffsetPtr(xcf_io);
+    const qint64 hierarchy_offset = readOffsetPtr(xcf_io);
+
+    if (hierarchy_offset < 0) {
+        qCDebug(XCFPLUGIN) << "XCF: negative mask hierarchy_offset";
+        return false;
+    }
 
     xcf_io.device()->seek(hierarchy_offset);
     layer.assignBytes = assignMaskBytes;
