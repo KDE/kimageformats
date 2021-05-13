@@ -190,10 +190,12 @@ bool QAVIFHandler::decode_one_frame()
         return false;
     }
 
+    QColorSpace colorspace;
     if (m_decoder->image->icc.data && (m_decoder->image->icc.size > 0)) {
-        result.setColorSpace(QColorSpace::fromIccProfile(QByteArray::fromRawData((const char *)m_decoder->image->icc.data, (int)m_decoder->image->icc.size)));
-        if (!result.colorSpace().isValid()) {
-            qWarning("Invalid QColorSpace created from ICC!");
+        const QByteArray icc_data((const char *)m_decoder->image->icc.data, (int)m_decoder->image->icc.size);
+        colorspace = QColorSpace::fromIccProfile(icc_data);
+        if (!colorspace.isValid()) {
+            qWarning("AVIF image has Qt-unsupported or invalid ICC profile!");
         }
     } else {
         float prim[8] = {0.64f, 0.33f, 0.3f, 0.6f, 0.15f, 0.06f, 0.3127f, 0.329f};
@@ -243,22 +245,24 @@ bool QAVIFHandler::decode_one_frame()
             case 0:
             case 1:
             case 2: /* AVIF_COLOR_PRIMARIES_UNSPECIFIED */
-                result.setColorSpace(QColorSpace(QColorSpace::Primaries::SRgb, q_trc, q_trc_gamma));
+                colorspace = QColorSpace(QColorSpace::Primaries::SRgb, q_trc, q_trc_gamma);
                 break;
             /* AVIF_COLOR_PRIMARIES_SMPTE432 */
             case 12:
-                result.setColorSpace(QColorSpace(QColorSpace::Primaries::DciP3D65, q_trc, q_trc_gamma));
+                colorspace = QColorSpace(QColorSpace::Primaries::DciP3D65, q_trc, q_trc_gamma);
                 break;
             default:
-                result.setColorSpace(QColorSpace(whitePoint, redPoint, greenPoint, bluePoint, q_trc, q_trc_gamma));
+                colorspace = QColorSpace(whitePoint, redPoint, greenPoint, bluePoint, q_trc, q_trc_gamma);
                 break;
             }
         }
 
-        if (!result.colorSpace().isValid()) {
-            qWarning("Invalid QColorSpace created from NCLX/CICP!");
+        if (!colorspace.isValid()) {
+            qWarning("AVIF plugin created invalid QColorSpace from NCLX/CICP!");
         }
     }
+
+    result.setColorSpace(colorspace);
 
     avifRGBImage rgb;
     avifRGBImageSetDefaults(&rgb, m_decoder->image);
@@ -545,6 +549,7 @@ bool QAVIFHandler::write(const QImage &image)
 
         avifColorPrimaries primaries_to_save = (avifColorPrimaries)2;
         avifTransferCharacteristics transfer_to_save = (avifTransferCharacteristics)2;
+        QByteArray iccprofile;
 
         if (tmpcolorimage.colorSpace().isValid()) {
             switch (tmpcolorimage.colorSpace().primaries()) {
@@ -636,12 +641,22 @@ bool QAVIFHandler::write(const QImage &image)
                     tmpcolorimage.convertToColorSpace(QColorSpace(QColorSpace::Primaries::SRgb, QColorSpace::TransferFunction::SRgb));
                 }
             }
+        } else { // profile is unsupported by Qt
+            iccprofile = tmpcolorimage.colorSpace().iccProfile();
+            if (iccprofile.size() > 0) {
+                matrix_to_save = (avifMatrixCoefficients)6;
+            }
         }
+
         avif = avifImageCreate(tmpcolorimage.width(), tmpcolorimage.height(), save_depth, pixel_format);
         avif->matrixCoefficients = matrix_to_save;
 
         avif->colorPrimaries = primaries_to_save;
         avif->transferCharacteristics = transfer_to_save;
+
+        if (iccprofile.size() > 0) {
+            avifImageSetProfileICC(avif, (const uint8_t *)iccprofile.constData(), iccprofile.size());
+        }
 
         avifRGBImage rgb;
         avifRGBImageSetDefaults(&rgb, avif);
