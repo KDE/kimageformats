@@ -137,12 +137,10 @@ bool HEIFHandler::write(const QImage &image)
         heif::Image heifImage;
         heifImage.create(tmpimage.width(), tmpimage.height(), heif_colorspace_RGB, chroma);
 
-        if (tmpimage.colorSpace().isValid()) {
-            QByteArray iccprofile = tmpimage.colorSpace().iccProfile();
-            if (iccprofile.size() > 0) {
-                std::vector<uint8_t> rawProfile(iccprofile.begin(), iccprofile.end());
-                heifImage.set_raw_color_profile(heif_color_profile_type_prof, rawProfile);
-            }
+        QByteArray iccprofile = tmpimage.colorSpace().iccProfile();
+        if (iccprofile.size() > 0) {
+            std::vector<uint8_t> rawProfile(iccprofile.begin(), iccprofile.end());
+            heifImage.set_raw_color_profile(heif_color_profile_type_prof, rawProfile);
         }
 
         heifImage.add_plane(heif_channel_interleaved, image.width(), image.height(), save_depth);
@@ -617,7 +615,7 @@ bool HEIFHandler::ensureDecoder()
                 } else {
                     m_current_image.setColorSpace(QColorSpace::fromIccProfile(ba));
                     if (!m_current_image.colorSpace().isValid()) {
-                        qWarning() << "icc profile is invalid";
+                        qWarning() << "HEIC image has Qt-unsupported or invalid ICC profile!";
                     }
                 }
             } else {
@@ -679,7 +677,7 @@ bool HEIFHandler::ensureDecoder()
                 heif_nclx_color_profile_free(nclx);
 
                 if (!m_current_image.colorSpace().isValid()) {
-                    qWarning() << "invalid color profile created from NCLX";
+                    qWarning() << "HEIC plugin created invalid QColorSpace from NCLX!";
                 }
             }
 
