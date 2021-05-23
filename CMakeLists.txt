@@ -65,7 +65,6 @@ if(KIMAGEFORMATS_HEIF)
 endif()
 add_feature_info(LibHeif LibHeif_FOUND "required for the QImage plugin for HEIF/HEIC images")
 
-add_definitions(-DQT_NO_FOREACH)
 # 050d00 (5.13) triggers a BIC in qimageiohandler.h, in Qt 5.13, so do not enable that until we can require 5.14
 # https://codereview.qt-project.org/c/qt/qtbase/+/279215
 add_definitions(-DQT_DISABLE_DEPRECATED_BEFORE=0x050f00)
