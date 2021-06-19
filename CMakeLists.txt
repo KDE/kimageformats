@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.16)
 
 project(KImageFormats)
 
-set (CMAKE_CXX_STANDARD 14)
-
 include(FeatureSummary)
 find_package(ECM 5.84.0  NO_MODULE)
 set_package_properties(ECM PROPERTIES TYPE REQUIRED DESCRIPTION "Extra CMake Modules." URL "https://commits.kde.org/extra-cmake-modules")
