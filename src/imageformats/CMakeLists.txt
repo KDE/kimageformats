@@ -61,6 +61,11 @@ if(OpenEXR_FOUND)
     if(TARGET OpenEXR::OpenEXR)
         target_link_libraries(kimg_exr OpenEXR::OpenEXR)
     else()
+        if(OpenEXR_VERSION_STRING VERSION_LESS 2.3.0)
+            # Older OpenEXR versions use dynamic exception specifications, so
+            # cannot use C++17 with them
+            set_target_properties(kimg_exr PROPERTIES CXX_STANDARD 14)
+        endif()
         target_link_libraries(kimg_exr OpenEXR::IlmImf)
     endif()
     kde_target_enable_exceptions(kimg_exr PRIVATE)
