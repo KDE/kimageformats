@@ -44,8 +44,8 @@ public:
     }
 
     bool read(char c[], int n) override;
-    Imf::Int64 tellg() override;
-    void seekg(Imf::Int64 pos) override;
+    uint64_t tellg() override;
+    void seekg(uint64_t pos) override;
     void clear() override;
 
 private:
@@ -65,12 +65,12 @@ bool K_IStream::read(char c[], int n)
     return false;
 }
 
-Imf::Int64 K_IStream::tellg()
+uint64_t K_IStream::tellg()
 {
     return m_dev->pos();
 }
 
-void K_IStream::seekg(Imf::Int64 pos)
+void K_IStream::seekg(uint64_t pos)
 {
     m_dev->seek(pos);
 }
