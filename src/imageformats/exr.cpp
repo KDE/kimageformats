@@ -44,8 +44,13 @@ public:
     }
 
     bool read(char c[], int n) override;
+#if OPENEXR_VERSION_MAJOR > 2
     uint64_t tellg() override;
     void seekg(uint64_t pos) override;
+#else
+    Imf::Int64 tellg() override;
+    void seekg(Imf::Int64 pos) override;
+#endif
     void clear() override;
 
 private:
@@ -65,12 +70,20 @@ bool K_IStream::read(char c[], int n)
     return false;
 }
 
+#if OPENEXR_VERSION_MAJOR > 2
 uint64_t K_IStream::tellg()
+#else
+Imf::Int64 K_IStream::tellg()
+#endif
 {
     return m_dev->pos();
 }
 
+#if OPENEXR_VERSION_MAJOR > 2
 void K_IStream::seekg(uint64_t pos)
+#else
+void K_IStream::seekg(Imf::Int64 pos)
+#endif
 {
     m_dev->seek(pos);
 }
