@@ -135,24 +135,24 @@ QRgb RgbaToQrgba(struct Imf::Rgba &imagePixel)
     //     maximum intensity).
     // Response: kneeLow = 0.0 (2^0.0 => 1); kneeHigh = 5.0 (2^5 =>32)
     if (r > 1.0) {
-        r = 1.0 + Imath::Math<float>::log((r - 1.0) * 0.184874 + 1) / 0.184874;
+        r = 1.0 + std::log((r - 1.0) * 0.184874 + 1) / 0.184874;
     }
     if (g > 1.0) {
-        g = 1.0 + Imath::Math<float>::log((g - 1.0) * 0.184874 + 1) / 0.184874;
+        g = 1.0 + std::log((g - 1.0) * 0.184874 + 1) / 0.184874;
     }
     if (b > 1.0) {
-        b = 1.0 + Imath::Math<float>::log((b - 1.0) * 0.184874 + 1) / 0.184874;
+        b = 1.0 + std::log((b - 1.0) * 0.184874 + 1) / 0.184874;
     }
     if (a > 1.0) {
-        a = 1.0 + Imath::Math<float>::log((a - 1.0) * 0.184874 + 1) / 0.184874;
+        a = 1.0 + std::log((a - 1.0) * 0.184874 + 1) / 0.184874;
     }
     //
     //  5) Gamma-correct the pixel values, assuming that the
     //     screen's gamma is 0.4545 (or 1/2.2).
-    r = Imath::Math<float>::pow(r, 0.4545);
-    g = Imath::Math<float>::pow(g, 0.4545);
-    b = Imath::Math<float>::pow(b, 0.4545);
-    a = Imath::Math<float>::pow(a, 0.4545);
+    r = std::pow(r, 0.4545);
+    g = std::pow(g, 0.4545);
+    b = std::pow(b, 0.4545);
+    a = std::pow(a, 0.4545);
 
     //  6) Scale the values such that pixels middle gray
     //     pixels are mapped to 84.66 (or 3.5 f-stops below
