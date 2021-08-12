@@ -618,8 +618,12 @@ bool PCXHandler::write(const QImage &image)
 
     QImage img = image;
 
-    int w = img.width();
-    int h = img.height();
+    const int w = img.width();
+    const int h = img.height();
+
+    if (w > 65536 || h > 65536) {
+        return false;
+    }
 
     //   qDebug() << "Width: " << w;
     //   qDebug() << "Height: " << h;
