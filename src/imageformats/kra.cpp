@@ -35,12 +35,14 @@ bool KraHandler::canRead() const
 bool KraHandler::read(QImage *image)
 {
     KZip zip(device());
-    if (!zip.open(QIODevice::ReadOnly))
+    if (!zip.open(QIODevice::ReadOnly)) {
         return false;
+    }
 
     const KArchiveEntry *entry = zip.directory()->entry(QStringLiteral("mergedimage.png"));
-    if (!entry || !entry->isFile())
+    if (!entry || !entry->isFile()) {
         return false;
+    }
 
     const KZipFileEntry *fileZipEntry = static_cast<const KZipFileEntry *>(entry);
 
@@ -57,8 +59,9 @@ bool KraHandler::canRead(QIODevice *device)
     }
 
     char buff[57];
-    if (device->peek(buff, sizeof(buff)) == sizeof(buff))
+    if (device->peek(buff, sizeof(buff)) == sizeof(buff)) {
         return memcmp(buff + 0x26, s_magic, s_magic_size) == 0;
+    }
 
     return false;
 }

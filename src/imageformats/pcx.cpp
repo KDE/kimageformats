@@ -105,7 +105,9 @@ public:
 
 static QDataStream &operator>>(QDataStream &s, RGB &rgb)
 {
-    quint8 r, g, b;
+    quint8 r;
+    quint8 g;
+    quint8 b;
 
     s >> r >> g >> b;
     rgb.r = r;
@@ -126,24 +128,32 @@ static QDataStream &operator>>(QDataStream &s, Palette &pal)
 
 static QDataStream &operator>>(QDataStream &s, PCXHEADER &ph)
 {
-    quint8 m, ver, enc, bpp;
+    quint8 m;
+    quint8 ver;
+    quint8 enc;
+    quint8 bpp;
     s >> m >> ver >> enc >> bpp;
     ph.Manufacturer = m;
     ph.Version = ver;
     ph.Encoding = enc;
     ph.Bpp = bpp;
-    quint16 xmin, ymin, xmax, ymax;
+    quint16 xmin;
+    quint16 ymin;
+    quint16 xmax;
+    quint16 ymax;
     s >> xmin >> ymin >> xmax >> ymax;
     ph.XMin = xmin;
     ph.YMin = ymin;
     ph.XMax = xmax;
     ph.YMax = ymax;
-    quint16 hdpi, ydpi;
+    quint16 hdpi;
+    quint16 ydpi;
     s >> hdpi >> ydpi;
     ph.HDpi = hdpi;
     ph.YDpi = ydpi;
     Palette colorMap;
-    quint8 res, np;
+    quint8 res;
+    quint8 np;
     s >> colorMap >> res >> np;
     ph.ColorMap = colorMap;
     ph.Reserved = res;
@@ -154,7 +164,8 @@ static QDataStream &operator>>(QDataStream &s, PCXHEADER &ph)
     quint16 paletteinfo;
     s >> paletteinfo;
     ph.PaletteInfo = paletteinfo;
-    quint16 hscreensize, vscreensize;
+    quint16 hscreensize;
+    quint16 vscreensize;
     s >> hscreensize;
     ph.HScreenSize = hscreensize;
     s >> vscreensize;
@@ -222,7 +233,8 @@ static void readLine(QDataStream &s, QByteArray &buf, const PCXHEADER &header)
 {
     quint32 i = 0;
     quint32 size = buf.size();
-    quint8 byte, count;
+    quint8 byte;
+    quint8 count;
 
     if (header.isCompressed()) {
         // Uncompress the image data
@@ -300,10 +312,11 @@ static void readImage4(QImage &img, QDataStream &s, const PCXHEADER &header)
 
         for (int i = 0; i < 4; i++) {
             quint32 offset = i * header.BytesPerLine;
-            for (int x = 0; x < header.width(); ++x)
+            for (int x = 0; x < header.width(); ++x) {
                 if (buf[offset + (x / 8)] & (128 >> (x % 8))) {
                     pixbuf[x] = (int)(pixbuf[x]) + (1 << i);
                 }
+            }
         }
 
         uchar *p = img.scanLine(y);
@@ -343,8 +356,9 @@ static void readImage8(QImage &img, QDataStream &s, const PCXHEADER &header)
 
         uchar *p = img.scanLine(y);
 
-        if (!p)
+        if (!p) {
             return;
+        }
 
         unsigned int bpl = qMin(header.BytesPerLine, (quint16)header.width());
         for (unsigned int x = 0; x < bpl; ++x) {
@@ -358,7 +372,9 @@ static void readImage8(QImage &img, QDataStream &s, const PCXHEADER &header)
 
     if (flag == 12 && (header.Version == 5 || header.Version == 2)) {
         // Read the palette
-        quint8 r, g, b;
+        quint8 r;
+        quint8 g;
+        quint8 b;
         for (int i = 0; i < 256; ++i) {
             s >> r >> g >> b;
             img.setColor(i, qRgb(r, g, b));
@@ -400,7 +416,8 @@ static void writeLine(QDataStream &s, QByteArray &buf)
 {
     quint32 i = 0;
     quint32 size = buf.size();
-    quint8 count, data;
+    quint8 count;
+    quint8 data;
     char byte;
 
     while (i < size) {
@@ -473,10 +490,11 @@ static void writeImage4(QImage &img, QDataStream &s, PCXHEADER &header)
         }
 
         for (int x = 0; x < header.width(); ++x) {
-            for (int i = 0; i < 4; ++i)
+            for (int i = 0; i < 4; ++i) {
                 if (*(p + x) & (1 << i)) {
                     buf[i][x / 8] = (int)(buf[i][x / 8]) | 1 << (7 - x % 8);
                 }
+            }
         }
 
         for (int i = 0; i < 4; ++i) {

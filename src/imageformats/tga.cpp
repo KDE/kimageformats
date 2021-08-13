@@ -311,7 +311,9 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
     }
 
     // Convert image to internal format.
-    int y_start, y_step, y_end;
+    int y_start;
+    int y_step;
+    int y_end;
     if (tga.flags & TGA_ORIGIN_UPPER) {
         y_start = 0;
         y_step = 1;
@@ -437,7 +439,7 @@ bool TGAHandler::write(const QImage &image)
     s << quint8(hasAlpha ? 32 : 24); // depth (24 bit RGB + 8 bit alpha)
     s << quint8(hasAlpha ? 0x24 : 0x20); // top left image (0x20) + 8 bit alpha (0x4)
 
-    for (int y = 0; y < img.height(); y++)
+    for (int y = 0; y < img.height(); y++) {
         for (int x = 0; x < img.width(); x++) {
             const QRgb color = img.pixel(x, y);
             s << quint8(qBlue(color));
@@ -447,6 +449,7 @@ bool TGAHandler::write(const QImage &image)
                 s << quint8(qAlpha(color));
             }
         }
+    }
 
     return true;
 }

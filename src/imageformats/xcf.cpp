@@ -747,7 +747,9 @@ bool XCFImageFormat::loadImageProperties(QDataStream &xcf_io, XCFImage &xcf_imag
             xcf_image.palette.reserve(xcf_image.num_colors);
 
             for (int i = 0; i < xcf_image.num_colors; i++) {
-                uchar r, g, b;
+                uchar r;
+                uchar g;
+                uchar b;
                 property >> r >> g >> b;
                 xcf_image.palette.push_back(qRgb(r, g, b));
             }
@@ -1951,11 +1953,13 @@ bool XCFImageFormat::initializeImage(XCFImage &xcf_image)
 
     if (xcf_image.x_resolution > 0 && xcf_image.y_resolution > 0) {
         const float dpmx = xcf_image.x_resolution * INCHESPERMETER;
-        if (dpmx > std::numeric_limits<int>::max())
+        if (dpmx > std::numeric_limits<int>::max()) {
             return false;
+        }
         const float dpmy = xcf_image.y_resolution * INCHESPERMETER;
-        if (dpmy > std::numeric_limits<int>::max())
+        if (dpmy > std::numeric_limits<int>::max()) {
             return false;
+        }
         image.setDotsPerMeterX((int)dpmx);
         image.setDotsPerMeterY((int)dpmy);
     }
@@ -2639,7 +2643,8 @@ void XCFImageFormat::mergeRGBToRGB(const Layer &layer, uint i, uint j, int k, in
         src_a = qMin(src_a, dst_a);
     } break;
     case GIMP_LAYER_MODE_SOFTLIGHT_LEGACY: {
-        uint tmpS, tmpM;
+        uint tmpS;
+        uint tmpM;
 
         tmpM = INT_MULT(dst_r, src_r);
         tmpS = 255 - INT_MULT((255 - dst_r), (255 - src_r));
@@ -2707,7 +2712,10 @@ void XCFImageFormat::mergeRGBToRGB(const Layer &layer, uint i, uint j, int k, in
         src_a = INT_MULT(src_a, layer.mask_tiles[j][i].pixelIndex(k, l));
     }
 
-    uchar new_r, new_g, new_b, new_a;
+    uchar new_r;
+    uchar new_g;
+    uchar new_b;
+    uchar new_a;
     new_a = dst_a + INT_MULT(OPAQUE_OPACITY - dst_a, src_a);
 
     const float src_ratio = new_a == 0 ? 1.0 : (float)src_a / new_a;
@@ -2813,7 +2821,8 @@ void XCFImageFormat::mergeGrayAToGray(const Layer &layer, uint i, uint j, int k,
         }
     } break;
     case SOFTLIGHT_MODE: {
-        uint tmpS, tmpM;
+        uint tmpS;
+        uint tmpM;
 
         tmpM = INT_MULT(dst, src);
         tmpS = 255 - INT_MULT((255 - dst), (255 - src));
@@ -2965,7 +2974,8 @@ void XCFImageFormat::mergeGrayAToRGB(const Layer &layer, uint i, uint j, int k, 
         src_a = qMin(src_a, dst_a);
     } break;
     case SOFTLIGHT_MODE: {
-        uint tmpS, tmpM;
+        uint tmpS;
+        uint tmpM;
 
         tmpM = INT_MULT(dst, src);
         tmpS = 255 - INT_MULT((255 - dst), (255 - src));

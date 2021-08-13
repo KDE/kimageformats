@@ -44,11 +44,13 @@ static bool fuzzyeq(const QImage &im1, const QImage &im2, uchar fuzziness)
         const Trait *line2 = reinterpret_cast<const Trait *>(im2.scanLine(i));
         for (int j = 0; j < width; ++j) {
             if (line1[j] > line2[j]) {
-                if (line1[j] - line2[j] > fuzziness)
+                if (line1[j] - line2[j] > fuzziness) {
                     return false;
+                }
             } else {
-                if (line2[j] - line1[j] > fuzziness)
+                if (line2[j] - line1[j] > fuzziness) {
                     return false;
+                }
             }
         }
     }

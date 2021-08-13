@@ -154,13 +154,16 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
     // Allocate image
     img = QImage(ras.Width, ras.Height, QImage::Format_ARGB32);
 
-    if (img.isNull())
+    if (img.isNull()) {
         return false;
+    }
 
     // Reconstruct image from RGB palette if we have a palette
     // TODO: make generic so it works with 24bit or 32bit palettes
     if (ras.ColorMapType == 1 && ras.Depth == 8) {
-        quint8 red, green, blue;
+        quint8 red;
+        quint8 green;
+        quint8 blue;
         for (quint32 y = 0; y < ras.Height; y++) {
             for (quint32 x = 0; x < ras.Width; x++) {
                 red = palette.value((int)input[y * ras.Width + x]);
@@ -172,7 +175,9 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
     }
 
     if (ras.ColorMapType == 0 && ras.Depth == 24 && (ras.Type == 1 || ras.Type == 2)) {
-        quint8 red, green, blue;
+        quint8 red;
+        quint8 green;
+        quint8 blue;
         for (quint32 y = 0; y < ras.Height; y++) {
             for (quint32 x = 0; x < ras.Width; x++) {
                 red = input[y * 3 * ras.Width + x * 3 + 2];
@@ -184,7 +189,9 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
     }
 
     if (ras.ColorMapType == 0 && ras.Depth == 24 && ras.Type == 3) {
-        quint8 red, green, blue;
+        quint8 red;
+        quint8 green;
+        quint8 blue;
         for (quint32 y = 0; y < ras.Height; y++) {
             for (quint32 x = 0; x < ras.Width; x++) {
                 red = input[y * 3 * ras.Width + x * 3];
@@ -196,7 +203,9 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
     }
 
     if (ras.ColorMapType == 0 && ras.Depth == 32 && (ras.Type == 1 || ras.Type == 2)) {
-        quint8 red, green, blue;
+        quint8 red;
+        quint8 green;
+        quint8 blue;
         for (quint32 y = 0; y < ras.Height; y++) {
             for (quint32 x = 0; x < ras.Width; x++) {
                 red = input[y * 4 * ras.Width + x * 4 + 3];
@@ -208,7 +217,9 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
     }
 
     if (ras.ColorMapType == 0 && ras.Depth == 32 && ras.Type == 3) {
-        quint8 red, green, blue;
+        quint8 red;
+        quint8 green;
+        quint8 blue;
         for (quint32 y = 0; y < ras.Height; y++) {
             for (quint32 x = 0; x < ras.Width; x++) {
                 red = input[y * 4 * ras.Width + x * 4 + 1];
@@ -274,8 +285,9 @@ bool RASHandler::read(QImage *outImage)
     RasHeader ras;
     s >> ras;
 
-    if (ras.ColorMapLength > std::numeric_limits<int>::max())
+    if (ras.ColorMapLength > std::numeric_limits<int>::max()) {
         return false;
+    }
 
     // TODO: add support for old versions of RAS where Length may be zero in header
     s.device()->seek(RasHeader::SIZE + ras.Length + ras.ColorMapLength);

@@ -99,7 +99,10 @@ void K_IStream::clear()
  */
 QRgb RgbaToQrgba(struct Imf::Rgba &imagePixel)
 {
-    float r, g, b, a;
+    float r;
+    float g;
+    float b;
+    float a;
 
     //  1) Compensate for fogging by subtracting defog
     //     from the raw pixel values.
@@ -178,7 +181,8 @@ bool EXRHandler::canRead() const
 bool EXRHandler::read(QImage *outImage)
 {
     try {
-        int width, height;
+        int width;
+        int height;
 
         K_IStream istr(device(), QByteArray());
         Imf::RgbaInputFile file(istr);

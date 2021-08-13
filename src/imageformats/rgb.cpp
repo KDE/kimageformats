@@ -138,7 +138,8 @@ SGIImage::~SGIImage()
 
 bool SGIImage::getRow(uchar *dest)
 {
-    int n, i;
+    int n;
+    int i;
     if (!_rle) {
         for (i = 0; i < _xsize; i++) {
             if (_pos >= _data.end()) {
@@ -184,7 +185,8 @@ bool SGIImage::readData(QImage &img)
     quint32 *start = _starttab;
     QByteArray lguard(_xsize, 0);
     uchar *line = (uchar *)lguard.data();
-    unsigned x, y;
+    unsigned x;
+    unsigned y;
 
     if (!_rle) {
         _pos = _data.begin();
@@ -279,9 +281,9 @@ bool SGIImage::readImage(QImage &img)
     // bytes per channel
     _stream >> _bpc;
     //     qDebug() << "bytes per channel: " << int(_bpc);
-    if (_bpc == 1)
+    if (_bpc == 1) {
         ;
-    else if (_bpc == 2) {
+    } else if (_bpc == 2) {
         //         qDebug() << "dropping least significant byte";
     } else {
         return false;
@@ -328,8 +330,9 @@ bool SGIImage::readImage(QImage &img)
         return false;
     }
 
-    if (_zsize == 0)
+    if (_zsize == 0) {
         return false;
+    }
 
     if (_zsize == 2 || _zsize == 4) {
         img = img.convertToFormat(QImage::Format_ARGB32);
@@ -337,8 +340,9 @@ bool SGIImage::readImage(QImage &img)
         //         qDebug() << "using first 4 of " << _zsize << " channels";
         // Only let this continue if it won't cause a int overflow later
         // this is most likely a broken file anyway
-        if (_ysize > std::numeric_limits<int>::max() / _zsize)
+        if (_ysize > std::numeric_limits<int>::max() / _zsize) {
             return false;
+        }
     }
 
     _numrows = _ysize * _zsize;
@@ -363,13 +367,15 @@ bool SGIImage::readImage(QImage &img)
     _data = _dev->readAll();
 
     // sanity check
-    if (_rle)
-        for (uint o = 0; o < _numrows; o++)
+    if (_rle) {
+        for (uint o = 0; o < _numrows; o++) {
             // don't change to greater-or-equal!
             if (_starttab[o] + _lengthtab[o] > (uint)_data.size()) {
                 //                 qDebug() << "image corrupt (sanity check failed)";
                 return false;
             }
+        }
+    }
 
     if (!readData(img)) {
         //         qDebug() << "image corrupt (incomplete scanline)";
@@ -390,7 +396,8 @@ void RLEData::write(QDataStream &s)
 
 bool RLEData::operator<(const RLEData &b) const
 {
-    uchar ac, bc;
+    uchar ac;
+    uchar bc;
     for (int i = 0; i < qMin(size(), b.size()); i++) {
         ac = at(i);
         bc = b[i];
@@ -436,8 +443,13 @@ uchar SGIImage::intensity(uchar c)
 
 uint SGIImage::compact(uchar *d, uchar *s)
 {
-    uchar *dest = d, *src = s, patt, *t, *end = s + _xsize;
-    int i, n;
+    uchar *dest = d;
+    uchar *src = s;
+    uchar patt;
+    uchar *t;
+    uchar *end = s + _xsize;
+    int i;
+    int n;
     while (src < end) {
         for (n = 0, t = src; t + 2 < end && !(*t == t[1] && *t == t[2]); t++) {
             n++;
@@ -480,7 +492,8 @@ bool SGIImage::scanData(const QImage &img)
     uchar *line = (uchar *)lineguard.data();
     uchar *buf = (uchar *)bufguard.data();
     const QRgb *c;
-    unsigned x, y;
+    unsigned x;
+    unsigned y;
     uint len;
 
     for (y = 0; y < _ysize; y++) {
@@ -606,7 +619,8 @@ void SGIImage::writeVerbatim(const QImage &img)
     writeHeader();
 
     const QRgb *c;
-    unsigned x, y;
+    unsigned x;
+    unsigned y;
 
     for (y = 0; y < _ysize; y++) {
         c = reinterpret_cast<const QRgb *>(img.scanLine(_ysize - y - 1));

@@ -89,7 +89,8 @@ static void RGBE_To_QRgbLine(uchar *image, QRgb *scanline, int width)
 // Load the HDR image.
 static bool LoadHDR(QDataStream &s, const int width, const int height, QImage &img)
 {
-    uchar val, code;
+    uchar val;
+    uchar code;
 
     // Create dst image.
     img = QImage(width, height, QImage::Format_RGB32);
