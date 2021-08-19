@@ -681,9 +681,16 @@ bool SGIImage::writeImage(const QImage &image)
         return false;
     }
 
+    const int w = img.width();
+    const int h = img.height();
+
+    if (w > 65536 || h > 65536) {
+        return false;
+    }
+
     _bpc = 1;
-    _xsize = img.width();
-    _ysize = img.height();
+    _xsize = w;
+    _ysize = h;
     _pixmin = ~0u;
     _pixmax = 0;
     _colormap = NORMAL;
