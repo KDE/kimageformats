@@ -5,7 +5,7 @@ type: functional
 platforms:
     - name: Linux
     - name: FreeBSD
-    - name: MacOSX
+    - name: macOS
     - name: Windows
       note: No EPS support on Windows
     - name: Android
