@@ -225,7 +225,7 @@ bool SoftimagePICHandler::read(QImage *image)
     }
 
     QImage::Format fmt = QImage::Format_RGB32;
-    for (const PicChannel &channel : qAsConst(m_channels)) {
+    for (const PicChannel &channel : std::as_const(m_channels)) {
         if (channel.size != 8) {
             // we cannot read images that do not come in bytes
             qDebug() << "Channel size was" << channel.size;
@@ -404,7 +404,7 @@ QVariant SoftimagePICHandler::option(ImageOption option) const
         return QString();
     case ImageFormat:
         if (const_cast<SoftimagePICHandler *>(this)->readChannels()) {
-            for (const PicChannel &channel : qAsConst(m_channels)) {
+            for (const PicChannel &channel : std::as_const(m_channels)) {
                 if (channel.code & ALPHA) {
                     return QImage::Format_ARGB32;
                 }
