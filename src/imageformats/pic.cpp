@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <functional>
 #include <qendian.h>
+#include <utility>
 
 /**
  * Reads a PIC file header from a data stream.
