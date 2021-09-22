@@ -97,6 +97,10 @@ bool QAVIFHandler::ensureDecoder()
 
     m_decoder = avifDecoderCreate();
 
+#if AVIF_VERSION >= 80400
+    m_decoder->maxThreads = qBound(1, QThread::idealThreadCount(), 64);
+#endif
+
 #if AVIF_VERSION >= 90100
     m_decoder->strictFlags = AVIF_STRICT_DISABLED;
 #endif
@@ -184,7 +188,7 @@ bool QAVIFHandler::decode_one_frame()
         if (loadalpha) {
             resultformat = QImage::Format_RGBA8888;
         } else {
-            resultformat = QImage::Format_RGB888;
+            resultformat = QImage::Format_RGBX8888;
         }
     }
     QImage result(m_decoder->image->width, m_decoder->image->height, resultformat);
@@ -276,20 +280,24 @@ bool QAVIFHandler::decode_one_frame()
         rgb.format = AVIF_RGB_FORMAT_RGBA;
 
         if (!loadalpha) {
-            rgb.ignoreAlpha = AVIF_TRUE;
-            result.fill(Qt::black);
             if (m_decoder->image->yuvFormat == AVIF_PIXEL_FORMAT_YUV400) {
                 resultformat = QImage::Format_Grayscale16;
             }
         }
     } else {
         rgb.depth = 8;
+        rgb.format = AVIF_RGB_FORMAT_RGBA;
+
+#if AVIF_VERSION >= 80400
+        if (m_decoder->imageCount > 1) {
+            /* accelerate animated AVIF */
+            rgb.chromaUpsampling = AVIF_CHROMA_UPSAMPLING_FASTEST;
+        }
+#endif
+
         if (loadalpha) {
-            rgb.format = AVIF_RGB_FORMAT_RGBA;
             resultformat = QImage::Format_ARGB32;
         } else {
-            rgb.format = AVIF_RGB_FORMAT_RGB;
-
             if (m_decoder->image->yuvFormat == AVIF_PIXEL_FORMAT_YUV400) {
                 resultformat = QImage::Format_Grayscale8;
             } else {
@@ -710,7 +718,7 @@ bool QAVIFHandler::write(const QImage &image)
         encoder->maxQuantizerAlpha = maxQuantizerAlpha;
     }
 
-    encoder->speed = 8;
+    encoder->speed = 7;
 
     res = avifEncoderWrite(encoder, avif, &raw);
     avifEncoderDestroy(encoder);
