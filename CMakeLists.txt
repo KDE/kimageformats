@@ -17,6 +17,7 @@ include(KDEGitCommitHooks)
 
 
 include(CheckIncludeFiles)
+include(FindPkgConfig)
 
 set(REQUIRED_QT_VERSION 5.15.2)
 find_package(Qt5Gui ${REQUIRED_QT_VERSION} REQUIRED NO_MODULE)
@@ -58,10 +59,16 @@ set_package_properties(libavif PROPERTIES
 
 option(KIMAGEFORMATS_HEIF "Enable plugin for HEIF format" OFF)
 if(KIMAGEFORMATS_HEIF)
-    include(FindPkgConfig)
     pkg_check_modules(LibHeif IMPORTED_TARGET libheif>=1.10.0)
 endif()
 add_feature_info(LibHeif LibHeif_FOUND "required for the QImage plugin for HEIF/HEIC images")
+
+option(KIMAGEFORMATS_JXL "Enable plugin for JPEG XL format" ON)
+if(KIMAGEFORMATS_JXL)
+    pkg_check_modules(LibJXL IMPORTED_TARGET libjxl>=0.6.1)
+    pkg_check_modules(LibJXLThreads IMPORTED_TARGET libjxl_threads>=0.6.1)
+endif()
+add_feature_info(LibJXL LibJXL_FOUND "required for the QImage plugin for JPEG XL images")
 
 # 050d00 (5.13) triggers a BIC in qimageiohandler.h, in Qt 5.13, so do not enable that until we can require 5.14
 # https://codereview.qt-project.org/c/qt/qtbase/+/279215

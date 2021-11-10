@@ -83,6 +83,14 @@ endif()
 
 ##################################
 
+if (LibJXL_FOUND AND LibJXLThreads_FOUND)
+    kimageformats_add_plugin(kimg_jxl SOURCES jxl.cpp)
+    target_link_libraries(kimg_jxl PkgConfig::LibJXL PkgConfig::LibJXLThreads)
+    install(FILES jxl.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
+endif()
+
+##################################
+
 kimageformats_add_plugin(kimg_pcx SOURCES pcx.cpp)
 install(FILES pcx.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
 
