@@ -23,6 +23,7 @@ The following image formats have read and write support:
 
 - AV1 Image File Format (AVIF)
 - Encapsulated PostScript (eps)
+- JPEG XL (jxl)
 - Personal Computer Exchange (pcx)
 - SGI images (rgb, rgba, sgi, bw)
 - Softimage PIC (pic)
