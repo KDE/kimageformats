@@ -12,7 +12,7 @@ function(kimageformats_add_plugin plugin)
 
     add_library(${plugin} MODULE ${KIF_ADD_PLUGIN_SOURCES})
     set_target_properties(${plugin} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/imageformats")
-    target_link_libraries(${plugin} Qt5::Gui)
+    target_link_libraries(${plugin} Qt${QT_MAJOR_VERSION}::Gui)
     install(TARGETS ${plugin} DESTINATION ${KDE_INSTALL_QTPLUGINDIR}/imageformats)
 endfunction()
 
@@ -36,9 +36,9 @@ install(FILES dds-qt.desktop RENAME dds.desktop DESTINATION ${KDE_INSTALL_KSERVI
 ##################################
 
 if (BUILD_EPS_PLUGIN)
-    if (Qt5PrintSupport_FOUND)
+    if (TARGET Qt${QT_MAJOR_VERSION}::PrintSupport)
         kimageformats_add_plugin(kimg_eps SOURCES eps.cpp)
-        target_link_libraries(kimg_eps Qt5::PrintSupport)
+        target_link_libraries(kimg_eps Qt${QT_MAJOR_VERSION}::PrintSupport)
         install(FILES eps.desktop DESTINATION ${KDE_INSTALL_KSERVICES5DIR}/qimageioplugins/)
     endif()
 endif()

@@ -20,7 +20,7 @@ include(CheckIncludeFiles)
 include(FindPkgConfig)
 
 set(REQUIRED_QT_VERSION 5.15.2)
-find_package(Qt5Gui ${REQUIRED_QT_VERSION} REQUIRED NO_MODULE)
+find_package(Qt${QT_MAJOR_VERSION}Gui ${REQUIRED_QT_VERSION} REQUIRED NO_MODULE)
 
 find_package(KF5Archive)
 set_package_properties(KF5Archive PROPERTIES
@@ -32,12 +32,12 @@ set_package_properties(KF5Archive PROPERTIES
 # this available in PATH
 set(BUILD_EPS_PLUGIN FALSE)
 if (UNIX)
-    find_package(Qt5PrintSupport ${REQUIRED_QT_VERSION} NO_MODULE)
-    set_package_properties(Qt5PrintSupport PROPERTIES
+    find_package(Qt${QT_MAJOR_VERSION}PrintSupport ${REQUIRED_QT_VERSION} NO_MODULE)
+    set_package_properties(Qt${QT_MAJOR_VERSION}PrintSupport PROPERTIES
         PURPOSE "Required for the QImage plugin for EPS images"
         TYPE OPTIONAL
     )
-    if (Qt5PrintSupport_FOUND)
+    if (TARGET Qt${QT_MAJOR_VERSION}::PrintSupport)
         set(BUILD_EPS_PLUGIN TRUE)
     endif()
 endif()

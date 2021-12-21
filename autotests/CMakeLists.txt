@@ -15,7 +15,7 @@ macro(kimageformats_read_tests)
 
     if (NOT TARGET readtest)
         add_executable(readtest readtest.cpp)
-        target_link_libraries(readtest Qt5::Gui)
+        target_link_libraries(readtest Qt${QT_MAJOR_VERSION}::Gui)
         target_compile_definitions(readtest
             PRIVATE IMAGEDIR="${CMAKE_CURRENT_SOURCE_DIR}/read")
         ecm_mark_as_test(readtest)
@@ -32,7 +32,7 @@ endmacro()
 macro(kimageformats_write_tests)
     if (NOT TARGET writetest)
         add_executable(writetest writetest.cpp)
-        target_link_libraries(writetest Qt5::Gui)
+        target_link_libraries(writetest Qt${QT_MAJOR_VERSION}::Gui)
         target_compile_definitions(writetest
             PRIVATE IMAGEDIR="${CMAKE_CURRENT_SOURCE_DIR}/write")
         ecm_mark_as_test(writetest)
@@ -117,19 +117,19 @@ if (OpenEXR_FOUND)
     # FIXME: OpenEXR tests
 endif()
 
-find_package(Qt5Test ${REQUIRED_QT_VERSION} CONFIG QUIET)
+find_package(Qt${QT_MAJOR_VERSION}Test ${REQUIRED_QT_VERSION} CONFIG QUIET)
 
-if(NOT Qt5Test_FOUND)
-    message(STATUS "Qt5Test not found, some autotests will not be built.")
+if(NOT TARGET Qt${QT_MAJOR_VERSION}Test)
+    message(STATUS "Qt${QT_MAJOR_VERSION}Test not found, some autotests will not be built.")
     return()
 endif()
 
 add_executable(pictest pictest.cpp)
-target_link_libraries(pictest Qt5::Gui Qt5::Test)
+target_link_libraries(pictest Qt${QT_MAJOR_VERSION}::Gui Qt${QT_MAJOR_VERSION}::Test)
 ecm_mark_as_test(pictest)
 add_test(NAME kimageformats-pic COMMAND pictest)
 
 add_executable(anitest anitest.cpp)
-target_link_libraries(anitest Qt5::Gui Qt5::Test)
+target_link_libraries(anitest Qt${QT_MAJOR_VERSION}::Gui Qt${QT_MAJOR_VERSION}::Test)
 ecm_mark_as_test(anitest)
 add_test(NAME kimageformats-ani COMMAND anitest)
