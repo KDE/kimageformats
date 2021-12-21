@@ -119,7 +119,7 @@ endif()
 
 find_package(Qt${QT_MAJOR_VERSION}Test ${REQUIRED_QT_VERSION} CONFIG QUIET)
 
-if(NOT TARGET Qt${QT_MAJOR_VERSION}Test)
+if(NOT TARGET Qt${QT_MAJOR_VERSION}::Test)
     message(STATUS "Qt${QT_MAJOR_VERSION}Test not found, some autotests will not be built.")
     return()
 endif()
