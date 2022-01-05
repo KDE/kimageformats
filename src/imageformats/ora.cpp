@@ -17,6 +17,11 @@
 
 static constexpr char s_magic[] = "image/openraster";
 static constexpr int s_magic_size = sizeof(s_magic) - 1; // -1 to remove the last \0
+static constexpr int s_krita3_offset = 0x26;
+static constexpr int s_krita4_offset = 0x2B;
+static constexpr int s_krita4_64_offset = 0x40;
+static constexpr int s_krita5_offset = 0x26;
+static constexpr int s_krita5_64_offset = 0x3A;
 
 OraHandler::OraHandler()
 {
@@ -57,10 +62,11 @@ bool OraHandler::canRead(QIODevice *device)
         return false;
     }
 
-    char buff[54];
-    if (device->peek(buff, sizeof(buff)) == sizeof(buff)) {
-        return memcmp(buff + 0x26, s_magic, s_magic_size) == 0;
-    }
+    if (device->peek(s_krita3_offset + s_magic_size).contains(s_magic)) return true;
+    if (device->peek(s_krita4_offset + s_magic_size).contains(s_magic)) return true;
+    if (device->peek(s_krita4_64_offset + s_magic_size).contains(s_magic)) return true;
+    if (device->peek(s_krita5_offset + s_magic_size).contains(s_magic)) return true;
+    if (device->peek(s_krita5_64_offset + s_magic_size).contains(s_magic)) return true;
 
     return false;
 }

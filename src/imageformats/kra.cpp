@@ -18,6 +18,11 @@
 
 static constexpr char s_magic[] = "application/x-krita";
 static constexpr int s_magic_size = sizeof(s_magic) - 1; // -1 to remove the last \0
+static constexpr int s_krita3_offset = 0x26;
+static constexpr int s_krita4_offset = 0x2B;
+static constexpr int s_krita4_64_offset = 0x40;
+static constexpr int s_krita5_offset = 0x26;
+static constexpr int s_krita5_64_offset = 0x3A;
 
 KraHandler::KraHandler()
 {
@@ -58,10 +63,8 @@ bool KraHandler::canRead(QIODevice *device)
         return false;
     }
 
-    char buff[57];
-    if (device->peek(buff, sizeof(buff)) == sizeof(buff)) {
-        return memcmp(buff + 0x26, s_magic, s_magic_size) == 0;
-    }
+    ByteArray ba = device->peek(43 + s_magic_size);
+    return (ba.contains(s_magic));
 
     return false;
 }
