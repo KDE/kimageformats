@@ -15,6 +15,7 @@
 #include <QPainter>
 #include <QPrinter>
 #include <QProcess>
+#include <QStandardPaths>
 #include <QTemporaryFile>
 
 // logging category for this framework, default: log stuff >= warning
@@ -176,6 +177,12 @@ bool EPSHandler::read(QImage *image)
 
     // create GS command line
 
+    const QString gsExec = QStandardPaths::findExecutable(QStringLiteral("gs"));
+    if (gsExec.isEmpty()) {
+        qWarning(EPSPLUGIN) << "Couldn't find gs exectuable (from GhostScript) in PATH.";
+        return false;
+    }
+
     QStringList gsArgs;
     gsArgs << QLatin1String("-sOutputFile=") + tmpFile.fileName() << QStringLiteral("-q") << QStringLiteral("-g%1x%2").arg(wantedWidth).arg(wantedHeight)
            << QStringLiteral("-dSAFER") << QStringLiteral("-dPARANOIDSAFER") << QStringLiteral("-dNOPAUSE") << QStringLiteral("-sDEVICE=ppm")
@@ -192,7 +199,7 @@ bool EPSHandler::read(QImage *image)
 
     QProcess converter;
     converter.setProcessChannelMode(QProcess::ForwardedErrorChannel);
-    converter.start(QStringLiteral("gs"), gsArgs);
+    converter.start(gsExec, gsArgs);
     if (!converter.waitForStarted(3000)) {
         qCWarning(EPSPLUGIN) << "Reading EPS files requires gs (from GhostScript)";
         return false;
