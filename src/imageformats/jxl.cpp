@@ -12,6 +12,7 @@
 #include "jxl_p.h"
 #include <jxl/encode.h>
 #include <jxl/thread_parallel_runner.h>
+#include <string.h>
 
 QJpegXLHandler::QJpegXLHandler()
     : m_parseState(ParseJpegXLNotParsed)
@@ -174,16 +175,27 @@ bool QJpegXLHandler::ensureDecoder()
         return false;
     }
 
-    if (m_basicinfo.xsize > 32768 || m_basicinfo.ysize > 32768) {
+    if (m_basicinfo.xsize > 65535 || m_basicinfo.ysize > 65535) {
         qWarning("JXL image (%dx%d) is too large", m_basicinfo.xsize, m_basicinfo.ysize);
         m_parseState = ParseJpegXLError;
         return false;
-    } else if (sizeof(void *) <= 4) {
+    }
+
+    if (sizeof(void *) <= 4) {
         /* On 32bit systems, there is limited address space.
          * We skip imagess bigger than 8192 x 8192 pixels.
          * If we don't do it, abort() in libjxl may close whole application */
-        if ((m_basicinfo.xsize * m_basicinfo.ysize) > 67108864) {
+        if (m_basicinfo.xsize > ((8192 * 8192) / m_basicinfo.ysize)) {
             qWarning("JXL image (%dx%d) is too large for 32bit build of the plug-in", m_basicinfo.xsize, m_basicinfo.ysize);
+            m_parseState = ParseJpegXLError;
+            return false;
+        }
+    } else {
+        /* On 64bit systems
+         * We skip images bigger than 16384 x 16384 pixels.
+         * It is an artificial limit not to use extreme amount of memory */
+        if (m_basicinfo.xsize > ((16384 * 16384) / m_basicinfo.ysize)) {
+            qWarning("JXL image (%dx%d) is bigger than security limit 256 megapixels", m_basicinfo.xsize, m_basicinfo.ysize);
             m_parseState = ParseJpegXLError;
             return false;
         }
@@ -411,9 +423,57 @@ bool QJpegXLHandler::write(const QImage &image)
         return false;
     }
 
-    if ((image.width() > 32768) || (image.height() > 32768)) {
-        qWarning("Image is too large");
+    if ((image.width() > 0) && (image.height() > 0)) {
+        if ((image.width() > 65535) || (image.height() > 65535)) {
+            qWarning("Image (%dx%d) is too large to save!", image.width(), image.height());
+            return false;
+        }
+
+        if (sizeof(void *) <= 4) {
+            if (image.width() > ((8192 * 8192) / image.height())) {
+                qWarning("Image (%dx%d) is too large save via 32bit build of JXL plug-in", image.width(), image.height());
+                return false;
+            }
+        } else {
+            if (image.width() > ((16384 * 16384) / image.height())) {
+                qWarning("Image (%dx%d) will not be saved because it has more than 256 megapixels", image.width(), image.height());
+                return false;
+            }
+        }
+    } else {
+        qWarning("Image has zero dimension!");
         return false;
+    }
+
+    int save_depth = 8; // 8 or 16
+    // depth detection
+    switch (image.format()) {
+    case QImage::Format_BGR30:
+    case QImage::Format_A2BGR30_Premultiplied:
+    case QImage::Format_RGB30:
+    case QImage::Format_A2RGB30_Premultiplied:
+    case QImage::Format_Grayscale16:
+    case QImage::Format_RGBX64:
+    case QImage::Format_RGBA64:
+    case QImage::Format_RGBA64_Premultiplied:
+        save_depth = 16;
+        break;
+    case QImage::Format_RGB32:
+    case QImage::Format_ARGB32:
+    case QImage::Format_ARGB32_Premultiplied:
+    case QImage::Format_RGB888:
+    case QImage::Format_RGBX8888:
+    case QImage::Format_RGBA8888:
+    case QImage::Format_RGBA8888_Premultiplied:
+        save_depth = 8;
+        break;
+    default:
+        if (image.depth() > 32) {
+            save_depth = 16;
+        } else {
+            save_depth = 8;
+        }
+        break;
     }
 
     JxlEncoder *encoder = JxlEncoderCreate(nullptr);
@@ -456,16 +516,16 @@ bool QJpegXLHandler::write(const QImage &image)
     bool convert_color_profile;
     QByteArray iccprofile;
 
-    if (image.colorSpace().isValid()) {
+    if (image.colorSpace().isValid() && (m_quality < 100)) {
         if (image.colorSpace().primaries() != QColorSpace::Primaries::SRgb || image.colorSpace().transferFunction() != QColorSpace::TransferFunction::SRgb) {
             convert_color_profile = true;
         } else {
             convert_color_profile = false;
         }
-    } else { // no profile or Qt-unsupported ICC profile
+    } else { // lossless or no profile or Qt-unsupported ICC profile
         convert_color_profile = false;
         iccprofile = image.colorSpace().iccProfile();
-        if (iccprofile.size() > 0) {
+        if (iccprofile.size() > 0 || m_quality == 100) {
             output_info.uses_original_profile = 1;
         }
     }
@@ -474,19 +534,45 @@ bool QJpegXLHandler::write(const QImage &image)
     QImage::Format tmpformat;
     JxlEncoderStatus status;
 
-    pixel_format.data_type = JXL_TYPE_UINT16;
     pixel_format.endianness = JXL_NATIVE_ENDIAN;
     pixel_format.align = 0;
 
-    if (image.hasAlphaChannel()) {
-        tmpformat = QImage::Format_RGBA64;
-        pixel_format.num_channels = 4;
-        output_info.alpha_bits = 16;
-        output_info.num_extra_channels = 1;
-    } else {
-        tmpformat = QImage::Format_RGBX64;
-        pixel_format.num_channels = 3;
-        output_info.alpha_bits = 0;
+    output_info.intensity_target = 255.0f;
+    output_info.orientation = JXL_ORIENT_IDENTITY;
+    output_info.num_color_channels = 3;
+    output_info.animation.tps_numerator = 10;
+    output_info.animation.tps_denominator = 1;
+
+    if (save_depth > 8) { // 16bit depth
+        pixel_format.data_type = JXL_TYPE_UINT16;
+
+        output_info.bits_per_sample = 16;
+
+        if (image.hasAlphaChannel()) {
+            tmpformat = QImage::Format_RGBA64;
+            pixel_format.num_channels = 4;
+            output_info.alpha_bits = 16;
+            output_info.num_extra_channels = 1;
+        } else {
+            tmpformat = QImage::Format_RGBX64;
+            pixel_format.num_channels = 3;
+            output_info.alpha_bits = 0;
+        }
+    } else { // 8bit depth
+        pixel_format.data_type = JXL_TYPE_UINT8;
+
+        output_info.bits_per_sample = 8;
+
+        if (image.hasAlphaChannel()) {
+            tmpformat = QImage::Format_RGBA8888;
+            pixel_format.num_channels = 4;
+            output_info.alpha_bits = 8;
+            output_info.num_extra_channels = 1;
+        } else {
+            tmpformat = QImage::Format_RGB888;
+            pixel_format.num_channels = 3;
+            output_info.alpha_bits = 0;
+        }
     }
 
     const QImage tmpimage =
@@ -494,7 +580,7 @@ bool QJpegXLHandler::write(const QImage &image)
 
     const size_t xsize = tmpimage.width();
     const size_t ysize = tmpimage.height();
-    const size_t buffer_size = 2 * pixel_format.num_channels * xsize * ysize;
+    const size_t buffer_size = (save_depth > 8) ? (2 * pixel_format.num_channels * xsize * ysize) : (pixel_format.num_channels * xsize * ysize);
 
     if (xsize == 0 || ysize == 0 || tmpimage.isNull()) {
         qWarning("Unable to allocate memory for output image");
@@ -507,12 +593,6 @@ bool QJpegXLHandler::write(const QImage &image)
 
     output_info.xsize = tmpimage.width();
     output_info.ysize = tmpimage.height();
-    output_info.bits_per_sample = 16;
-    output_info.intensity_target = 255.0f;
-    output_info.orientation = JXL_ORIENT_IDENTITY;
-    output_info.num_color_channels = 3;
-    output_info.animation.tps_numerator = 10;
-    output_info.animation.tps_denominator = 1;
 
     status = JxlEncoderSetBasicInfo(encoder, &output_info);
     if (status != JXL_ENC_SUCCESS) {
@@ -546,39 +626,60 @@ bool QJpegXLHandler::write(const QImage &image)
         }
     }
 
-    if (image.hasAlphaChannel()) {
+    if (image.hasAlphaChannel() || ((save_depth == 8) && (xsize % 4 == 0))) {
         status = JxlEncoderAddImageFrame(encoder_options, &pixel_format, (void *)tmpimage.constBits(), buffer_size);
     } else {
-        uint16_t *tmp_buffer = new (std::nothrow) uint16_t[3 * xsize * ysize];
-        if (!tmp_buffer) {
-            qWarning("Memory allocation error");
-            if (runner) {
-                JxlThreadParallelRunnerDestroy(runner);
+        if (save_depth > 8) { // 16bit depth without alpha channel
+            uint16_t *tmp_buffer = new (std::nothrow) uint16_t[3 * xsize * ysize];
+            if (!tmp_buffer) {
+                qWarning("Memory allocation error");
+                if (runner) {
+                    JxlThreadParallelRunnerDestroy(runner);
+                }
+                JxlEncoderDestroy(encoder);
+                return false;
             }
-            JxlEncoderDestroy(encoder);
-            return false;
-        }
 
-        uint16_t *dest_pixels = tmp_buffer;
-        for (int y = 0; y < tmpimage.height(); y++) {
-            const uint16_t *src_pixels = reinterpret_cast<const uint16_t *>(tmpimage.constScanLine(y));
-            for (int x = 0; x < tmpimage.width(); x++) {
-                // R
-                *dest_pixels = *src_pixels;
-                dest_pixels++;
-                src_pixels++;
-                // G
-                *dest_pixels = *src_pixels;
-                dest_pixels++;
-                src_pixels++;
-                // B
-                *dest_pixels = *src_pixels;
-                dest_pixels++;
-                src_pixels += 2; // skipalpha
+            uint16_t *dest_pixels = tmp_buffer;
+            for (int y = 0; y < tmpimage.height(); y++) {
+                const uint16_t *src_pixels = reinterpret_cast<const uint16_t *>(tmpimage.constScanLine(y));
+                for (int x = 0; x < tmpimage.width(); x++) {
+                    // R
+                    *dest_pixels = *src_pixels;
+                    dest_pixels++;
+                    src_pixels++;
+                    // G
+                    *dest_pixels = *src_pixels;
+                    dest_pixels++;
+                    src_pixels++;
+                    // B
+                    *dest_pixels = *src_pixels;
+                    dest_pixels++;
+                    src_pixels += 2; // skipalpha
+                }
             }
+            status = JxlEncoderAddImageFrame(encoder_options, &pixel_format, (void *)tmp_buffer, buffer_size);
+            delete[] tmp_buffer;
+        } else { // 8bit depth without alpha channel
+            uchar *tmp_buffer8 = new (std::nothrow) uchar[3 * xsize * ysize];
+            if (!tmp_buffer8) {
+                qWarning("Memory allocation error");
+                if (runner) {
+                    JxlThreadParallelRunnerDestroy(runner);
+                }
+                JxlEncoderDestroy(encoder);
+                return false;
+            }
+
+            uchar *dest_pixels8 = tmp_buffer8;
+            const size_t rowbytes = 3 * xsize;
+            for (int y = 0; y < tmpimage.height(); y++) {
+                memcpy(dest_pixels8, tmpimage.constScanLine(y), rowbytes);
+                dest_pixels8 += rowbytes;
+            }
+            status = JxlEncoderAddImageFrame(encoder_options, &pixel_format, (void *)tmp_buffer8, buffer_size);
+            delete[] tmp_buffer8;
         }
-        status = JxlEncoderAddImageFrame(encoder_options, &pixel_format, (void *)tmp_buffer, buffer_size);
-        delete[] tmp_buffer;
     }
 
     if (status == JXL_ENC_ERROR) {
