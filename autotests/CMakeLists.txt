@@ -30,6 +30,12 @@ macro(kimageformats_read_tests)
 endmacro()
 
 macro(kimageformats_write_tests)
+    cmake_parse_arguments(KIF_RT "" "FUZZ" "" ${ARGN})
+    set(_fuzzarg)
+    if (KIF_RT_FUZZ)
+        set(_fuzzarg -f ${KIF_RT_FUZZ})
+    endif()
+
     if (NOT TARGET writetest)
         add_executable(writetest writetest.cpp)
         target_link_libraries(writetest Qt${QT_MAJOR_VERSION}::Gui)
@@ -37,16 +43,22 @@ macro(kimageformats_write_tests)
             PRIVATE IMAGEDIR="${CMAKE_CURRENT_SOURCE_DIR}/write")
         ecm_mark_as_test(writetest)
     endif()
-    foreach(_testname ${ARGN})
+    foreach(_testname ${KIF_RT_UNPARSED_ARGUMENTS})
         string(REGEX MATCH "-lossless$" _is_lossless "${_testname}")
+        string(REGEX MATCH "-nodatacheck" _is_no_data_check "${_testname}")
         unset(lossless_arg)
+        unset(no_data_check_arg)
         if (_is_lossless)
             set(lossless_arg "--lossless")
             string(REGEX REPLACE "-lossless$" "" _testname "${_testname}")
         endif()
+        if (_is_no_data_check)
+            set(no_data_check_arg "--no-data-check")
+            string(REGEX REPLACE "-nodatacheck$" "" _testname "${_testname}")
+        endif()
         add_test(
             NAME kimageformats-write-${_testname}
-            COMMAND writetest ${lossless_arg} ${_testname}
+            COMMAND writetest ${lossless_arg} ${no_data_check_arg} ${_fuzzarg} ${_testname}
         )
     endforeach(_testname)
 endmacro()
@@ -74,17 +86,28 @@ if (TARGET avif)
     kimageformats_read_tests(
         avif
     )
+    # because the plug-ins use RGB->YUV conversion which sometimes results in 1 value difference.
+    kimageformats_write_tests(FUZZ 1
+        avif-nodatacheck-lossless
+    )
 endif()
 
 if (LibHeif_FOUND)
     kimageformats_read_tests(
         heif
     )
+    # because the plug-ins use RGB->YUV conversion which sometimes results in 1 value difference.
+    kimageformats_write_tests(FUZZ 1
+        heif-nodatacheck-lossless
+    )
 endif()
 
 if (LibJXL_FOUND AND LibJXLThreads_FOUND)
     kimageformats_read_tests(
         jxl
+    )
+    kimageformats_write_tests(
+        jxl-nodatacheck-lossless
     )
 endif()
 

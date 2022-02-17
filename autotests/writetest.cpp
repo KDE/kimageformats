@@ -16,6 +16,8 @@
 #include <QImageWriter>
 #include <QTextStream>
 
+#include "fuzzyeq.cpp"
+
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
@@ -31,7 +33,13 @@ int main(int argc, char **argv)
     parser.addPositionalArgument(QStringLiteral("format"), QStringLiteral("format to test."));
     QCommandLineOption lossless(QStringList() << QStringLiteral("l") << QStringLiteral("lossless"),
                                 QStringLiteral("Check that reading back the data gives the same image."));
+    QCommandLineOption ignoreDataCheck({QStringLiteral("no-data-check")}, QStringLiteral("Don't check that write data is exactly the same."));
+    QCommandLineOption fuzz(QStringList() << QStringLiteral("f") << QStringLiteral("fuzz"),
+                            QStringLiteral("Allow for some deviation in ARGB data."),
+                            QStringLiteral("max"));
     parser.addOption(lossless);
+    parser.addOption(ignoreDataCheck);
+    parser.addOption(fuzz);
 
     parser.process(app);
 
@@ -44,11 +52,26 @@ int main(int argc, char **argv)
         parser.showHelp(1);
     }
 
+    uchar fuzziness = 0;
+    if (parser.isSet(fuzz)) {
+        bool ok;
+        uint fuzzarg = parser.value(fuzz).toUInt(&ok);
+        if (!ok || fuzzarg > 255) {
+            QTextStream(stderr) << "Error: max fuzz argument must be a number between 0 and 255\n";
+            parser.showHelp(1);
+        }
+        fuzziness = uchar(fuzzarg);
+    }
+
     QString suffix = args.at(0);
     QByteArray format = suffix.toLatin1();
 
     QDir imgdir(QStringLiteral(IMAGEDIR));
-    imgdir.setNameFilters(QStringList(QLatin1String("*.") + suffix));
+    if (parser.isSet(ignoreDataCheck)) {
+        imgdir.setNameFilters({QLatin1String("*.png")});
+    } else {
+        imgdir.setNameFilters(QStringList(QLatin1String("*.") + suffix));
+    }
     imgdir.setFilter(QDir::Files);
 
     int passed = 0;
@@ -58,8 +81,13 @@ int main(int argc, char **argv)
                         << "Starting basic write tests for " << suffix << " images *********\n";
     const QFileInfoList lstImgDir = imgdir.entryInfoList();
     for (const QFileInfo &fi : lstImgDir) {
-        int suffixPos = fi.filePath().count() - suffix.count();
-        QString pngfile = fi.filePath().replace(suffixPos, suffix.count(), QStringLiteral("png"));
+        QString pngfile;
+        if (parser.isSet(ignoreDataCheck)) {
+            pngfile = fi.filePath();
+        } else {
+            int suffixPos = fi.filePath().count() - suffix.count();
+            pngfile = fi.filePath().replace(suffixPos, suffix.count(), QStringLiteral("png"));
+        }
         QString pngfilename = QFileInfo(pngfile).fileName();
 
         QImageReader pngReader(pngfile, "png");
@@ -70,29 +98,13 @@ int main(int argc, char **argv)
             continue;
         }
 
-        QFile expFile(fi.filePath());
-        if (!expFile.open(QIODevice::ReadOnly)) {
-            QTextStream(stdout) << "ERROR: " << fi.fileName() << ": could not open " << fi.fileName() << ": " << expFile.errorString() << "\n";
-            ++failed;
-            continue;
-        }
-        QByteArray expData = expFile.readAll();
-        if (expData.isEmpty()) {
-            // check if there was actually anything to read
-            expFile.reset();
-            char buf[1];
-            qint64 result = expFile.read(buf, 1);
-            if (result < 0) {
-                QTextStream(stdout) << "ERROR: " << fi.fileName() << ": could not load " << fi.fileName() << ": " << expFile.errorString() << "\n";
-                ++failed;
-                continue;
-            }
-        }
-
         QByteArray writtenData;
         {
             QBuffer buffer(&writtenData);
             QImageWriter imgWriter(&buffer, format.constData());
+            if (parser.isSet(lossless)) {
+                imgWriter.setQuality(100);
+            }
             if (!imgWriter.write(pngImage)) {
                 QTextStream(stdout) << "FAIL : " << fi.fileName() << ": failed to write image data\n";
                 ++failed;
@@ -100,10 +112,31 @@ int main(int argc, char **argv)
             }
         }
 
-        if (expData != writtenData) {
-            QTextStream(stdout) << "FAIL : " << fi.fileName() << ": written data differs from " << fi.fileName() << "\n";
-            ++failed;
-            continue;
+        if (!parser.isSet(ignoreDataCheck)) {
+            QFile expFile(fi.filePath());
+            if (!expFile.open(QIODevice::ReadOnly)) {
+                QTextStream(stdout) << "ERROR: " << fi.fileName() << ": could not open " << fi.fileName() << ": " << expFile.errorString() << "\n";
+                ++failed;
+                continue;
+            }
+            QByteArray expData = expFile.readAll();
+            if (expData.isEmpty()) {
+                // check if there was actually anything to read
+                expFile.reset();
+                char buf[1];
+                qint64 result = expFile.read(buf, 1);
+                if (result < 0) {
+                    QTextStream(stdout) << "ERROR: " << fi.fileName() << ": could not load " << fi.fileName() << ": " << expFile.errorString() << "\n";
+                    ++failed;
+                    continue;
+                }
+            }
+
+            if (expData != writtenData) {
+                QTextStream(stdout) << "FAIL : " << fi.fileName() << ": written data differs from " << fi.fileName() << "\n";
+                ++failed;
+                continue;
+            }
         }
 
         QImage reReadImage;
@@ -119,8 +152,18 @@ int main(int argc, char **argv)
         }
 
         if (parser.isSet(lossless)) {
-            if (pngImage != reReadImage) {
+            if (!fuzzyeq(pngImage, reReadImage, fuzziness)) {
                 QTextStream(stdout) << "FAIL : " << fi.fileName() << ": re-reading the data resulted in a different image\n";
+                if (pngImage.size() == reReadImage.size()) {
+                    for (int i = 0; i < pngImage.width(); ++i) {
+                        for (int j = 0; j < pngImage.height(); ++j) {
+                            if (pngImage.pixel(i, j) != reReadImage.pixel(i, j)) {
+                                QTextStream(stdout) << "Pixel is different " << i << ',' << j << ' ' << pngImage.pixel(i, j) << ' ' << reReadImage.pixel(i, j)
+                                                    << '\n';
+                            }
+                        }
+                    }
+                }
                 ++failed;
                 continue;
             }
