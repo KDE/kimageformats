@@ -16,8 +16,12 @@
 #include <QStack>
 #include <QVector>
 #include <QtEndian>
-#include <stdlib.h>
 
+#if QT_VERSION >= QT_VERSION_CHECK(5,14,0)
+#include <QColorSpace>
+#endif
+
+#include <stdlib.h>
 #include <string.h>
 
 #include "gimp_p.h"
@@ -351,6 +355,8 @@ private:
         bool initialized; //!< Is the QImage initialized?
         QImage image; //!< final QImage
 
+        QHash<QString,QByteArray> parasites;    //!< Parasites data: added to QImage before return it!
+
         XCFImage(void)
             : initialized(false)
         {
@@ -405,6 +411,7 @@ private:
     bool composeTiles(XCFImage &xcf_image);
     void setGrayPalette(QImage &image);
     void setPalette(XCFImage &xcf_image, QImage &image);
+    void setImageParasites(XCFImage &xcf_image, QImage &image);
     static void assignImageBytes(Layer &layer, uint i, uint j);
     bool loadHierarchy(QDataStream &xcf_io, Layer &layer);
     bool loadLevel(QDataStream &xcf_io, Layer &layer, qint32 bpp);
@@ -665,6 +672,9 @@ bool XCFImageFormat::readXCF(QIODevice *device, QImage *outImage)
         return false;
     }
 
+    // The image was created: now I can set metadata and ICC color profile inside it.
+    this->setImageParasites(xcf_image, xcf_image.image);
+
     *outImage = xcf_image.image;
     return true;
 }
@@ -715,15 +725,16 @@ bool XCFImageFormat::loadImageProperties(QDataStream &xcf_io, XCFImage &xcf_imag
                 property.readBytes(tag, size);
 
                 quint32 flags;
-                char *data = nullptr;
+                QByteArray data;
                 property >> flags >> data;
 
-                if (tag && strncmp(tag, "gimp-comment", strlen("gimp-comment")) == 0) {
-                    xcf_image.image.setText(QStringLiteral("Comment"), QString::fromUtf8(data));
-                }
+                // WARNING: you cannot add metadata to QImage here because it can be null.
+                // Adding a metadata to a QImage when it is null, does nothing (metas are lost).
+                if(tag) // store metadata for future use
+                    xcf_image.parasites.insert(QString::fromUtf8(tag), data);
 
                 delete[] tag;
-                delete[] data;
+                //delete[] data;
             }
             break;
 
@@ -1233,6 +1244,32 @@ void XCFImageFormat::setPalette(XCFImage &xcf_image, QImage &image)
 
     image.setColorTable(xcf_image.palette);
 }
+
+/*!
+ * Copy the parasites info to QImage.
+ * \param xcf_image XCF image containing the parasites read from the data stream.
+ * \param image image to apply the parasites data.
+ */
+void XCFImageFormat::setImageParasites(XCFImage &xcf_image, QImage &image)
+{
+    auto&& p = xcf_image.parasites;
+    auto keys = p.keys();
+    for (auto&& v : qAsConst(keys)) {
+#if QT_VERSION >= QT_VERSION_CHECK(5,14,0)
+        if (v == QStringLiteral("icc-profile")) {
+            auto cs = QColorSpace::fromIccProfile(p.value(v));
+            if(cs.isValid())
+                image.setColorSpace(cs);
+            continue;
+        }
+#endif
+        if (v == QStringLiteral("gimp-comment"))
+            image.setText(QStringLiteral("Comment"), QString::fromUtf8(p.value(v).data()));
+        if (v == QStringLiteral("gimp-image-metadata"))
+            image.setText(QStringLiteral("XML:org.gimp.xml"), QString::fromUtf8(p.value(v).data()));
+    }
+}
+
 
 /*!
  * Copy the bytes from the tile buffer into the image tile QImage, taking into
