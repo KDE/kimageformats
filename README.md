@@ -16,7 +16,7 @@ The following image formats have read-only support:
 - Animated Windows cursors (ani)
 - Gimp (xcf)
 - OpenEXR (exr)
-- Photoshop documents (psd)
+- Photoshop documents (psd, psb, pdd, psdt)
 - Sun Raster (ras)
 
 The following image formats have read and write support:
