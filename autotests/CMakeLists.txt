@@ -86,8 +86,7 @@ if (TARGET avif)
     kimageformats_read_tests(
         avif
     )
-    # because the plug-ins use RGB->YUV conversion which sometimes results in 1 value difference.
-    kimageformats_write_tests(FUZZ 1
+    kimageformats_write_tests(
         avif-nodatacheck-lossless
     )
 endif()
