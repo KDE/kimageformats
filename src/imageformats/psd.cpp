@@ -211,8 +211,11 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
     }
 
 #ifdef QT_DEBUG
-    if (auto dev = s.device())
-        Q_ASSERT((dev->pos()-pos) == sectioSize);
+    if (auto dev = s.device()) {
+        if ((dev->pos() - pos) != sectioSize) {
+            *ok = false;
+        }
+    }
 #endif
 
     return irs;
