@@ -28,6 +28,8 @@
 
 #include "psd_p.h"
 
+#include "util_p.h"
+
 #include <QDataStream>
 #include <QDebug>
 #include <QImage>
@@ -636,6 +638,12 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
     auto imgChannels = imageChannels(img.format());
     auto channel_num = std::min(qint32(header.channel_count), imgChannels);
     auto raw_count = qsizetype(header.width * header.depth + 7) / 8;
+
+    if (header.height > kMaxQVectorSize / header.channel_count / sizeof(quint32)) {
+        qWarning() << "LoadPSD() header height/channel_count too big" << header.height << header.channel_count;
+        return false;
+    }
+
     QVector<quint32> strides(header.height * header.channel_count, raw_count);
     // Read the compressed stride sizes
     if (compression)
