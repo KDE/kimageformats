@@ -501,10 +501,8 @@ static QImage::Format imageFormat(const PSDHeader &header)
         format = QImage::Format_Indexed8;
         break;
     case CM_BITMAP:
-        format = QImage::Format_Mono;
+        format = header.depth == 1 ? QImage::Format_Mono : QImage::Format_Invalid;
         break;
-    default:
-        qDebug() << "Unsupported color mode" << header.color_mode;
     }
     return format;
 }
@@ -624,7 +622,13 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
         return false;
     }
 
-    img = QImage(header.width, header.height, imageFormat(header));
+    const QImage::Format format = imageFormat(header);
+    if (format == QImage::Format_Invalid) {
+        qWarning() << "Unsupported image format" << header.color_mode << header.depth;
+        return false;
+    }
+
+    img = QImage(header.width, header.height, format);
     if (img.isNull()) {
         qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width, header.height);
         return false;
