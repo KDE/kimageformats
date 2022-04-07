@@ -498,7 +498,7 @@ static QImage::Format imageFormat(const PSDHeader &header)
         format = header.depth == 8 ? QImage::Format_Grayscale8 : QImage::Format_Grayscale16;
         break;
     case CM_INDEXED:
-        format = QImage::Format_Indexed8;
+        format = header.depth == 8 ? QImage::Format_Indexed8 : QImage::Format_Invalid;
         break;
     case CM_BITMAP:
         format = header.depth == 1 ? QImage::Format_Mono : QImage::Format_Invalid;
