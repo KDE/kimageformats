@@ -486,6 +486,10 @@ qint64 decompress(const char *input, qint64 ilen, char *output, qint64 olen)
  */
 static QImage::Format imageFormat(const PSDHeader &header)
 {
+    if (header.channel_count == 0) {
+        return QImage::Format_Invalid;
+    }
+
     auto format = QImage::Format_Invalid;
     switch(header.color_mode) {
     case CM_RGB:
@@ -624,7 +628,7 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
 
     const QImage::Format format = imageFormat(header);
     if (format == QImage::Format_Invalid) {
-        qWarning() << "Unsupported image format" << header.color_mode << header.depth;
+        qWarning() << "Unsupported image format. color_mode:" << header.color_mode << "depth:" << header.depth << "channel_count:" << header.channel_count;
         return false;
     }
 
