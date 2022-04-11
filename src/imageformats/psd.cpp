@@ -23,7 +23,12 @@
  * - 32-bit float image are converted to 16-bit integer image.
  *   NOTE: Qt 6.2 allow 32-bit float images (RGB only)
  * - Other color spaces cannot be read due to lack of QImage support for
- *   color spaces other than RGB (and Grayscale).
+ *   color spaces other than RGB (and Grayscale): a conversion to
+ *   RGB must be done.
+ *   - The best way to convert between different color spaces is to use a
+ *     color management engine (e.g. LittleCMS).
+ *   - An approximate way is to ignore the color information and use
+ *     literature formulas (possible but not recommended).
  */
 
 #include "psd_p.h"
@@ -74,6 +79,24 @@ struct PSDHeader {
 struct PSDImageResourceBlock {
     QString name;
     QByteArray data;
+};
+
+/*!
+ * \brief The PSDDuotoneOptions struct
+ * \note You can decode the duotone data using the "Duotone Options"
+ * file format found in the "Photoshop File Format" specs.
+ */
+struct PSDDuotoneOptions {
+    QByteArray data;
+};
+
+/*!
+ * \brief The PSDColorModeDataSection struct
+ * Only indexed color and duotone have color mode data.
+ */
+struct PSDColorModeDataSection {
+    PSDDuotoneOptions duotone;
+    QVector<QRgb> palette;
 };
 
 using PSDImageResourceSection = QHash<quint16, PSDImageResourceBlock>;
@@ -130,6 +153,7 @@ static QString readPascalString(QDataStream &s, qint32 alignBytes = 1, qint32 *s
  * \brief readImageResourceSection
  * Reads the image resource section.
  * \param s The stream.
+ * \param ok Pointer to the operation result variable.
  * \return The image resource section raw data.
  */
 static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok = nullptr)
@@ -168,7 +192,7 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
         quint32 signature;
         s >> signature;
         size -= sizeof(signature);
-        // NOTE: MeSa signature is not documented but found in some old PSD found in Photoshop 7.0 CD.
+        // NOTE: MeSa signature is not documented but found in some old PSD take from Photoshop 7.0 CD.
         if (signature != 0x3842494D && signature != 0x4D655361) { // 8BIM and MeSa
             qDebug() << "Invalid Image Resource Block Signature!";
             *ok = false;
@@ -223,31 +247,45 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
     return irs;
 }
 
-QVector<QRgb> colorTable(QDataStream &s, bool *ok = nullptr)
+/*!
+ * \brief readColorModeDataSection
+ * Read the color mode section
+ * \param s The stream.
+ * \param ok Pointer to the operation result variable.
+ * \return The color mode section.
+ */
+PSDColorModeDataSection readColorModeDataSection(QDataStream &s, bool *ok = nullptr)
 {
-    QVector<QRgb> palette;
+    PSDColorModeDataSection cms;
 
     bool tmp = false;
     if (ok == nullptr)
         ok = &tmp;
-
     *ok = true;
 
     qint32 size;
     s >> size;
-    if (size != 768) {
-        if (s.skipRawData(size) != size)
+    if (size != 768) {  // read the duotone data (524 bytes)
+        // NOTE: A RGB/Gray float image has a 112 bytes ColorModeData that could be
+        //       the "32-bit Toning Options" of Photoshop (starts with 'hdrt').
+        //       Official Adobe specification tells "Only indexed color and duotone
+        //       (see the mode field in the File header section) have color mode data.".
+        //       See test case images 32bit_grayscale.psd and 32bit-rgb.psd
+        auto&& ba = cms.duotone.data;
+        ba.resize(size);
+        if (s.readRawData(ba.data(), ba.size()) != ba.size())
             *ok = false;
-        return palette;
+    }
+    else {              // read the palette (768 bytes)
+        auto&& palette = cms.palette;
+        QVector<quint8> vect(size);
+        for (auto&& v : vect)
+            s >> v;
+        for (qsizetype i = 0, n = vect.size()/3; i < n; ++i)
+            palette.append(qRgb(vect.at(i), vect.at(n+i), vect.at(n+n+i)));
     }
 
-    QVector<quint8> vect(size);
-    for (auto&& v : vect)
-        s >> v;
-    for (qsizetype i = 0, n = vect.size()/3; i < n; ++i)
-        palette.append(qRgb(vect.at(i), vect.at(n+i), vect.at(n+n+i)));
-
-    return palette;
+    return cms;
 }
 
 /*!
@@ -312,7 +350,7 @@ static bool hasMergedData(const PSDImageResourceSection& irs)
  * Set the image resolution.
  * \param img The image.
  * \param irs The image resource section.
- * \return True on success or if the block does not exists, otherwise false.
+ * \return True on success, otherwise false.
  */
 static bool setResolution(QImage& img, const PSDImageResourceSection& irs)
 {
@@ -346,7 +384,7 @@ static bool setResolution(QImage& img, const PSDImageResourceSection& irs)
  * Search for transparency index block and, if found, changes the alpha of the value at the given index.
  * \param img The image.
  * \param irs The image resource section.
- * \return True on success or if the block does not exists, otherwise false.
+ * \return True on success, otherwise false.
  */
 static bool setTransparencyIndex(QImage& img, const PSDImageResourceSection& irs)
 {
@@ -408,6 +446,7 @@ static bool IsSupported(const PSDHeader &header)
     if (header.color_mode != CM_RGB &&
         header.color_mode != CM_GRAYSCALE &&
         header.color_mode != CM_INDEXED &&
+        header.color_mode != CM_DUOTONE &&
         header.color_mode != CM_BITMAP) {
         return false;
     }
@@ -499,6 +538,7 @@ static QImage::Format imageFormat(const PSDHeader &header)
             format = header.channel_count < 4 ? QImage::Format_RGB888 : QImage::Format_RGBA8888;
         break;
     case CM_GRAYSCALE:
+    case CM_DUOTONE:
         format = header.depth == 8 ? QImage::Format_Grayscale8 : QImage::Format_Grayscale16;
         break;
     case CM_INDEXED:
@@ -571,7 +611,8 @@ inline void planarToChunchyFloat(uchar *target, const char* source, qint32 width
     auto t = reinterpret_cast<quint16*>(target);
     for (qint32 x = 0; x < width; ++x) {
         auto tmp = xchg(s[x]);
-        t[x*cn+c] = quint16(*reinterpret_cast<float*>(&tmp) * 65535);
+        t[x*cn+c] = std::min(quint16(*reinterpret_cast<float*>(&tmp) * std::numeric_limits<quint16>::max() + 0.5),
+                             std::numeric_limits<quint16>::max());
     }
 }
 
@@ -591,7 +632,7 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
     bool ok = false;
 
     // Color Mode Data section
-    auto palette = colorTable(stream, &ok);
+    auto cmds = readColorModeDataSection(stream, &ok);
     if (!ok) {
         qDebug() << "Error while skipping Color Mode Data section";
         return false;
@@ -638,8 +679,8 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
         return false;
     }
     img.fill(qRgb(0, 0, 0));
-    if (!palette.isEmpty()) {
-        img.setColorTable(palette);
+    if (!cmds.palette.isEmpty()) {
+        img.setColorTable(cmds.palette);
         setTransparencyIndex(img, irs);
     }
 
@@ -720,6 +761,13 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
     // XMP data
     if (!setXmpData(img, irs)) {
         // qDebug() << "No XMP data found!";
+    }
+
+    // Duotone images: color data contains the duotone specification (not documented).
+    // Other applications that read Photoshop files can treat a duotone image as a gray image,
+    // and just preserve the contents of the duotone information when reading and writing the file.
+    if (!cmds.duotone.data.isEmpty()) {
+        img.setText(QStringLiteral("PSDDuotoneOptions"), QString::fromUtf8(cmds.duotone.data.toHex()));
     }
 
     return true;
