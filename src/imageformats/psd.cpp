@@ -271,9 +271,8 @@ PSDColorModeDataSection readColorModeDataSection(QDataStream &s, bool *ok = null
         //       Official Adobe specification tells "Only indexed color and duotone
         //       (see the mode field in the File header section) have color mode data.".
         //       See test case images 32bit_grayscale.psd and 32bit-rgb.psd
-        auto&& ba = cms.duotone.data;
-        ba.resize(size);
-        if (s.readRawData(ba.data(), ba.size()) != ba.size())
+        cms.duotone.data = s.device()->read(size);
+        if (cms.duotone.data.size() != size)
             *ok = false;
     }
     else {              // read the palette (768 bytes)
