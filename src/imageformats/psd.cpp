@@ -216,11 +216,14 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
         quint32 dataSize;
         s >> dataSize;
         size -= sizeof(dataSize);
-        irb.data.resize(dataSize);
-        auto read = s.readRawData(irb.data.data(), irb.data.size());
+        // NOTE: Qt device::read() and QDataStream::readRawData() could read less data than specified.
+        //       The read code should be improved.
+        if(auto dev = s.device())
+            irb.data = dev->read(dataSize);
+        auto read = irb.data.size();
         if (read > 0)
             size -= read;
-        if (read != irb.data.size()) {
+        if (read != dataSize) {
             qDebug() << "Image Resource Block Read Error!";
             *ok = false;
             break;
