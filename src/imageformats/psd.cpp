@@ -490,11 +490,11 @@ qint64 decompress(const char *input, qint64 ilen, char *output, qint64 olen)
 {
     qint64  j = 0;
     for (qint64 ip = 0, rr = 0, available = olen; j < olen && ip < ilen; available = olen - j) {
-        char n = input[ip++];
-        if (static_cast<signed char>(n) == -128)
+        signed char n = static_cast<signed char>(input[ip++]);
+        if (n == -128)
             continue;
 
-        if (static_cast<signed char>(n) >= 0) {
+        if (n >= 0) {
             rr = qint64(n) + 1;
             if (available < rr) {
                 ip--;
