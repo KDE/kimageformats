@@ -143,6 +143,10 @@ bool QJpegXLHandler::ensureDecoder()
         return false;
     }
 
+#ifdef KIMG_JXL_API_VERSION
+    JxlDecoderCloseInput(m_decoder);
+#endif
+
     JxlDecoderStatus status = JxlDecoderSubscribeEvents(m_decoder, JXL_DEC_BASIC_INFO | JXL_DEC_COLOR_ENCODING | JXL_DEC_FRAME);
     if (status == JXL_DEC_ERROR) {
         qWarning("ERROR: JxlDecoderSubscribeEvents failed");
@@ -482,36 +486,14 @@ bool QJpegXLHandler::write(const QImage &image)
         return false;
     }
 
-    void *runner = nullptr;
-    int num_worker_threads = qBound(1, QThread::idealThreadCount(), 64);
-
-    if (num_worker_threads > 1) {
-        runner = JxlThreadParallelRunnerCreate(nullptr, num_worker_threads);
-        if (JxlEncoderSetParallelRunner(encoder, JxlThreadParallelRunner, runner) != JXL_ENC_SUCCESS) {
-            qWarning("JxlEncoderSetParallelRunner failed");
-            JxlThreadParallelRunnerDestroy(runner);
-            JxlEncoderDestroy(encoder);
-            return false;
-        }
-    }
-
-    JxlEncoderOptions *encoder_options = JxlEncoderOptionsCreate(encoder, nullptr);
-
     if (m_quality > 100) {
         m_quality = 100;
     } else if (m_quality < 0) {
         m_quality = 90;
     }
 
-    JxlEncoderOptionsSetDistance(encoder_options, (100.0f - m_quality) / 10.0f);
-
-    JxlEncoderOptionsSetLossless(encoder_options, (m_quality == 100) ? JXL_TRUE : JXL_FALSE);
-
     JxlBasicInfo output_info;
     JxlEncoderInitBasicInfo(&output_info);
-
-    JxlColorEncoding color_profile;
-    JxlColorEncodingSetToSRGB(&color_profile, JXL_FALSE);
 
     bool convert_color_profile;
     QByteArray iccprofile;
@@ -526,7 +508,28 @@ bool QJpegXLHandler::write(const QImage &image)
         convert_color_profile = false;
         iccprofile = image.colorSpace().iccProfile();
         if (iccprofile.size() > 0 || m_quality == 100) {
-            output_info.uses_original_profile = 1;
+            output_info.uses_original_profile = JXL_TRUE;
+        }
+    }
+
+    if (save_depth == 16 && (image.hasAlphaChannel() || output_info.uses_original_profile)) {
+        output_info.have_container = JXL_TRUE;
+        JxlEncoderUseContainer(encoder, JXL_TRUE);
+#ifdef KIMG_JXL_API_VERSION
+        JxlEncoderSetCodestreamLevel(encoder, 10);
+#endif
+    }
+
+    void *runner = nullptr;
+    int num_worker_threads = qBound(1, QThread::idealThreadCount(), 64);
+
+    if (num_worker_threads > 1) {
+        runner = JxlThreadParallelRunnerCreate(nullptr, num_worker_threads);
+        if (JxlEncoderSetParallelRunner(encoder, JxlThreadParallelRunner, runner) != JXL_ENC_SUCCESS) {
+            qWarning("JxlEncoderSetParallelRunner failed");
+            JxlThreadParallelRunnerDestroy(runner);
+            JxlEncoderDestroy(encoder);
+            return false;
         }
     }
 
@@ -537,7 +540,6 @@ bool QJpegXLHandler::write(const QImage &image)
     pixel_format.endianness = JXL_NATIVE_ENDIAN;
     pixel_format.align = 0;
 
-    output_info.intensity_target = 255.0f;
     output_info.orientation = JXL_ORIENT_IDENTITY;
     output_info.num_color_channels = 3;
     output_info.animation.tps_numerator = 10;
@@ -615,6 +617,9 @@ bool QJpegXLHandler::write(const QImage &image)
             return false;
         }
     } else {
+        JxlColorEncoding color_profile;
+        JxlColorEncodingSetToSRGB(&color_profile, JXL_FALSE);
+
         status = JxlEncoderSetColorEncoding(encoder, &color_profile);
         if (status != JXL_ENC_SUCCESS) {
             qWarning("JxlEncoderSetColorEncoding failed!");
@@ -625,6 +630,20 @@ bool QJpegXLHandler::write(const QImage &image)
             return false;
         }
     }
+
+#ifdef KIMG_JXL_API_VERSION
+    JxlEncoderFrameSettings *encoder_options = JxlEncoderFrameSettingsCreate(encoder, nullptr);
+
+    JxlEncoderSetFrameDistance(encoder_options, (100.0f - m_quality) / 10.0f);
+
+    JxlEncoderSetFrameLossless(encoder_options, (m_quality == 100) ? JXL_TRUE : JXL_FALSE);
+#else
+    JxlEncoderOptions *encoder_options = JxlEncoderOptionsCreate(encoder, nullptr);
+
+    JxlEncoderOptionsSetDistance(encoder_options, (100.0f - m_quality) / 10.0f);
+
+    JxlEncoderOptionsSetLossless(encoder_options, (m_quality == 100) ? JXL_TRUE : JXL_FALSE);
+#endif
 
     if (image.hasAlphaChannel() || ((save_depth == 8) && (xsize % 4 == 0))) {
         status = JxlEncoderAddImageFrame(encoder_options, &pixel_format, (void *)tmpimage.constBits(), buffer_size);
@@ -914,6 +933,10 @@ bool QJpegXLHandler::rewind()
         m_parseState = ParseJpegXLError;
         return false;
     }
+
+#ifdef KIMG_JXL_API_VERSION
+    JxlDecoderCloseInput(m_decoder);
+#endif
 
     if (m_basicinfo.uses_original_profile) {
         if (JxlDecoderSubscribeEvents(m_decoder, JXL_DEC_FULL_IMAGE) != JXL_DEC_SUCCESS) {
