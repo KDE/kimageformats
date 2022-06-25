@@ -218,7 +218,7 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
         size -= sizeof(dataSize);
         // NOTE: Qt device::read() and QDataStream::readRawData() could read less data than specified.
         //       The read code should be improved.
-        if(auto dev = s.device())
+        if (auto dev = s.device())
             irb.data = dev->read(dataSize);
         auto read = irb.data.size();
         if (read > 0)
@@ -650,7 +650,7 @@ inline void cmykToRgb(uchar *target, qint32 targetChannels, const char *source, 
     auto t = reinterpret_cast<T*>(target);
     auto max = double(std::numeric_limits<T>::max());
 
-    if(sourceChannels < 4) {
+    if (sourceChannels < 4) {
         qDebug() << "cmykToRgb: image is not a valid CMYK!";
         return;
     }
@@ -666,9 +666,9 @@ inline void cmykToRgb(uchar *target, qint32 targetChannels, const char *source, 
         *(t + pt + 0) = T(std::min(max - (C * (1 - K) + K) * max + 0.5, max));
         *(t + pt + 1) = T(std::min(max - (M * (1 - K) + K) * max + 0.5, max));
         *(t + pt + 2) = T(std::min(max - (Y * (1 - K) + K) * max + 0.5, max));
-        if(targetChannels == 4) {
+        if (targetChannels == 4) {
             *(t + pt + 3) = std::numeric_limits<T>::max();
-            if(sourceChannels == 5)
+            if (sourceChannels == 5)
                 *(t + pt + 3) -= *(s + ps + 4);
         }
     }
@@ -789,7 +789,7 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
     QByteArray rawStride;
     rawStride.resize(raw_count);
 
-    if(header.color_mode == CM_CMYK || header.color_mode == CM_LABCOLOR || header.color_mode != CM_MULTICHANNEL) {
+    if (header.color_mode == CM_CMYK || header.color_mode == CM_LABCOLOR || header.color_mode == CM_MULTICHANNEL) {
         // In order to make a colorspace transformation, we need all channels of a scanline
         QByteArray psdScanline;
         psdScanline.resize(qsizetype(header.width * std::min(header.depth, quint16(16)) * header.channel_count + 7) / 8);
