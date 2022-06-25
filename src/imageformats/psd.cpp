@@ -656,21 +656,21 @@ inline void cmykToRgb(uchar *target, qint32 targetChannels, const char *source, 
     }
 
     for (qint32 w = 0; w < width; ++w) {
-        auto ps = sourceChannels * w;
-        auto C = 1 - *(s + ps + 0) / double(max);
-        auto M = 1 - *(s + ps + 1) / double(max);
-        auto Y = 1 - *(s + ps + 2) / double(max);
-        auto K = 1 - *(s + ps + 3) / double(max);
+        auto ps = s + sourceChannels * w;
+        auto C = 1 - *(ps + 0) / double(max);
+        auto M = 1 - *(ps + 1) / double(max);
+        auto Y = 1 - *(ps + 2) / double(max);
+        auto K = 1 - *(ps + 3) / double(max);
 
-        auto pt = targetChannels * w;
-        *(t + pt + 0) = T(std::min(max - (C * (1 - K) + K) * max + 0.5, max));
-        *(t + pt + 1) = T(std::min(max - (M * (1 - K) + K) * max + 0.5, max));
-        *(t + pt + 2) = T(std::min(max - (Y * (1 - K) + K) * max + 0.5, max));
+        auto pt = t + targetChannels * w;
+        *(pt + 0) = T(std::min(max - (C * (1 - K) + K) * max + 0.5, max));
+        *(pt + 1) = T(std::min(max - (M * (1 - K) + K) * max + 0.5, max));
+        *(pt + 2) = T(std::min(max - (Y * (1 - K) + K) * max + 0.5, max));
         if (targetChannels == 4) {
             if (sourceChannels == 5)
-                *(t + pt + 3) = *(s + ps + 4);
+                *(pt + 3) = *(ps + 4);
             else
-                *(t + pt + 3) = std::numeric_limits<T>::max();
+                *(pt + 3) = std::numeric_limits<T>::max();
         }
     }
 }
