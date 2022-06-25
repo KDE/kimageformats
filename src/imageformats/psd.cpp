@@ -223,7 +223,7 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
         auto read = irb.data.size();
         if (read > 0)
             size -= read;
-        if (read != dataSize) {
+        if (quint32(read) != dataSize) {
             qDebug() << "Image Resource Block Read Error!";
             *ok = false;
             break;
@@ -449,6 +449,7 @@ static bool IsSupported(const PSDHeader &header)
         header.color_mode != CM_GRAYSCALE &&
         header.color_mode != CM_INDEXED &&
         header.color_mode != CM_DUOTONE &&
+        header.color_mode != CM_CMYK &&
         header.color_mode != CM_BITMAP) {
         return false;
     }
@@ -539,6 +540,12 @@ static QImage::Format imageFormat(const PSDHeader &header)
         else
             format = header.channel_count < 4 ? QImage::Format_RGB888 : QImage::Format_RGBA8888;
         break;
+    case CM_CMYK:
+        if (header.depth == 16 || header.depth == 32)
+            format = header.channel_count < 5 ? QImage::Format_RGBX64 : QImage::Format_RGBA64;
+        else if (header.depth == 8)
+            format = header.channel_count < 5 ? QImage::Format_RGB888 : QImage::Format_RGBA8888;
+        break;
     case CM_GRAYSCALE:
     case CM_DUOTONE:
         format = header.depth == 8 ? QImage::Format_Grayscale8 : QImage::Format_Grayscale16;
@@ -597,24 +604,33 @@ inline quint32 xchg(quint32 v) {
 #endif
 }
 
-template<class T>
-inline void planarToChunchy(uchar *target, const char* source, qint32 width, qint32 c, qint32 cn)
-{
-    auto s = reinterpret_cast<const T*>(source);
-    auto t = reinterpret_cast<T*>(target);
-    for (qint32 x = 0; x < width; ++x)
-        t[x*cn+c] = xchg(s[x]);
+inline qint32 xchg(qint32 v) {
+#if Q_BYTE_ORDER == Q_LITTLE_ENDIAN
+    return qint32( (quint32(v)>>24) | ((quint32(v) & 0x00FF0000)>>8) | ((quint32(v) & 0x0000FF00)<<8) | (quint32(v)<<24) );
+#else
+    return v;  // never tested
+#endif
 }
 
 template<class T>
-inline void planarToChunchyFloat(uchar *target, const char* source, qint32 width, qint32 c, qint32 cn)
+inline void planarToChunchy(uchar *target, const char *source, qint32 width, qint32 c, qint32 cn)
+{
+    auto s = reinterpret_cast<const T*>(source);
+    auto t = reinterpret_cast<T*>(target);
+    for (qint32 x = 0; x < width; ++x) {
+        t[x*cn+c] = xchg(s[x]);
+    }
+}
+
+template<class T, T min = 0, T max = 1>
+inline void planarToChunchyFloat(uchar *target, const char *source, qint32 width, qint32 c, qint32 cn)
 {
     auto s = reinterpret_cast<const T*>(source);
     auto t = reinterpret_cast<quint16*>(target);
     for (qint32 x = 0; x < width; ++x) {
         auto tmp = xchg(s[x]);
-        t[x*cn+c] = std::min(quint16(*reinterpret_cast<float*>(&tmp) * std::numeric_limits<quint16>::max() + 0.5),
-                             std::numeric_limits<quint16>::max());
+        auto ftmp = (*reinterpret_cast<float*>(&tmp) - double(min)) / (double(max) - double(min));
+        t[x*cn+c] = quint16(std::min(ftmp * std::numeric_limits<quint16>::max() + 0.5, double(std::numeric_limits<quint16>::max())));
     }
 }
 
@@ -622,8 +638,59 @@ inline void monoInvert(uchar *target, const char* source, qint32 bytes)
 {
     auto s = reinterpret_cast<const quint8*>(source);
     auto t = reinterpret_cast<quint8*>(target);
-    for (qint32 x = 0; x < bytes; ++x)
+    for (qint32 x = 0; x < bytes; ++x) {
         t[x] = ~s[x];
+    }
+}
+
+template<class T>
+inline void cmykToRgb(uchar *target, qint32 targetChannels, const char *source, qint32 sourceChannels, qint32 width)
+{
+    auto s = reinterpret_cast<const T*>(source);
+    auto t = reinterpret_cast<T*>(target);
+    auto max = double(std::numeric_limits<T>::max());
+
+    if(sourceChannels < 4) {
+        qDebug() << "cmykToRgb: image is not a valid CMYK!";
+        return;
+    }
+
+    for (qint32 w = 0; w < width; ++w) {
+        auto ps = sourceChannels * w;
+        auto C = 1 - *(s + ps + 0) / double(max);
+        auto M = 1 - *(s + ps + 1) / double(max);
+        auto Y = 1 - *(s + ps + 2) / double(max);
+        auto K = 1 - *(s + ps + 3) / double(max);
+
+        auto pt = targetChannels * w;
+        *(t + pt + 0) = T(std::min(max - (C * (1 - K) + K) * max + 0.5, max));
+        *(t + pt + 1) = T(std::min(max - (M * (1 - K) + K) * max + 0.5, max));
+        *(t + pt + 2) = T(std::min(max - (Y * (1 - K) + K) * max + 0.5, max));
+        if(targetChannels == 4) {
+            *(t + pt + 3) = std::numeric_limits<T>::max();
+            if(sourceChannels == 5)
+                *(t + pt + 3) -= *(s + ps + 4);
+        }
+    }
+}
+
+bool readChannel(QByteArray& target, QDataStream &stream, quint32 compressedSize, quint16 compression)
+{
+    if (compression) {
+        QByteArray tmp;
+        tmp.resize(compressedSize);
+        if (stream.readRawData(tmp.data(), tmp.size()) != tmp.size()) {
+            return false;
+        }
+        if (decompress(tmp.data(), tmp.size(), target.data(), target.size()) < 0) {
+            return false;
+        }
+    }
+    else if (stream.readRawData(target.data(), target.size()) != target.size()) {
+        return false;
+    }
+
+    return stream.status() == QDataStream::Ok;
 }
 
 // Load the PSD image.
@@ -697,7 +764,7 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
 
     QVector<quint32> strides(header.height * header.channel_count, raw_count);
     // Read the compressed stride sizes
-    if (compression)
+    if (compression) {
         for (auto&& v : strides) {
             if (isPsb) {
                 stream >> v;
@@ -707,46 +774,92 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
             stream >> tmp;
             v = tmp;
         }
+    }
+    // calculate the absolute file positions of each stride (required when a colorspace conversion should be done)
+    auto device = stream.device();
+    QVector<quint64> stridePositions(strides.size());
+    if (!stridePositions.isEmpty()) {
+        stridePositions[0] = device->pos();
+    }
+    for (qsizetype i = 1, n = stridePositions.size(); i < n; ++i) {
+        stridePositions[i] = stridePositions[i-1] + strides.at(i-1);
+    }
 
     // Read the image
     QByteArray rawStride;
     rawStride.resize(raw_count);
-    for (qint32 c = 0; c < channel_num; ++c) {
-        for(qint32 y = 0, h = header.height; y < h; ++y) {
-            auto&& strideSize = strides.at(c*qsizetype(h)+y);
-            if (compression) {
-                QByteArray tmp;
-                tmp.resize(strideSize);
-                if (stream.readRawData(tmp.data(), tmp.size()) != tmp.size()) {
+
+    if(header.color_mode == CM_CMYK || header.color_mode == CM_LABCOLOR || header.color_mode != CM_MULTICHANNEL) {
+        // In order to make a colorspace transformation, we need all channels of a scanline
+        QByteArray psdScanline;
+        psdScanline.resize(qsizetype(header.width * std::min(header.depth, quint16(16)) * header.channel_count + 7) / 8);
+        for (qint32 y = 0, h = header.height; y < h; ++y) {
+            for (qint32 c = 0; c < header.channel_count; ++c) {
+                auto strideNumber = c * qsizetype(h) + y;
+                if (!device->seek(stridePositions.at(strideNumber))) {
+                    qDebug() << "Error while seeking the stream of channel" << c << "line" << y;
+                    return false;
+                }
+                auto&& strideSize = strides.at(strideNumber);
+                if (!readChannel(rawStride, stream, strideSize, compression)) {
                     qDebug() << "Error while reading the stream of channel" << c << "line" << y;
                     return false;
                 }
-                if (decompress(tmp.data(), tmp.size(), rawStride.data(), rawStride.size()) < 0) {
-                    qDebug() << "Error while decompressing the channel" << c << "line" << y;
-                    return false;
+
+                auto scanLine = reinterpret_cast<unsigned char*>(psdScanline.data());
+                if (header.depth == 8) {
+                    planarToChunchy<quint8>(scanLine, rawStride.data(), header.width, c, header.channel_count);
+                }
+                else if (header.depth == 16) {
+                    planarToChunchy<quint16>(scanLine, rawStride.data(), header.width, c, header.channel_count);
+                }
+                else if (header.depth == 32) { // NOT TESTED!
+                    // CMYK float uses values from 0 to 100 (you should think them as %)
+                    // LAB float uses LAB real values: L(0 to 100), a/b(-128 to 127)
+                    // Spot float channels... I haven't checked it out
+                    if ((header.color_mode == CM_CMYK && c < 4) ||
+                        (header.color_mode == CM_MULTICHANNEL) ||
+                        (header.color_mode == CM_LABCOLOR && c == 0))
+                        planarToChunchyFloat<quint32, 0, 100>(scanLine, rawStride.data(), header.width, c, header.channel_count);
+                    else if (header.color_mode == CM_LABCOLOR && c < 3)
+                        planarToChunchyFloat<qint32, -128, 127>(scanLine, rawStride.data(), header.width, c, header.channel_count);
+                    else // RGB / gray / spots
+                        planarToChunchyFloat<quint32>(scanLine, rawStride.data(), header.width, c, header.channel_count);
                 }
             }
-            else {
-                if (stream.readRawData(rawStride.data(), rawStride.size()) != rawStride.size()) {
+
+            if (header.color_mode == CM_CMYK) {
+                if (header.depth == 8)
+                    cmykToRgb<quint8>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width);
+                else
+                    cmykToRgb<quint16>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width);
+            }
+        }
+    }
+    else {
+        // Linear read (no position jumps): optimized code usable only for the colorspaces supported by QImage
+        for (qint32 c = 0; c < channel_num; ++c) {
+            for (qint32 y = 0, h = header.height; y < h; ++y) {
+                auto&& strideSize = strides.at(c * qsizetype(h) + y);
+                if (!readChannel(rawStride, stream, strideSize, compression)) {
                     qDebug() << "Error while reading the stream of channel" << c << "line" << y;
                     return false;
                 }
-            }
 
-            if (stream.status() != QDataStream::Ok) {
-                qDebug() << "Stream read error" << stream.status();
-                return false;
+                auto scanLine = img.scanLine(y);
+                if (header.depth == 1) {        // Bitmap
+                    monoInvert(scanLine, rawStride.data(), std::min(rawStride.size(), img.bytesPerLine()));
+                }
+                else if (header.depth == 8) {   // 8-bits images: Indexed, Grayscale, RGB/RGBA
+                    planarToChunchy<quint8>(scanLine, rawStride.data(), header.width, c, imgChannels);
+                }
+                else if (header.depth == 16) {  // 16-bits integer images: Grayscale, RGB/RGBA
+                    planarToChunchy<quint16>(scanLine, rawStride.data(), header.width, c, imgChannels);
+                }
+                else if (header.depth == 32) {  // 32-bits float images: Grayscale, RGB/RGBA (coverted to equivalent integer 16-bits)
+                    planarToChunchyFloat<quint32>(scanLine, rawStride.data(), header.width, c, imgChannels);
+                }
             }
-
-            auto scanLine = img.scanLine(y);
-            if (header.depth == 1)          // Bitmap
-                monoInvert(scanLine, rawStride.data(), std::min(rawStride.size(), img.bytesPerLine()));
-            else if (header.depth == 8)     // 8-bits images: Indexed, Grayscale, RGB/RGBA
-                planarToChunchy<quint8>(scanLine, rawStride.data(), header.width, c, imgChannels);
-            else if (header.depth == 16)    // 16-bits integer images: Grayscale, RGB/RGBA
-                planarToChunchy<quint16>(scanLine, rawStride.data(), header.width, c, imgChannels);
-            else if (header.depth == 32)    // 32-bits float images: Grayscale, RGB/RGBA (coverted to equivalent integer 16-bits)
-                planarToChunchyFloat<quint32>(scanLine, rawStride.data(), header.width, c, imgChannels);
         }
     }
 
