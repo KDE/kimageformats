@@ -667,9 +667,10 @@ inline void cmykToRgb(uchar *target, qint32 targetChannels, const char *source, 
         *(t + pt + 1) = T(std::min(max - (M * (1 - K) + K) * max + 0.5, max));
         *(t + pt + 2) = T(std::min(max - (Y * (1 - K) + K) * max + 0.5, max));
         if (targetChannels == 4) {
-            *(t + pt + 3) = std::numeric_limits<T>::max();
             if (sourceChannels == 5)
-                *(t + pt + 3) -= *(s + ps + 4);
+                *(t + pt + 3) = *(s + ps + 4);
+            else
+                *(t + pt + 3) = std::numeric_limits<T>::max();
         }
     }
 }
