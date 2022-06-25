@@ -540,8 +540,8 @@ static QImage::Format imageFormat(const PSDHeader &header)
         else
             format = header.channel_count < 4 ? QImage::Format_RGB888 : QImage::Format_RGBA8888;
         break;
-    case CM_CMYK:
-        if (header.depth == 16 || header.depth == 32)
+    case CM_CMYK:   // PSD supports CMYK 8-bits and 16-bits only
+        if (header.depth == 16)
             format = header.channel_count < 5 ? QImage::Format_RGBX64 : QImage::Format_RGBA64;
         else if (header.depth == 8)
             format = header.channel_count < 5 ? QImage::Format_RGB888 : QImage::Format_RGBA8888;
@@ -814,21 +814,18 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
                 else if (header.depth == 16) {
                     planarToChunchy<quint16>(scanLine, rawStride.data(), header.width, c, header.channel_count);
                 }
-                else if (header.depth == 32) { // NOT TESTED!
-                    // CMYK float uses values from 0 to 100 (you should think them as %)
+                else if (header.depth == 32) { // Not currently used
                     // LAB float uses LAB real values: L(0 to 100), a/b(-128 to 127)
-                    // Spot float channels... I haven't checked it out
-                    if ((header.color_mode == CM_CMYK && c < 4) ||
-                        (header.color_mode == CM_MULTICHANNEL) ||
-                        (header.color_mode == CM_LABCOLOR && c == 0))
+                    if (header.color_mode == CM_LABCOLOR && c == 0)
                         planarToChunchyFloat<quint32, 0, 100>(scanLine, rawStride.data(), header.width, c, header.channel_count);
                     else if (header.color_mode == CM_LABCOLOR && c < 3)
                         planarToChunchyFloat<qint32, -128, 127>(scanLine, rawStride.data(), header.width, c, header.channel_count);
-                    else // RGB / gray / spots
+                    else // RGB, gray, spots, etc...
                         planarToChunchyFloat<quint32>(scanLine, rawStride.data(), header.width, c, header.channel_count);
                 }
             }
 
+            // Conversion to RGB
             if (header.color_mode == CM_CMYK) {
                 if (header.depth == 8)
                     cmykToRgb<quint8>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width);
