@@ -4,6 +4,7 @@
 
 function(kimageformats_add_plugin plugin)
     set(options)
+    set(oneValueArgs)
     set(multiValueArgs SOURCES)
     cmake_parse_arguments(KIF_ADD_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
     if(NOT KIF_ADD_PLUGIN_SOURCES)
