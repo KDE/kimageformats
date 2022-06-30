@@ -490,16 +490,47 @@ static QDataStream &operator>>(QDataStream &s, PSDHeader &header)
     return s;
 }
 
-// Check that the header is a valid PSD.
+// Check that the header is a valid PSD (as written in the PSD specification).
 static bool IsValid(const PSDHeader &header)
 {
     if (header.signature != 0x38425053) { // '8BPS'
+        //qDebug() << "PSD header: invalid signature" << header.signature;
+        return false;
+    }
+    if (header.version != 1 && header.version != 2) {
+        qDebug() << "PSD header: invalid version" << header.version;
+        return false;
+    }
+    if (header.depth != 8 &&
+        header.depth != 16 &&
+        header.depth != 32 &&
+        header.depth != 1) {
+        qDebug() << "PSD header: invalid depth" << header.depth;
+        return false;
+    }
+    if (header.color_mode != CM_RGB &&
+        header.color_mode != CM_GRAYSCALE &&
+        header.color_mode != CM_INDEXED &&
+        header.color_mode != CM_DUOTONE &&
+        header.color_mode != CM_CMYK &&
+        header.color_mode != CM_LABCOLOR &&
+        header.color_mode != CM_MULTICHANNEL &&
+        header.color_mode != CM_BITMAP) {
+        qDebug() << "PSD header: invalid color mode" << header.color_mode;
+        return false;
+    }
+    if (header.channel_count < 1 || header.channel_count > 56) {
+        qDebug() << "PSD header: invalid number of channels" << header.channel_count;
+        return false;
+    }
+    if (header.width > 300000 || header.height > 300000) {
+        qDebug() << "PSD header: invalid image size" << header.width << "x" << header.height;
         return false;
     }
     return true;
 }
 
-// Check that the header is supported.
+// Check that the header is supported by this plugin.
 static bool IsSupported(const PSDHeader &header)
 {
     if (header.version != 1 && header.version != 2) {
