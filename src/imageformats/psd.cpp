@@ -62,6 +62,14 @@ typedef quint8 uchar;
 
 namespace // Private.
 {
+
+enum Signature {
+    S_8BIM = 0x3842494D, // '8BIM'
+    S_8B64 = 0x38423634, // '8B64'
+
+    S_MeSa = 0x4D655361   // 'MeSa'
+};
+
 enum ColorMode {
     CM_BITMAP = 0,
     CM_GRAYSCALE = 1,
@@ -79,6 +87,12 @@ enum ImageResourceId : quint16 {
     IRI_TRANSPARENCYINDEX = 0x0417,
     IRI_VERSIONINFO = 0x0421,
     IRI_XMPMETADATA = 0x0424
+};
+
+enum LayerId : quint32 {
+    LI_MT16 = 0x4D743136,   // 'Mt16',
+    LI_MT32 = 0x4D743332,   // 'Mt32',
+    LI_MTRN = 0x4D74726E    // 'Mtrn'
 };
 
 struct PSDHeader {
@@ -117,8 +131,55 @@ struct PSDColorModeDataSection {
 
 using PSDImageResourceSection = QHash<quint16, PSDImageResourceBlock>;
 
-struct PSDLayerAndMaskSection {
+struct PSDLayerInfo {
+    qint64 size = -1;
     qint16 layerCount = 0;
+};
+
+struct PSDGlobalLayerMaskInfo {
+    qint64 size = -1;
+};
+
+struct PSDAdditionalLayerInfo {
+    Signature signature = Signature();
+    LayerId id = LayerId();
+    qint64 size = -1;
+};
+
+struct PSDLayerAndMaskSection {
+    qint64 size = -1;
+    PSDLayerInfo layerInfo;
+    PSDGlobalLayerMaskInfo globalLayerMaskInfo;
+    QHash<LayerId, PSDAdditionalLayerInfo> additionalLayerInfo;
+
+    bool isNull() const {
+        return (size <= 0);
+    }
+
+    bool hasAlpha() const {
+        return layerInfo.layerCount < 0 ||
+               additionalLayerInfo.contains(LI_MT16) ||
+               additionalLayerInfo.contains(LI_MT32) ||
+               additionalLayerInfo.contains(LI_MTRN);
+    }
+
+    bool atEnd(bool isPsb) const {
+        qint64 currentSize = 0;
+        if (layerInfo.size > -1) {
+            currentSize += layerInfo.size + 4;
+            if (isPsb)
+                currentSize += 4;
+        }
+        if (globalLayerMaskInfo.size > -1) {
+            currentSize += globalLayerMaskInfo.size + 4;
+        }
+        for (auto && v : additionalLayerInfo.values()) {
+            currentSize += (12 + v.size);
+            if (v.signature == S_8B64)
+                currentSize += 4;
+        }
+        return (size <= currentSize);
+    }
 };
 
 /*!
@@ -132,26 +193,41 @@ static double fixedPointToDouble(qint32 fixedPoint)
     return (i+d);
 }
 
-static bool skip_section(QDataStream &s, bool psb = false)
+static qint64 readSize(QDataStream &s, bool psb = false)
 {
-    qint64 section_length;
+    qint64 size = 0;
     if (!psb) {
         quint32 tmp;
         s >> tmp;
-        section_length = tmp;
+        size = tmp;
     }
     else {
-        s >> section_length;
+        s >> size;
     }
+    if (s.status() != QDataStream::Ok) {
+        size = -1;
+    }
+    return size;
+}
 
+static bool skip_data(QDataStream &s, qint64 size)
+{
     // Skip mode data.
-    for (qint32 i32 = 0; section_length; section_length -= i32) {
-        i32 = std::min(section_length, qint64(std::numeric_limits<qint32>::max()));
+    for (qint32 i32 = 0; size; size -= i32) {
+        i32 = std::min(size, qint64(std::numeric_limits<qint32>::max()));
         i32 = s.skipRawData(i32);
         if (i32 < 1)
             return false;
     }
     return true;
+}
+
+static bool skip_section(QDataStream &s, bool psb = false)
+{
+    auto section_length = readSize(s, psb);
+    if (section_length < 0)
+        return false;
+    return skip_data(s, section_length);
 }
 
 /*!
@@ -235,7 +311,7 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
         s >> signature;
         size -= sizeof(signature);
         // NOTE: MeSa signature is not documented but found in some old PSD take from Photoshop 7.0 CD.
-        if (signature != 0x3842494D && signature != 0x4D655361) { // 8BIM and MeSa
+        if (signature != S_8BIM && signature != S_MeSa) { // 8BIM and MeSa
             qDebug() << "Invalid Image Resource Block Signature!";
             *ok = false;
             break;
@@ -292,6 +368,33 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
     return irs;
 }
 
+PSDAdditionalLayerInfo readAdditionalLayer(QDataStream &s, bool *ok = nullptr)
+{
+    PSDAdditionalLayerInfo li;
+
+    bool tmp = true;
+    if (ok == nullptr)
+        ok = &tmp;
+
+    s >> li.signature;
+    *ok = li.signature == S_8BIM || li.signature == S_8B64;
+    if (!*ok)
+        return li;
+
+    s >> li.id;
+    *ok = s.status() == QDataStream::Ok;
+    if (!*ok)
+        return li;
+
+    li.size = readSize(s, li.signature == S_8B64);
+    *ok = li.size >= 0;
+    if (!*ok)
+        return li;
+
+    *ok = skip_data(s, li.size);
+
+    return li;
+}
 
 PSDLayerAndMaskSection readLayerAndMaskSection(QDataStream &s, bool isPsb, bool *ok = nullptr)
 {
@@ -302,32 +405,38 @@ PSDLayerAndMaskSection readLayerAndMaskSection(QDataStream &s, bool isPsb, bool 
         ok = &tmp;
     *ok = true;
 
-    // try to read layerCount: if less than zero, means that there is an alpha channel
-    if (auto device = s.device()) {
-        device->startTransaction();
-        qint64 size = 0;
-        if (isPsb) {
-            qint64 tmpSize;
-            s >> tmpSize; // global size
-            if (tmpSize >= 8)
-                s >> size; // layer info size
-        }
-        else {
-            quint32 tmpSize;
-            s >> tmpSize; // global size
-            if (tmpSize >= 4) {
-                s >> tmpSize; // layer info size
-                size = tmpSize;
-            }
-        }
+    auto device = s.device();
+    device->startTransaction();
 
-        if (s.status() == QDataStream::Ok) {
-            if (size >= 2)
-                s >> lms.layerCount;
+    lms.size = readSize(s, isPsb);
+
+    // read layer info
+    if (s.status() == QDataStream::Ok && !lms.atEnd(isPsb)) {
+        lms.layerInfo.size = readSize(s, isPsb);
+        if (lms.layerInfo.size > 0) {
+            s >> lms.layerInfo.layerCount;
+            skip_data(s, lms.layerInfo.size - sizeof(lms.layerInfo.layerCount));
         }
-        device->rollbackTransaction();
     }
 
+    // read global layer mask info
+    if (s.status() == QDataStream::Ok && !lms.atEnd(isPsb)) {
+        lms.globalLayerMaskInfo.size = readSize(s, false); // always 32-bits
+        if (lms.globalLayerMaskInfo.size > 0) {
+            skip_data(s, lms.globalLayerMaskInfo.size);
+        }
+    }
+
+    // read additional layer info
+    if (s.status() == QDataStream::Ok) {
+        for (bool ok = true; ok && !lms.atEnd(isPsb);) {
+            auto al = readAdditionalLayer(s, &ok);
+            if (ok)
+                lms.additionalLayerInfo.insert(al.id, al);
+        }
+    }
+
+    device->rollbackTransaction();
     *ok = skip_section(s, isPsb);
     return lms;
 }
@@ -590,7 +699,7 @@ qint64 decompress(const char *input, qint64 ilen, char *output, qint64 olen)
         if (n >= 0) {
             rr = qint64(n) + 1;
             if (available < rr) {
-                ip--;
+                --ip;
                 break;
             }
 
@@ -602,7 +711,7 @@ qint64 decompress(const char *input, qint64 ilen, char *output, qint64 olen)
         else if (ip < ilen) {
             rr = qint64(1-n);
             if (available < rr) {
-                ip--;
+                --ip;
                 break;
             }
             memset(output + j, input[ip++], size_t(rr));
@@ -618,7 +727,7 @@ qint64 decompress(const char *input, qint64 ilen, char *output, qint64 olen)
  * \param header The PSD header.
  * \return The Qt image format.
  */
-static QImage::Format imageFormat(const PSDHeader &header, qint32 alpha)
+static QImage::Format imageFormat(const PSDHeader &header, bool alpha)
 {
     if (header.channel_count == 0) {
         return QImage::Format_Invalid;
@@ -628,21 +737,21 @@ static QImage::Format imageFormat(const PSDHeader &header, qint32 alpha)
     switch(header.color_mode) {
     case CM_RGB:
         if (header.depth == 16 || header.depth == 32)
-            format = header.channel_count < 4 ? QImage::Format_RGBX64 : QImage::Format_RGBA64;
+            format = header.channel_count < 4 || !alpha ? QImage::Format_RGBX64 : QImage::Format_RGBA64;
         else
-            format = header.channel_count < 4 ? QImage::Format_RGB888 : QImage::Format_RGBA8888;
+            format = header.channel_count < 4 || !alpha ? QImage::Format_RGB888 : QImage::Format_RGBA8888;
         break;
     case CM_CMYK:       // Photoshop supports CMYK 8-bits and 16-bits only
         if (header.depth == 16)
-            format = header.channel_count < 5 || alpha >= 0 ? QImage::Format_RGBX64 : QImage::Format_RGBA64;
+            format = header.channel_count < 5 || !alpha ? QImage::Format_RGBX64 : QImage::Format_RGBA64;
         else if (header.depth == 8)
-            format = header.channel_count < 5 || alpha >= 0 ? QImage::Format_RGB888 : QImage::Format_RGBA8888;
+            format = header.channel_count < 5 || !alpha ? QImage::Format_RGB888 : QImage::Format_RGBA8888;
         break;
     case CM_LABCOLOR:   // Photoshop supports LAB 8-bits and 16-bits only
         if (header.depth == 16)
-            format = header.channel_count < 4 ? QImage::Format_RGBX64 : QImage::Format_RGBA64;
+            format = header.channel_count < 4 || !alpha ? QImage::Format_RGBX64 : QImage::Format_RGBA64;
         else if (header.depth == 8)
-            format = header.channel_count < 4 ? QImage::Format_RGB888 : QImage::Format_RGBA8888;
+            format = header.channel_count < 4 || !alpha ? QImage::Format_RGB888 : QImage::Format_RGBA8888;
         break;
     case CM_GRAYSCALE:
     case CM_DUOTONE:
@@ -734,7 +843,7 @@ inline void monoInvert(uchar *target, const char* source, qint32 bytes)
 }
 
 template<class T>
-inline void cmykToRgb(uchar *target, qint32 targetChannels, const char *source, qint32 sourceChannels, qint32 width, bool noAlpha = false)
+inline void cmykToRgb(uchar *target, qint32 targetChannels, const char *source, qint32 sourceChannels, qint32 width, bool alpha = false)
 {
     auto s = reinterpret_cast<const T*>(source);
     auto t = reinterpret_cast<T*>(target);
@@ -757,7 +866,7 @@ inline void cmykToRgb(uchar *target, qint32 targetChannels, const char *source, 
         *(pt + 1) = T(std::min(max - (M * (1 - K) + K) * max + 0.5, max));
         *(pt + 2) = T(std::min(max - (Y * (1 - K) + K) * max + 0.5, max));
         if (targetChannels == 4) {
-            if (sourceChannels >= 5 && !noAlpha)
+            if (sourceChannels >= 5 && alpha)
                 *(pt + 3) = *(ps + 4);
             else
                 *(pt + 3) = std::numeric_limits<T>::max();
@@ -781,7 +890,7 @@ inline double gammaCorrection(double linear)
 }
 
 template<class T>
-inline void labToRgb(uchar *target, qint32 targetChannels, const char *source, qint32 sourceChannels, qint32 width, bool noAlpha = false)
+inline void labToRgb(uchar *target, qint32 targetChannels, const char *source, qint32 sourceChannels, qint32 width, bool alpha = false)
 {
     auto s = reinterpret_cast<const T*>(source);
     auto t = reinterpret_cast<T*>(target);
@@ -818,7 +927,7 @@ inline void labToRgb(uchar *target, qint32 targetChannels, const char *source, q
         *(pt + 1) = T(std::max(std::min(g * max + 0.5, max), 0.0));
         *(pt + 2) = T(std::max(std::min(b * max + 0.5, max), 0.0));
         if (targetChannels == 4) {
-            if (sourceChannels >= 4 && !noAlpha)
+            if (sourceChannels >= 4 && alpha)
                 *(pt + 3) = *(ps + 3);
             else
                 *(pt + 3) = std::numeric_limits<T>::max();
@@ -891,7 +1000,9 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
 
     // Try to identify the nature of spots: note that this is just one of many ways to identify the presence
     // of alpha channels: should work in most cases where colorspaces != RGB/Gray
-    auto alpha = lms.layerCount; // < 0 alpha present, > 0 spots are not alpha, 0 does not decide
+    auto alpha = header.color_mode == CM_RGB;
+    if (!lms.isNull())
+        alpha = lms.hasAlpha();
 
     const QImage::Format format = imageFormat(header, alpha);
     if (format == QImage::Format_Invalid) {
@@ -978,15 +1089,15 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
             // Conversion to RGB
             if (header.color_mode == CM_CMYK) {
                 if (header.depth == 8)
-                    cmykToRgb<quint8>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width, alpha >= 0);
+                    cmykToRgb<quint8>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width, alpha);
                 else
-                    cmykToRgb<quint16>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width, alpha >= 0);
+                    cmykToRgb<quint16>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width, alpha);
             }
             if (header.color_mode == CM_LABCOLOR) {
                 if (header.depth == 8)
-                    labToRgb<quint8>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width);
+                    labToRgb<quint8>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width, alpha);
                 else
-                    labToRgb<quint16>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width);
+                    labToRgb<quint16>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width, alpha);
             }
         }
     }
