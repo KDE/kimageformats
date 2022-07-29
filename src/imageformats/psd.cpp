@@ -63,14 +63,14 @@ typedef quint8 uchar;
 namespace // Private.
 {
 
-enum Signature {
+enum Signature : quint32 {
     S_8BIM = 0x3842494D, // '8BIM'
     S_8B64 = 0x38423634, // '8B64'
 
     S_MeSa = 0x4D655361   // 'MeSa'
 };
 
-enum ColorMode {
+enum ColorMode : quint16 {
     CM_BITMAP = 0,
     CM_GRAYSCALE = 1,
     CM_INDEXED = 2,
