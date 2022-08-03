@@ -938,6 +938,9 @@ inline void labToRgb(uchar *target, qint32 targetChannels, const char *source, q
 bool readChannel(QByteArray& target, QDataStream &stream, quint32 compressedSize, quint16 compression)
 {
     if (compression) {
+        if (compressedSize > kMaxQVectorSize) {
+            return false;
+        }
         QByteArray tmp;
         tmp.resize(compressedSize);
         if (stream.readRawData(tmp.data(), tmp.size()) != tmp.size()) {
