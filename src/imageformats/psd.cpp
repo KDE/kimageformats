@@ -34,7 +34,6 @@
  */
 
 #include "psd_p.h"
-
 #include "util_p.h"
 
 #include <QDataStream>
@@ -1013,7 +1012,7 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
         return false;
     }
 
-    img = QImage(header.width, header.height, format);
+    img = imageAlloc(header.width, header.height, format);
     if (img.isNull()) {
         qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width, header.height);
         return false;

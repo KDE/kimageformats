@@ -6,6 +6,7 @@
 */
 
 #include "pcx_p.h"
+#include "util_p.h"
 
 #include <QColor>
 #include <QDataStream>
@@ -262,7 +263,7 @@ static void readImage1(QImage &img, QDataStream &s, const PCXHEADER &header)
 {
     QByteArray buf(header.BytesPerLine, 0);
 
-    img = QImage(header.width(), header.height(), QImage::Format_Mono);
+    img = imageAlloc(header.width(), header.height(), QImage::Format_Mono);
     img.setColorCount(2);
 
     if (img.isNull()) {
@@ -294,7 +295,7 @@ static void readImage4(QImage &img, QDataStream &s, const PCXHEADER &header)
     QByteArray buf(header.BytesPerLine * 4, 0);
     QByteArray pixbuf(header.width(), 0);
 
-    img = QImage(header.width(), header.height(), QImage::Format_Indexed8);
+    img = imageAlloc(header.width(), header.height(), QImage::Format_Indexed8);
     img.setColorCount(16);
     if (img.isNull()) {
         qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
@@ -338,7 +339,7 @@ static void readImage8(QImage &img, QDataStream &s, const PCXHEADER &header)
 {
     QByteArray buf(header.BytesPerLine, 0);
 
-    img = QImage(header.width(), header.height(), QImage::Format_Indexed8);
+    img = imageAlloc(header.width(), header.height(), QImage::Format_Indexed8);
     img.setColorCount(256);
 
     if (img.isNull()) {
@@ -388,7 +389,7 @@ static void readImage24(QImage &img, QDataStream &s, const PCXHEADER &header)
     QByteArray g_buf(header.BytesPerLine, 0);
     QByteArray b_buf(header.BytesPerLine, 0);
 
-    img = QImage(header.width(), header.height(), QImage::Format_RGB32);
+    img = imageAlloc(header.width(), header.height(), QImage::Format_RGB32);
 
     if (img.isNull()) {
         qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
