@@ -1097,9 +1097,12 @@ bool XCFImageFormat::composeTiles(XCFImage &xcf_image)
     qCDebug(XCFPLUGIN) << "LAYER: height=" << layer.height << ", width=" << layer.width;
     qCDebug(XCFPLUGIN) << "LAYER: rows=" << layer.nrows << ", columns=" << layer.ncols;
 
+    // NOTE: starting from GIMP 2.10, images can be very large. The 32K limit for width and height is obsolete
+    //       and it was changed to 300000 (the same as Photoshop Big image). This plugin was able to open an RGB
+    //       image of 108000x40000 pixels saved with GIMP 2.10
     // SANITY CHECK: Catch corrupted XCF image file where the width or height
     // of a tile is reported are bogus. See Bug# 234030.
-    if (layer.width > 32767 || layer.height > 32767 || (sizeof(void *) == 4 && layer.width * layer.height > 16384 * 16384)) {
+    if (layer.width > 300000 || layer.height > 300000 || (sizeof(void *) == 4 && layer.width * layer.height > 16384 * 16384)) {
         return false;
     }
 
