@@ -94,7 +94,6 @@ int main(int argc, char **argv)
     QByteArray format = suffix.toLatin1();
 
     QDir imgdir(QLatin1String(IMAGEDIR "/") + suffix);
-    imgdir.setNameFilters(QStringList(QLatin1String("*.") + suffix));
     imgdir.setFilter(QDir::Files);
 
     int passed = 0;
@@ -113,6 +112,9 @@ int main(int argc, char **argv)
 
     const QFileInfoList lstImgDir = imgdir.entryInfoList();
     for (const QFileInfo &fi : lstImgDir) {
+        if (!fi.suffix().compare("png", Qt::CaseInsensitive)) {
+            continue;
+        }
         int suffixPos = fi.filePath().count() - suffix.count();
         QString inputfile = fi.filePath();
         QString expfile = fi.filePath().replace(suffixPos, suffix.count(), QStringLiteral("png"));

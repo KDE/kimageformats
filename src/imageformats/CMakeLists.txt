@@ -130,6 +130,15 @@ install(FILES xcf.desktop DESTINATION ${KDE_INSTALL_KSERVICESDIR}/qimageioplugin
 
 ##################################
 
+if (LibRaw_FOUND)
+    kimageformats_add_plugin(kimg_raw SOURCES raw.cpp)
+    kde_enable_exceptions()
+    target_link_libraries(kimg_raw LibRaw::LibRaw)
+    install(FILES raw.desktop DESTINATION ${KDE_INSTALL_KSERVICESDIR}/qimageioplugins/)
+endif()
+
+##################################
+
 if (KF5Archive_FOUND)
 
     kimageformats_add_plugin(kimg_kra SOURCES kra.cpp)

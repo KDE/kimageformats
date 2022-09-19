@@ -139,6 +139,12 @@ if (OpenEXR_FOUND)
     # FIXME: OpenEXR tests
 endif()
 
+if (LibRaw_FOUND)
+    kimageformats_read_tests(
+        raw
+    )
+endif()
+
 find_package(Qt${QT_MAJOR_VERSION}Test ${REQUIRED_QT_VERSION} CONFIG QUIET)
 
 if(NOT TARGET Qt${QT_MAJOR_VERSION}::Test)
