@@ -131,11 +131,15 @@ public:
     virtual int seek(INT64 o, int whence) override
     {
         auto pos = o;
+        auto size = m_device->size();
         if (whence == SEEK_CUR) {
             pos = m_device->pos() + o;
         }
         if (whence == SEEK_END) {
-            pos = m_device->size() + o;
+            pos = size + o;
+        }
+        if (pos < 0 || pos > size) {
+            return -1;
         }
         return m_device->seek(pos) ? 0 : -1;
     }
