@@ -138,7 +138,7 @@ public:
         if (whence == SEEK_END) {
             pos = size + o;
         }
-        if (pos < 0 || pos > size) {
+        if (pos < 0 || pos > size || m_device->isSequential()) {
             return -1;
         }
         return m_device->seek(pos) ? 0 : -1;
