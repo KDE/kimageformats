@@ -1270,7 +1270,7 @@ void XCFImageFormat::setImageParasites(const XCFImage &xcf_image, QImage &image)
 {
     auto&& p = xcf_image.parasites;
     auto keys = p.keys();
-    for (auto&& key : qAsConst(keys)) {
+    for (auto &&key : std::as_const(keys)) {
         auto value = p.value(key);
         if(value.isEmpty())
             continue;
