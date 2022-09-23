@@ -684,6 +684,12 @@ bool PCXHandler::canRead(QIODevice *device)
         return false;
     }
 
+    // We do not support sequential images
+    // We need to know the current position to properly read the header
+    if (device->isSequential()) {
+        return false;
+    }
+
     qint64 oldPos = device->pos();
 
     char head[1];
