@@ -174,7 +174,7 @@ static QDataStream &operator>>(QDataStream &s, PCXHEADER &ph)
 
     // Skip the rest of the header
     quint8 byte;
-    while (s.device()->pos() < 128) {
+    for (auto i = 0; i < 54; ++i) {
         s >> byte;
     }
 
@@ -681,12 +681,6 @@ bool PCXHandler::canRead(QIODevice *device)
 {
     if (!device) {
         qWarning("PCXHandler::canRead() called with no device");
-        return false;
-    }
-
-    // We do not support sequential images
-    // We need to know the current position to properly read the header
-    if (device->isSequential()) {
         return false;
     }
 

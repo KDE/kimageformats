@@ -3341,6 +3341,9 @@ bool XCFHandler::canRead(QIODevice *device)
         qCDebug(XCFPLUGIN) << "XCFHandler::canRead() called with no device";
         return false;
     }
+    if (device->isSequential()) {
+        return false;
+    }
 
     qint64 oldPos = device->pos();
 

@@ -855,6 +855,14 @@ int RAWHandler::currentImageNumber() const
 
 bool RAWHandler::canRead(QIODevice *device)
 {
+    if (!device) {
+        qWarning("RAWHandler::canRead() called with no device");
+        return false;
+    }
+    if (device->isSequential()) {
+        return false;
+    }
+
     device->startTransaction();
 
     std::unique_ptr<LibRaw> rawProcessor(new LibRaw);

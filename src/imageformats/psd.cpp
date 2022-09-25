@@ -1249,6 +1249,9 @@ bool PSDHandler::canRead(QIODevice *device)
         qWarning("PSDHandler::canRead() called with no device");
         return false;
     }
+    if (device->isSequential()) {
+        return false;
+    }
 
     qint64 oldPos = device->pos();
 
