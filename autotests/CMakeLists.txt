@@ -136,7 +136,9 @@ kimageformats_write_tests(
 #    kimageformats_write_tests(eps)
 #endif()
 if (OpenEXR_FOUND)
-    # FIXME: OpenEXR tests
+    kimageformats_read_tests(
+        exr
+    )
 endif()
 
 if (LibRaw_FOUND)
