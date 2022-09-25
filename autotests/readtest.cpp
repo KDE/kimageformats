@@ -154,7 +154,7 @@ int main(int argc, char **argv)
     // Launch 2 runs for each test: first run on a random device, second run on a sequential device
     for (int seq = 0; seq < 2; ++seq) {
         if (seq) {
-            QTextStream(stdout) << "* Run on SEQUENTIAL device (SKIP = no sequential support and it's OK)\n";
+            QTextStream(stdout) << "* Run on SEQUENTIAL device\n";
         } else {
             QTextStream(stdout) << "* Run on RANDOM device\n";
         }
@@ -183,7 +183,7 @@ int main(int argc, char **argv)
                 // All plugins must pass the test on a random device.
                 // canRead() must also return false if the plugin is unable to run on a sequential device.
                 if (inputDevice->isSequential()) {
-                    QTextStream(stdout) << "SKIP : " << fi.fileName() << ": cannot read on a sequential device\n";
+                    QTextStream(stdout) << "SKIP : " << fi.fileName() << ": cannot read on a sequential device (don't worry, it's ok)\n";
                     ++skipped;
                 } else {
                     QTextStream(stdout) << "FAIL : " << fi.fileName() << ": failed can read: " << inputReader.errorString() << "\n";
