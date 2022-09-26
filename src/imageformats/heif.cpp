@@ -405,7 +405,7 @@ bool HEIFHandler::ensureDecoder()
 
     try {
         heif::Context ctx;
-        ctx.read_from_memory_without_copy((const void *)(buffer.constData()), buffer.size());
+        ctx.read_from_memory_without_copy(static_cast<const void *>(buffer.constData()), buffer.size());
 
         heif::ImageHandle handle = ctx.get_primary_image_handle();
 
