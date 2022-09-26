@@ -172,7 +172,8 @@ struct PSDLayerAndMaskSection {
         if (globalLayerMaskInfo.size > -1) {
             currentSize += globalLayerMaskInfo.size + 4;
         }
-        for (auto && v : additionalLayerInfo.values()) {
+        auto aliv = additionalLayerInfo.values();
+        for (auto &&v : aliv) {
             currentSize += (12 + v.size);
             if (v.signature == S_8B64)
                 currentSize += 4;
@@ -286,12 +287,6 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
     qint32 sectioSize;
     s >> sectioSize;
 
-#ifdef QT_DEBUG
-    auto pos = qint64();
-    if (auto dev = s.device())
-        pos = dev->pos();
-#endif
-
     // Reading Image resource block
     for (auto size = sectioSize; size > 0;) {
         // Length      Description
@@ -355,14 +350,6 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
         // insert IRB
         irs.insert(id, irb);
     }
-
-#ifdef QT_DEBUG
-    if (auto dev = s.device()) {
-        if ((dev->pos() - pos) != sectioSize) {
-            *ok = false;
-        }
-    }
-#endif
 
     return irs;
 }
@@ -1249,39 +1236,28 @@ bool PSDHandler::canRead(QIODevice *device)
         qWarning("PSDHandler::canRead() called with no device");
         return false;
     }
-    if (device->isSequential()) {
-        return false;
-    }
 
-    qint64 oldPos = device->pos();
+    device->startTransaction();
 
-    char head[4];
-    qint64 readBytes = device->read(head, sizeof(head));
-    if (readBytes < 0) {
-        qWarning() << "Read failed" << device->errorString();
-        return false;
-    }
+    QDataStream s(device);
+    s.setByteOrder(QDataStream::BigEndian);
 
-    if (readBytes != sizeof(head)) {
-        if (device->isSequential()) {
-            while (readBytes > 0) {
-                device->ungetChar(head[readBytes-- - 1]);
-            }
-        } else {
-            device->seek(oldPos);
-        }
+    PSDHeader header;
+    s >> header;
+
+    device->rollbackTransaction();
+
+    if (s.status() != QDataStream::Ok) {
         return false;
     }
 
     if (device->isSequential()) {
-        while (readBytes > 0) {
-            device->ungetChar(head[readBytes-- - 1]);
+        if (header.color_mode == CM_CMYK || header.color_mode == CM_LABCOLOR || header.color_mode == CM_MULTICHANNEL) {
+            return false;
         }
-    } else {
-        device->seek(oldPos);
     }
 
-    return qstrncmp(head, "8BPS", 4) == 0;
+    return IsValid(header);
 }
 
 QImageIOPlugin::Capabilities PSDPlugin::capabilities(QIODevice *device, const QByteArray &format) const
