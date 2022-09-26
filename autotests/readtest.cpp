@@ -21,7 +21,7 @@
 
 /**
  * @brief The SequentialFile class
- * Class to make a file a sequential device. This class is used to check if the plugins could works
+ * Class to make a file a sequential access device. This class is used to check if the plugins could works
  * on a sequential device such as a socket.
  */
 class SequentialFile : public QFile
@@ -151,12 +151,12 @@ int main(int argc, char **argv)
     QTextStream(stdout) << "QImageReader::supportedImageFormats: " << formatStrings.join(", ") << "\n";
 
     const QFileInfoList lstImgDir = imgdir.entryInfoList();
-    // Launch 2 runs for each test: first run on a random device, second run on a sequential device
+    // Launch 2 runs for each test: first run on a random access device, second run on a sequential access device
     for (int seq = 0; seq < 2; ++seq) {
         if (seq) {
-            QTextStream(stdout) << "* Run on SEQUENTIAL device\n";
+            QTextStream(stdout) << "* Run on SEQUENTIAL ACCESS device\n";
         } else {
-            QTextStream(stdout) << "* Run on RANDOM device\n";
+            QTextStream(stdout) << "* Run on RANDOM ACCESS device\n";
         }
         for (const QFileInfo &fi : lstImgDir) {
             if (!fi.suffix().compare("png", Qt::CaseInsensitive)) {
