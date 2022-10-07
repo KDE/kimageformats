@@ -19,11 +19,7 @@
 #define NOMINMAX
 #endif
 
-#if defined(Q_OS_WINDOWS)
-#include <libraw.h>
-#else
 #include <libraw/libraw.h>
-#endif
 
 #ifdef QT_DEBUG
 // This should be used to exclude the local QIODevice wrapper of the LibRaw_abstract_datastream interface.

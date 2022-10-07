@@ -2,7 +2,7 @@
 # Find the LibRaw library <https://www.libraw.org>
 # This module defines
 #  LibRaw_VERSION, the version string of LibRaw
-#  LibRaw_INCLUDE_DIR, where to find libraw.h
+#  LibRaw_INCLUDE_DIR, where to find libraw/libraw.h
 #  LibRaw_LIBRARIES, the libraries needed to use LibRaw (non-thread-safe)
 #  LibRaw_r_LIBRARIES, the libraries needed to use LibRaw (thread-safe)
 #  LibRaw_DEFINITIONS, the definitions needed to use LibRaw (non-thread-safe)
@@ -23,11 +23,10 @@ IF(PKG_CONFIG_FOUND)
    SET(LibRaw_r_DEFINITIONS ${PC_LIBRAW_R_CFLAGS_OTHER})   
 ENDIF()
 
-FIND_PATH(LibRaw_INCLUDE_DIR libraw.h
+FIND_PATH(LibRaw_INCLUDE_DIR libraw/libraw.h
           HINTS
           ${PC_LIBRAW_INCLUDEDIR}
           ${PC_LibRaw_INCLUDE_DIRS}
-          PATH_SUFFIXES libraw
          )
 
 FIND_LIBRARY(LibRaw_LIBRARIES NAMES raw
@@ -43,7 +42,7 @@ FIND_LIBRARY(LibRaw_r_LIBRARIES NAMES raw_r
             )
 
 IF(LibRaw_INCLUDE_DIR)
-   FILE(READ ${LibRaw_INCLUDE_DIR}/libraw_version.h _libraw_version_content)
+   FILE(READ ${LibRaw_INCLUDE_DIR}/libraw/libraw_version.h _libraw_version_content)
    
    STRING(REGEX MATCH "#define LIBRAW_MAJOR_VERSION[ \t]*([0-9]*)\n" _version_major_match ${_libraw_version_content})
    SET(_libraw_version_major "${CMAKE_MATCH_1}")
@@ -58,7 +57,7 @@ IF(LibRaw_INCLUDE_DIR)
       SET(LibRaw_VERSION "${_libraw_version_major}.${_libraw_version_minor}.${_libraw_version_patch}")
    ELSE()
       IF(NOT LibRaw_FIND_QUIETLY)
-         MESSAGE(STATUS "Failed to get version information from ${LibRaw_INCLUDE_DIR}/libraw_version.h")
+         MESSAGE(STATUS "Failed to get version information from ${LibRaw_INCLUDE_DIR}/libraw/libraw_version.h")
       ENDIF()
    ENDIF()
 ENDIF()
