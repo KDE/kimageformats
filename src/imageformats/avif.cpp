@@ -246,7 +246,7 @@ bool QAVIFHandler::decode_one_frame()
 
     QColorSpace colorspace;
     if (m_decoder->image->icc.data && (m_decoder->image->icc.size > 0)) {
-        const QByteArray icc_data((const char *)m_decoder->image->icc.data, (int)m_decoder->image->icc.size);
+        const QByteArray icc_data(reinterpret_cast<const char *>(m_decoder->image->icc.data), m_decoder->image->icc.size);
         colorspace = QColorSpace::fromIccProfile(icc_data);
         if (!colorspace.isValid()) {
             qWarning("AVIF image has Qt-unsupported or invalid ICC profile!");
@@ -751,7 +751,7 @@ bool QAVIFHandler::write(const QImage &image)
         avif->transferCharacteristics = transfer_to_save;
 
         if (iccprofile.size() > 0) {
-            avifImageSetProfileICC(avif, (const uint8_t *)iccprofile.constData(), iccprofile.size());
+            avifImageSetProfileICC(avif, reinterpret_cast<const uint8_t *>(iccprofile.constData()), iccprofile.size());
         }
 
         avifRGBImage rgb;
