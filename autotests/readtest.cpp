@@ -174,6 +174,9 @@ int main(int argc, char **argv)
             QImage inputImage;
             QImage expImage;
 
+            // inputImage is auto-rotated to final orientation
+            inputReader.setAutoTransform(true);
+
             if (!expReader.read(&expImage)) {
                 QTextStream(stdout) << "ERROR: " << fi.fileName() << ": could not load " << expfilename << ": " << expReader.errorString() << "\n";
                 ++failed;
