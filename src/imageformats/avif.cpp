@@ -42,6 +42,11 @@ bool QAVIFHandler::canRead() const
 
     if (m_parseState != ParseAvifError) {
         setFormat("avif");
+
+        if (m_parseState == ParseAvifSuccess && m_decoder->imageIndex >= m_decoder->imageCount - 1) {
+            return false;
+        }
+
         return true;
     }
     return false;
