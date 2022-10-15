@@ -43,7 +43,7 @@ bool QAVIFHandler::canRead() const
     if (m_parseState != ParseAvifError) {
         setFormat("avif");
 
-        if (m_parseState == ParseAvifSuccess && m_decoder->imageIndex >= m_decoder->imageCount - 1) {
+        if (m_parseState == ParseAvifFinished) {
             return false;
         }
 
@@ -74,7 +74,7 @@ bool QAVIFHandler::canRead(QIODevice *device)
 
 bool QAVIFHandler::ensureParsed() const
 {
-    if (m_parseState == ParseAvifSuccess || m_parseState == ParseAvifMetadata) {
+    if (m_parseState == ParseAvifSuccess || m_parseState == ParseAvifMetadata || m_parseState == ParseAvifFinished) {
         return true;
     }
     if (m_parseState == ParseAvifError) {
@@ -88,7 +88,7 @@ bool QAVIFHandler::ensureParsed() const
 
 bool QAVIFHandler::ensureOpened() const
 {
-    if (m_parseState == ParseAvifSuccess) {
+    if (m_parseState == ParseAvifSuccess || m_parseState == ParseAvifFinished) {
         return true;
     }
     if (m_parseState == ParseAvifError) {
@@ -459,6 +459,13 @@ bool QAVIFHandler::read(QImage *image)
     *image = m_current_image;
     if (imageCount() >= 2) {
         m_must_jump_to_next_image = true;
+        if (m_decoder->imageIndex >= m_decoder->imageCount - 1) {
+            // all frames in animation have been read
+            m_parseState = ParseAvifFinished;
+        }
+    } else {
+        // the static image has been read
+        m_parseState = ParseAvifFinished;
     }
     return true;
 }
