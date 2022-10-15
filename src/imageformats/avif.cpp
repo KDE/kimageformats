@@ -1024,7 +1024,8 @@ int QAVIFHandler::loopCount() const
         return 0;
     }
 
-    return 1;
+    // Endless loop to work around https://github.com/AOMediaCodec/libavif/issues/347
+    return -1;
 }
 
 QPointF QAVIFHandler::CompatibleChromacity(qreal chrX, qreal chrY)
