@@ -137,6 +137,10 @@ bool QAVIFHandler::ensureDecoder()
     m_decoder->strictFlags = AVIF_STRICT_DISABLED;
 #endif
 
+#if AVIF_VERSION >= 110000
+    m_decoder->imageDimensionLimit = 65535;
+#endif
+
     avifResult decodeResult;
 
     decodeResult = avifDecoderSetIOMemory(m_decoder, m_rawAvifData.data, m_rawAvifData.size);
@@ -917,6 +921,7 @@ bool QAVIFHandler::jumpToNextImage()
 
     if (m_decoder->imageIndex >= 0) {
         if (m_decoder->imageCount < 2) {
+            m_parseState = ParseAvifSuccess;
             return true;
         }
 
@@ -961,10 +966,12 @@ bool QAVIFHandler::jumpToImage(int imageNumber)
 
     if (m_decoder->imageCount < 2) { // not an animation
         if (imageNumber == 0) {
-            return ensureOpened();
-        } else {
-            return false;
+            if (ensureOpened()) {
+                m_parseState = ParseAvifSuccess;
+                return true;
+            }
         }
+        return false;
     }
 
     if (imageNumber < 0 || imageNumber >= m_decoder->imageCount) { // wrong index
@@ -973,6 +980,7 @@ bool QAVIFHandler::jumpToImage(int imageNumber)
 
     if (imageNumber == m_decoder->imageIndex) { // we are here already
         m_must_jump_to_next_image = false;
+        m_parseState = ParseAvifSuccess;
         return true;
     }
 
