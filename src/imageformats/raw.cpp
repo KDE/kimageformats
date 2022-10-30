@@ -115,9 +115,6 @@ public:
         if (read < 1) {
             return 0;
         }
-        if (auto o = read % sz) {
-            seek(-(sz - o), SEEK_CUR);
-        }
         return read / sz;
     }
     virtual int eof() override
