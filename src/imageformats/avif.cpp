@@ -63,7 +63,7 @@ bool QAVIFHandler::canRead(QIODevice *device)
     }
 
     avifROData input;
-    input.data = (const uint8_t *)header.constData();
+    input.data = reinterpret_cast<const uint8_t *>(header.constData());
     input.size = header.size();
 
     if (avifPeekCompatibleFileType(&input)) {
@@ -116,7 +116,7 @@ bool QAVIFHandler::ensureDecoder()
 
     m_rawData = device()->readAll();
 
-    m_rawAvifData.data = (const uint8_t *)m_rawData.constData();
+    m_rawAvifData.data = reinterpret_cast<const uint8_t *>(m_rawData.constData());
     m_rawAvifData.size = m_rawData.size();
 
     if (avifPeekCompatibleFileType(&m_rawAvifData) == AVIF_FALSE) {
