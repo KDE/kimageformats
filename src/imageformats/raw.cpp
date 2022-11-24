@@ -676,6 +676,9 @@ bool LoadRAW(QImageIOHandler *handler, QImage &img)
         if (params.output_color == 4) {
             img.setColorSpace(QColorSpace(QColorSpace::ProPhotoRgb));
         }
+        if (params.output_color == 7) {
+            img.setColorSpace(QColorSpace(QColorSpace::DisplayP3));
+        }
     }
 
     // *** Set the metadata
