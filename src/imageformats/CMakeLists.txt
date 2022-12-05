@@ -93,7 +93,6 @@ endif()
 if (LibHeif_FOUND)
     kimageformats_add_plugin(kimg_heif SOURCES heif.cpp)
     target_link_libraries(kimg_heif PkgConfig::LibHeif)
-    kde_target_enable_exceptions(kimg_heif PRIVATE)
 
     if (QT_MAJOR_VERSION STREQUAL "5")
         install(FILES heif.desktop DESTINATION ${KDE_INSTALL_KSERVICESDIR}/qimageioplugins/)
