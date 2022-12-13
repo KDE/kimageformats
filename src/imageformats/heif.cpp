@@ -289,13 +289,14 @@ bool HEIFHandler::write_helper(const QImage &image)
 
     heif_encoder_release(encoder);
     heif_image_release(h_image);
-    heif_context_free(context);
 
     if (err.code) {
         qWarning() << "Writing HEIF image failed:" << err.message;
+        heif_context_free(context);
         return false;
     }
 
+    heif_context_free(context);
     return true;
 }
 
@@ -433,8 +434,8 @@ bool HEIFHandler::ensureDecoder()
     struct heif_error err = heif_context_read_from_memory(ctx, static_cast<const void *>(buffer.constData()), buffer.size(), nullptr);
 
     if (err.code) {
-        heif_context_free(ctx);
         qWarning() << "heif_context_read_from_memory error:" << err.message;
+        heif_context_free(ctx);
         m_parseState = ParseHeicError;
         return false;
     }
@@ -442,8 +443,8 @@ bool HEIFHandler::ensureDecoder()
     struct heif_image_handle *handle = nullptr;
     err = heif_context_get_primary_image_handle(ctx, &handle);
     if (err.code) {
-        heif_context_free(ctx);
         qWarning() << "heif_context_get_primary_image_handle error:" << err.message;
+        heif_context_free(ctx);
         m_parseState = ParseHeicError;
         return false;
     }
@@ -496,9 +497,9 @@ bool HEIFHandler::ensureDecoder()
     }
 
     if (err.code) {
+        qWarning() << "heif_decode_image error:" << err.message;
         heif_image_handle_release(handle);
         heif_context_free(ctx);
-        qWarning() << "heif_decode_image error:" << err.message;
         m_parseState = ParseHeicError;
         return false;
     }
