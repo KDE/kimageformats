@@ -367,10 +367,21 @@ static void readImage8(QImage &img, QDataStream &s, const PCXHEADER &header)
         }
     }
 
-    quint8 flag;
-    s >> flag;
-    //   qDebug() << "Palette Flag: " << flag;
+    // by specification, the extended palette starts at file.size() - 769
+    quint8 flag = 0;
+    if (auto device = s.device()) {
+        if (device->isSequential()) {
+            while (flag != 12 && s.status() == QDataStream::Ok) {
+                s >> flag;
+            }
+        }
+        else {
+            device->seek(device->size() - 769);
+            s >> flag;
+        }
+    }
 
+    //   qDebug() << "Palette Flag: " << flag;
     if (flag == 12 && (header.Version == 5 || header.Version == 2)) {
         // Read the palette
         quint8 r;
