@@ -22,8 +22,8 @@ include(FindPkgConfig)
 set(REQUIRED_QT_VERSION 6.4.0)
 find_package(Qt${QT_MAJOR_VERSION}Gui ${REQUIRED_QT_VERSION} REQUIRED NO_MODULE)
 
-find_package(KF5Archive)
-set_package_properties(KF5Archive PROPERTIES
+find_package(KF6Archive)
+set_package_properties(KF6Archive PROPERTIES
     TYPE OPTIONAL
     PURPOSE "Required for the QImage plugin for Krita and OpenRaster images"
 )

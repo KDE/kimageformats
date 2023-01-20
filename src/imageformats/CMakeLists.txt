@@ -175,16 +175,16 @@ endif()
 
 ##################################
 
-if (KF5Archive_FOUND)
+if (KF6Archive_FOUND)
 
     kimageformats_add_plugin(kimg_kra SOURCES kra.cpp)
-    target_link_libraries(kimg_kra KF5::Archive)
+    target_link_libraries(kimg_kra KF6::Archive)
     if (QT_MAJOR_VERSION STREQUAL "5")
         install(FILES kra.desktop DESTINATION ${KDE_INSTALL_KSERVICESDIR}/qimageioplugins/)
     endif()
 
     kimageformats_add_plugin(kimg_ora SOURCES ora.cpp)
-    target_link_libraries(kimg_ora KF5::Archive)
+    target_link_libraries(kimg_ora KF6::Archive)
     if (QT_MAJOR_VERSION STREQUAL "5")
         install(FILES ora.desktop DESTINATION ${KDE_INSTALL_KSERVICESDIR}/qimageioplugins/)
     endif()

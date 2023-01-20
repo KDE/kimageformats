@@ -75,7 +75,7 @@ kimageformats_read_tests(
     tga
 )
 
-if (KF5Archive_FOUND)
+if (KF6Archive_FOUND)
     kimageformats_read_tests(
         kra
         ora
