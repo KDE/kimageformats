@@ -1199,15 +1199,11 @@ bool PSDHandler::read(QImage *image)
         return false;
     }
 
-    auto t = QTime::currentTime();
-
     QImage img;
     if (!LoadPSD(s, header, img)) {
         //         qDebug() << "Error loading PSD file.";
         return false;
     }
-
-    qDebug() << t.msecsTo(QTime::currentTime());
 
     *image = img;
     return true;
