@@ -845,6 +845,7 @@ inline void cmykToRgb(uchar *target, qint32 targetChannels, const char *source, 
     auto s = reinterpret_cast<const T*>(source);
     auto t = reinterpret_cast<T*>(target);
     auto max = double(std::numeric_limits<T>::max());
+    auto invmax = 1.0 / max; // speed improvements by ~10%
 
     if (sourceChannels < 4) {
         qDebug() << "cmykToRgb: image is not a valid CMYK!";
@@ -853,10 +854,10 @@ inline void cmykToRgb(uchar *target, qint32 targetChannels, const char *source, 
 
     for (qint32 w = 0; w < width; ++w) {
         auto ps = s + sourceChannels * w;
-        auto C = 1 - *(ps + 0) / max;
-        auto M = 1 - *(ps + 1) / max;
-        auto Y = 1 - *(ps + 2) / max;
-        auto K = 1 - *(ps + 3) / max;
+        auto C = 1 - *(ps + 0) * invmax;
+        auto M = 1 - *(ps + 1) * invmax;
+        auto Y = 1 - *(ps + 2) * invmax;
+        auto K = 1 - *(ps + 3) * invmax;
 
         auto pt = t + targetChannels * w;
         *(pt + 0) = T(std::min(max - (C * (1 - K) + K) * max + 0.5, max));
@@ -892,6 +893,7 @@ inline void labToRgb(uchar *target, qint32 targetChannels, const char *source, q
     auto s = reinterpret_cast<const T*>(source);
     auto t = reinterpret_cast<T*>(target);
     auto max = double(std::numeric_limits<T>::max());
+    auto invmax = 1.0 / max;
 
     if (sourceChannels < 3) {
         qDebug() << "labToRgb: image is not a valid LAB!";
@@ -900,14 +902,14 @@ inline void labToRgb(uchar *target, qint32 targetChannels, const char *source, q
 
     for (qint32 w = 0; w < width; ++w) {
         auto ps = s + sourceChannels * w;
-        auto L = (*(ps + 0) / max) * 100.0;
-        auto A = (*(ps + 1) / max) * 255.0 - 128.0;
-        auto B = (*(ps + 2) / max) * 255.0 - 128.0;
+        auto L = (*(ps + 0) * invmax) * 100.0;
+        auto A = (*(ps + 1) * invmax) * 255.0 - 128.0;
+        auto B = (*(ps + 2) * invmax) * 255.0 - 128.0;
 
         // converting LAB to XYZ (D65 illuminant)
-        auto Y = (L + 16.0) / 116.0;
-        auto X = A / 500.0 + Y;
-        auto Z = Y - B / 200.0;
+        auto Y = (L + 16.0) * (1.0 / 116.0);
+        auto X = A * (1.0 / 500.0) + Y;
+        auto Z = Y - B * (1.0 / 200.0);
 
         // NOTE: use the constants of the illuminant of the target RGB color space
         X = finv(X) * 0.9504;   // D50: * 0.9642
@@ -1197,11 +1199,15 @@ bool PSDHandler::read(QImage *image)
         return false;
     }
 
+    auto t = QTime::currentTime();
+
     QImage img;
     if (!LoadPSD(s, header, img)) {
         //         qDebug() << "Error loading PSD file.";
         return false;
     }
+
+    qDebug() << t.msecsTo(QTime::currentTime());
 
     *image = img;
     return true;
