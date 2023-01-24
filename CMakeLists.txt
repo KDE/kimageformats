@@ -20,7 +20,7 @@ include(CheckIncludeFiles)
 include(FindPkgConfig)
 
 set(REQUIRED_QT_VERSION 6.4.0)
-find_package(Qt${QT_MAJOR_VERSION}Gui ${REQUIRED_QT_VERSION} REQUIRED NO_MODULE)
+find_package(Qt6Gui ${REQUIRED_QT_VERSION} REQUIRED NO_MODULE)
 
 find_package(KF6Archive)
 set_package_properties(KF6Archive PROPERTIES
@@ -32,12 +32,12 @@ set_package_properties(KF6Archive PROPERTIES
 # this available in PATH
 set(BUILD_EPS_PLUGIN FALSE)
 if (UNIX)
-    find_package(Qt${QT_MAJOR_VERSION}PrintSupport ${REQUIRED_QT_VERSION} NO_MODULE)
-    set_package_properties(Qt${QT_MAJOR_VERSION}PrintSupport PROPERTIES
+    find_package(Qt6PrintSupport ${REQUIRED_QT_VERSION} NO_MODULE)
+    set_package_properties(Qt6PrintSupport PROPERTIES
         PURPOSE "Required for the QImage plugin for EPS images"
         TYPE OPTIONAL
     )
-    if (TARGET Qt${QT_MAJOR_VERSION}::PrintSupport)
+    if (TARGET Qt6::PrintSupport)
         set(BUILD_EPS_PLUGIN TRUE)
     endif()
 endif()

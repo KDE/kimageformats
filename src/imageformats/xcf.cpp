@@ -9,18 +9,16 @@
 #include "util_p.h"
 #include "xcf_p.h"
 
+#include <QColorSpace>
 #include <QDebug>
 #include <QIODevice>
 #include <QImage>
+#include <QImageReader>
 #include <QLoggingCategory>
 #include <QPainter>
 #include <QStack>
 #include <QVector>
 #include <QtEndian>
-#include <QColorSpace>
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-#include <QImageReader>
-#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -1110,13 +1108,11 @@ bool XCFImageFormat::composeTiles(XCFImage &xcf_image)
     // tiles of 64x64 pixels. The required memory to build the image is at least doubled because tiles are loaded
     // and then the final image is created by copying the tiles inside it.
     // NOTE: on Windows to open a 10GiB image the plugin uses 28GiB of RAM
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     qint64 channels = 1 + (layer.type == RGB_GIMAGE ? 2 : 0) + (layer.type == RGBA_GIMAGE ? 3 : 0);
     if (qint64(layer.width) * qint64(layer.height) * channels * 2ll / 1024ll / 1024ll > QImageReader::allocationLimit()) {
         qCDebug(XCFPLUGIN) << "Rejecting image as it exceeds the current allocation limit of" << QImageReader::allocationLimit() << "megabytes";
         return false;
     }
-#endif
 
     layer.image_tiles.resize(layer.nrows);
 

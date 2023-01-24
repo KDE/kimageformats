@@ -11,10 +11,7 @@
 #include <limits>
 
 #include <QImage>
-
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QImageIOHandler>
-#endif
 
 // QVector uses some extra space for stuff, hence the 32 here suggested by Thiago Macieira
 static constexpr int kMaxQVectorSize = std::numeric_limits<int>::max() - 32;
@@ -24,13 +21,9 @@ static constexpr int kMaxQVectorSize = std::numeric_limits<int>::max() - 32;
 inline QImage imageAlloc(const QSize &size, const QImage::Format &format)
 {
     QImage img;
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-    img = QImage(size, format);
-#else
     if (!QImageIOHandler::allocateImage(size, format, &img)) {
         img = QImage(); // paranoia
     }
-#endif
     return img;
 }
 
