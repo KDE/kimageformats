@@ -3,7 +3,7 @@
 
     SPDX-FileCopyrightText: 2003 Ignacio Castaño <castano@ludicon.com>
     SPDX-FileCopyrightText: 2015 Alex Merry <alex.merry@kde.org>
-    SPDX-FileCopyrightText: 2022 Mirco Miranda <mircomir@outlook.com>
+    SPDX-FileCopyrightText: 2022-2023 Mirco Miranda <mircomir@outlook.com>
 
     SPDX-License-Identifier: LGPL-2.0-or-later
 */
@@ -20,14 +20,13 @@
 
 /*
  * Limitations of the current code:
- * - 32-bit float image are converted to 16-bit integer image.
- *   NOTE: Qt 6.2 allow 32-bit float images (RGB only)
- * - Other color spaces cannot directly be read due to lack of QImage support for
- *   color spaces other than RGB (and Grayscale). Where possible, a conversion
- *   to RGB is done:
+ * - Color spaces other than RGB/Grayscale cannot be read due to lack of QImage
+ *   support. Where possible, a conversion to RGB is done:
  *   - CMYK images are converted using an approximated way that ignores the color
  *     information (ICC profile).
  *   - LAB images are converted to sRGB using literature formulas.
+ *   - MULICHANNEL images more than 3 channels are converted as CMYK images.
+ *   - DUOTONE images are considered as Grayscale images.
  *
  *   NOTE: The best way to convert between different color spaces is to use a
  *   color management engine (e.g. LittleCMS).
@@ -732,7 +731,9 @@ static QImage::Format imageFormat(const PSDHeader &header, bool alpha)
     auto format = QImage::Format_Invalid;
     switch(header.color_mode) {
     case CM_RGB:
-        if (header.depth == 16 || header.depth == 32)
+        if (header.depth == 32)
+            format = header.channel_count < 4 || !alpha ? QImage::Format_RGBX32FPx4 : QImage::Format_RGBA32FPx4;
+        else if (header.depth == 16)
             format = header.channel_count < 4 || !alpha ? QImage::Format_RGBX64 : QImage::Format_RGBA64;
         else
             format = header.channel_count < 4 || !alpha ? QImage::Format_RGB888 : QImage::Format_RGBA8888;
@@ -788,11 +789,13 @@ static qint32 imageChannels(const QImage::Format& format)
     return c;
 }
 
-inline quint8 xchg(quint8 v) {
+inline quint8 xchg(quint8 v)
+{
     return v;
 }
 
-inline quint16 xchg(quint16 v) {
+inline quint16 xchg(quint16 v)
+{
 #if Q_BYTE_ORDER == Q_LITTLE_ENDIAN
     return quint16( (v>>8) | (v<<8) );
 #else
@@ -800,9 +803,22 @@ inline quint16 xchg(quint16 v) {
 #endif
 }
 
-inline quint32 xchg(quint32 v) {
+inline quint32 xchg(quint32 v)
+{
 #if Q_BYTE_ORDER == Q_LITTLE_ENDIAN
     return quint32( (v>>24) | ((v & 0x00FF0000)>>8) | ((v & 0x0000FF00)<<8) | (v<<24) );
+#else
+    return v;  // never tested
+#endif
+}
+
+inline float xchg(float v)
+{
+#if Q_BYTE_ORDER == Q_LITTLE_ENDIAN
+    float *pf = &v;
+    quint32 f = xchg(*reinterpret_cast<quint32*>(pf));
+    quint32 *pi = &f;
+    return *reinterpret_cast<float*>(pi);
 #else
     return v;  // never tested
 #endif
@@ -1083,9 +1099,6 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
                 else if (header.depth == 16) {
                     planarToChunchy<quint16>(scanLine, rawStride.data(), header.width, c, header.channel_count);
                 }
-                else if (header.depth == 32) { // Not currently used
-                    planarToChunchyFloat<quint32>(scanLine, rawStride.data(), header.width, c, header.channel_count);
-                }
             }
 
             // Conversion to RGB
@@ -1114,30 +1127,25 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
                 }
 
                 auto scanLine = img.scanLine(y);
-                if (header.depth == 1) {        // Bitmap
+                if (header.depth == 1) { // Bitmap
                     monoInvert(scanLine, rawStride.data(), std::min(rawStride.size(), img.bytesPerLine()));
                 }
-                else if (header.depth == 8) {   // 8-bits images: Indexed, Grayscale, RGB/RGBA
+                else if (header.depth == 8) { // 8-bits images: Indexed, Grayscale, RGB/RGBA
                     planarToChunchy<quint8>(scanLine, rawStride.data(), header.width, c, imgChannels);
                 }
-                else if (header.depth == 16) {  // 16-bits integer images: Grayscale, RGB/RGBA
+                else if (header.depth == 16) { // 16-bits integer images: Grayscale, RGB/RGBA
                     planarToChunchy<quint16>(scanLine, rawStride.data(), header.width, c, imgChannels);
                 }
-                else if (header.depth == 32) {  // 32-bits float images: Grayscale, RGB/RGBA (coverted to equivalent integer 16-bits)
+                else if (header.depth == 32 && header.color_mode == CM_RGB) { // 32-bits float images: RGB/RGBA
+                    planarToChunchy<float>(scanLine, rawStride.data(), header.width, c, imgChannels);
+                }
+                else if (header.depth == 32 && header.color_mode == CM_GRAYSCALE) { // 32-bits float images: Grayscale (coverted to equivalent integer 16-bits)
                     planarToChunchyFloat<quint32>(scanLine, rawStride.data(), header.width, c, imgChannels);
                 }
             }
         }
     }
 
-    // LAB conversion generates a sRGB image
-    if (header.color_mode == CM_LABCOLOR) {
-#ifdef PSD_FAST_LAB_CONVERSION
-        img.setColorSpace(QColorSpace(QColorSpace::SRgbLinear));
-#else
-        img.setColorSpace(QColorSpace(QColorSpace::SRgb));
-#endif
-    }
 
     // Resolution info
     if (!setResolution(img, irs)) {
@@ -1145,7 +1153,15 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
     }
 
     // ICC profile
-    if (!setColorSpace(img, irs)) {
+    if (header.color_mode == CM_LABCOLOR) {
+        // LAB conversion generates a sRGB image
+#ifdef PSD_FAST_LAB_CONVERSION
+        img.setColorSpace(QColorSpace(QColorSpace::SRgbLinear));
+#else
+        img.setColorSpace(QColorSpace(QColorSpace::SRgb));
+#endif
+    }
+    else if (!setColorSpace(img, irs)) {
         // qDebug() << "No colorspace info set!";
     }
 
