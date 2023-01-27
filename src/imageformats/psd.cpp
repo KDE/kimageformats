@@ -32,6 +32,7 @@
  *   color management engine (e.g. LittleCMS).
  */
 
+#include "fastmath_p.h"
 #include "psd_p.h"
 #include "util_p.h"
 
@@ -50,7 +51,7 @@ typedef quint8 uchar;
  * This should not be a problem because the Qt's QColorSpace supports the linear
  * sRgb colorspace.
  *
- * Using linear conversion, the loading speed is improved by 4x. Anyway, if you are using
+ * Using linear conversion, the loading speed is slightly improved. Anyway, if you are using
  * an software that discard color info, you should comment it.
  *
  * At the time I'm writing (07/2022), Gwenview and Krita supports linear sRgb but KDE
@@ -898,8 +899,9 @@ inline double gammaCorrection(double linear)
 #ifdef PSD_FAST_LAB_CONVERSION
     return linear;
 #else
-    // NOTE: pow() slow down the performance by a 4 factor :(
-    return (linear > 0.0031308 ? 1.055 * std::pow(linear, 1.0 / 2.4) - 0.055 : 12.92 * linear);
+    // Replacing fastPow with std::pow the conversion time is 2/3 times longer: using fastPow
+    // there are minimal differences in the conversion that are not visually noticeable.
+    return (linear > 0.0031308 ? 1.055 * fastPow(linear, 1.0 / 2.4) - 0.055 : 12.92 * linear);
 #endif
 }
 
