@@ -45,7 +45,6 @@ const auto supported_formats = QSet<QByteArray>{
     "dcs", "dc2", "dcr", "dng", "drf", "dxo",
     "eip", "erf",
     "fff",
-    "hdr",
     "iiq",
     "k25", "kc2", "kdc",
     "mdc", "mef", "mfw", "mos", "mrw",
