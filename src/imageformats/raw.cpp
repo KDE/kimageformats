@@ -14,6 +14,7 @@
 #include <QDebug>
 #include <QImage>
 #include <QSet>
+#include <QTimeZone>
 
 #if defined(Q_OS_WINDOWS) && !defined(NOMINMAX)
 #define NOMINMAX
@@ -222,7 +223,7 @@ QString createTag(char *asciiz, const char *tag)
 
 QString createTimeTag(time_t time, const char *tag)
 {
-    auto value = QDateTime::fromSecsSinceEpoch(time, Qt::UTC);
+    auto value = QDateTime::fromSecsSinceEpoch(time, QTimeZone::utc());
     if (value.isValid() && time > 0) {
         return createTag(value.toString(Qt::ISODate), tag);
     }
