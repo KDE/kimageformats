@@ -162,9 +162,9 @@ int main(int argc, char **argv)
             if (!fi.suffix().compare("png", Qt::CaseInsensitive)) {
                 continue;
             }
-            int suffixPos = fi.filePath().count() - suffix.count();
+            int suffixPos = fi.filePath().size() - suffix.size();
             QString inputfile = fi.filePath();
-            QString expfile = fi.filePath().replace(suffixPos, suffix.count(), QStringLiteral("png"));
+            QString expfile = fi.filePath().replace(suffixPos, suffix.size(), QStringLiteral("png"));
             QString expfilename = QFileInfo(expfile).fileName();
 
             std::unique_ptr<QIODevice> inputDevice(seq ? new SequentialFile(inputfile) : new QFile(inputfile));
