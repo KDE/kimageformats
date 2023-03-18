@@ -11,9 +11,10 @@ function(kimageformats_add_plugin plugin)
         message(FATAL_ERROR "kimageformats_add_plugin called without SOURCES parameter")
     endif()
 
-    add_library(${plugin} MODULE ${KIF_ADD_PLUGIN_SOURCES})
-    set_target_properties(${plugin} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/imageformats")
-    target_link_libraries(${plugin} Qt6::Gui)
+    qt_add_plugin(${plugin} PLUGIN_TYPE imageformats)
+    target_sources(${plugin} PRIVATE ${KIF_ADD_PLUGIN_SOURCES})
+    set_target_properties(${plugin} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/imageformats)
+    target_link_libraries(${plugin} PRIVATE Qt6::Gui)
     install(TARGETS ${plugin} DESTINATION ${KDE_INSTALL_QTPLUGINDIR}/imageformats)
 endfunction()
 
@@ -25,7 +26,7 @@ kimageformats_add_plugin(kimg_ani SOURCES ani.cpp)
 
 if (TARGET avif)
     kimageformats_add_plugin(kimg_avif SOURCES "avif.cpp")
-    target_link_libraries(kimg_avif "avif")
+    target_link_libraries(kimg_avif PRIVATE "avif")
 endif()
 
 ##################################
@@ -33,7 +34,7 @@ endif()
 if (BUILD_EPS_PLUGIN)
     if (TARGET Qt6::PrintSupport)
         kimageformats_add_plugin(kimg_eps SOURCES eps.cpp)
-        target_link_libraries(kimg_eps Qt6::PrintSupport)
+        target_link_libraries(kimg_eps PRIVATE Qt6::PrintSupport)
     endif()
 endif()
 
@@ -42,14 +43,14 @@ endif()
 if(OpenEXR_FOUND)
     kimageformats_add_plugin(kimg_exr SOURCES exr.cpp)
     if(TARGET OpenEXR::OpenEXR)
-        target_link_libraries(kimg_exr OpenEXR::OpenEXR)
+        target_link_libraries(kimg_exr PRIVATE OpenEXR::OpenEXR)
     else()
         if(OpenEXR_VERSION_STRING VERSION_LESS 2.3.0)
             # Older OpenEXR versions use dynamic exception specifications, so
             # cannot use C++17 with them
             set_target_properties(kimg_exr PROPERTIES CXX_STANDARD 14)
         endif()
-        target_link_libraries(kimg_exr OpenEXR::IlmImf)
+        target_link_libraries(kimg_exr PRIVATE OpenEXR::IlmImf)
     endif()
     kde_target_enable_exceptions(kimg_exr PRIVATE)
 endif()
@@ -62,14 +63,14 @@ kimageformats_add_plugin(kimg_hdr SOURCES hdr.cpp)
 
 if (LibHeif_FOUND)
     kimageformats_add_plugin(kimg_heif SOURCES heif.cpp)
-    target_link_libraries(kimg_heif PkgConfig::LibHeif)
+    target_link_libraries(kimg_heif PRIVATE PkgConfig::LibHeif)
 endif()
 
 ##################################
 
 if (LibJXL_FOUND AND LibJXLThreads_FOUND)
     kimageformats_add_plugin(kimg_jxl SOURCES jxl.cpp)
-    target_link_libraries(kimg_jxl PkgConfig::LibJXL PkgConfig::LibJXLThreads)
+    target_link_libraries(kimg_jxl PRIVATE PkgConfig::LibJXL PkgConfig::LibJXLThreads)
     if (LibJXL_VERSION VERSION_GREATER_EQUAL "0.7.0")
         target_compile_definitions(kimg_jxl PRIVATE KIMG_JXL_API_VERSION=70)
     endif()
@@ -108,7 +109,7 @@ kimageformats_add_plugin(kimg_xcf SOURCES xcf.cpp)
 if (LibRaw_FOUND)
     kimageformats_add_plugin(kimg_raw SOURCES raw.cpp)
     kde_enable_exceptions()
-    target_link_libraries(kimg_raw LibRaw::LibRaw)
+    target_link_libraries(kimg_raw PRIVATE LibRaw::LibRaw)
 endif()
 
 ##################################
@@ -116,9 +117,9 @@ endif()
 if (KF6Archive_FOUND)
 
     kimageformats_add_plugin(kimg_kra SOURCES kra.cpp)
-    target_link_libraries(kimg_kra KF6::Archive)
+    target_link_libraries(kimg_kra PRIVATE KF6::Archive)
 
     kimageformats_add_plugin(kimg_ora SOURCES ora.cpp)
-    target_link_libraries(kimg_ora KF6::Archive)
+    target_link_libraries(kimg_ora PRIVATE KF6::Archive)
 
 endif()
