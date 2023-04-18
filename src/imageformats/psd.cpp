@@ -865,8 +865,7 @@ inline void premulConversion(char *stride, qint32 width, qint32 ac, qint32 cn, c
             for (qint32 x = 0; x < width; ++x) {
                 auto xcn = x * cn;
                 auto alpha = *(s + xcn + ac);
-                if (alpha > 0)
-                    *(s + xcn + c) = *(s + xcn + c) + alpha - max;
+                *(s + xcn + c) = *(s + xcn + c) + alpha - max;
             }
         }
         else if (conv == PremulConversion::PS2A || (conv == PremulConversion::PSLab2A && c == 0)) {
