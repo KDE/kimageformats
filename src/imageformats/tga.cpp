@@ -428,8 +428,16 @@ bool TGAHandler::write(const QImage &image)
     QDataStream s(device());
     s.setByteOrder(QDataStream::LittleEndian);
 
-    const QImage &img = image;
-    const bool hasAlpha = (img.format() == QImage::Format_ARGB32);
+    QImage img(image);
+    const bool hasAlpha = img.hasAlphaChannel();
+    if (hasAlpha && img.format() != QImage::Format_ARGB32)
+        img = img.convertToFormat(QImage::Format_ARGB32);
+    else if (!hasAlpha && img.format() != QImage::Format_RGB32)
+        img = img.convertToFormat(QImage::Format_RGB32);
+    if (img.isNull()) {
+        qDebug() << "TGAHandler::write: image conversion to 32 bits failed!";
+        return false;
+    }
     static constexpr quint8 originTopLeft = TGA_ORIGIN_UPPER + TGA_ORIGIN_LEFT; // 0x20
     static constexpr quint8 alphaChannel8Bits = 0x08;
 
@@ -444,8 +452,9 @@ bool TGAHandler::write(const QImage &image)
     s << quint8(hasAlpha ? originTopLeft + alphaChannel8Bits : originTopLeft);   // top left image (0x20) + 8 bit alpha (0x8)
 
     for (int y = 0; y < img.height(); y++) {
+        auto ptr = reinterpret_cast<QRgb *>(img.scanLine(y));
         for (int x = 0; x < img.width(); x++) {
-            const QRgb color = img.pixel(x, y);
+            auto color = *(ptr + x);
             s << quint8(qBlue(color));
             s << quint8(qGreen(color));
             s << quint8(qRed(color));
