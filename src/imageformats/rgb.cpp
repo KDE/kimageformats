@@ -672,11 +672,13 @@ bool SGIImage::writeImage(const QImage &image)
         _dim = 3, _zsize = 3;
     }
 
-    if (img.format() == QImage::Format_ARGB32) {
+    if (img.hasAlphaChannel()) {
         _dim = 3, _zsize++;
     }
 
-    img = img.convertToFormat(QImage::Format_RGB32);
+    if (img.format() != QImage::Format_ARGB32) {
+        img = img.convertToFormat(QImage::Format_ARGB32);
+    }
     if (img.isNull()) {
         //         qDebug() << "can't convert image to depth 32";
         return false;
@@ -685,7 +687,7 @@ bool SGIImage::writeImage(const QImage &image)
     const int w = img.width();
     const int h = img.height();
 
-    if (w > 65536 || h > 65536) {
+    if (w > 65535 || h > 65535) {
         return false;
     }
 
@@ -711,12 +713,6 @@ bool SGIImage::writeImage(const QImage &image)
     for (int i = 0; i < _rlevector.size(); i++) {
         rle_size += _rlevector[i]->size();
     }
-
-    //     qDebug() << "minimum intensity: " << _pixmin;
-    //     qDebug() << "maximum intensity: " << _pixmax;
-    //     qDebug() << "saved scanlines: " << _numrows - _rlemap.size();
-    //     qDebug() << "total savings: " << (verbatim_size - rle_size) << " bytes";
-    //     qDebug() << "compression: " << (rle_size * 100.0 / verbatim_size) << '%';
 
     if (verbatim_size <= rle_size) {
         writeVerbatim(img);

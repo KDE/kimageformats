@@ -430,10 +430,11 @@ bool TGAHandler::write(const QImage &image)
 
     QImage img(image);
     const bool hasAlpha = img.hasAlphaChannel();
-    if (hasAlpha && img.format() != QImage::Format_ARGB32)
+    if (hasAlpha && img.format() != QImage::Format_ARGB32) {
         img = img.convertToFormat(QImage::Format_ARGB32);
-    else if (!hasAlpha && img.format() != QImage::Format_RGB32)
+    } else if (!hasAlpha && img.format() != QImage::Format_RGB32) {
         img = img.convertToFormat(QImage::Format_RGB32);
+    }
     if (img.isNull()) {
         qDebug() << "TGAHandler::write: image conversion to 32 bits failed!";
         return false;
