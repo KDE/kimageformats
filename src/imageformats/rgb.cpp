@@ -672,12 +672,15 @@ bool SGIImage::writeImage(const QImage &image)
         _dim = 3, _zsize = 3;
     }
 
-    if (img.hasAlphaChannel()) {
+    auto hasAlpha = img.hasAlphaChannel();
+    if (hasAlpha) {
         _dim = 3, _zsize++;
     }
 
-    if (img.format() != QImage::Format_ARGB32) {
+    if (hasAlpha && img.format() != QImage::Format_ARGB32) {
         img = img.convertToFormat(QImage::Format_ARGB32);
+    } else if (!hasAlpha && img.format() != QImage::Format_RGB32) {
+        img = img.convertToFormat(QImage::Format_RGB32);
     }
     if (img.isNull()) {
         //         qDebug() << "can't convert image to depth 32";
