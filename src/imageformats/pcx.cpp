@@ -547,6 +547,9 @@ static void writeImage8(QImage &img, QDataStream &s, PCXHEADER &header)
 
 static void writeImage24(QImage &img, QDataStream &s, PCXHEADER &header)
 {
+    if(img.format() != QImage::Format_ARGB32 && img.format() != QImage::Format_RGB32)
+        img = img.convertToFormat(QImage::Format_RGB32);
+
     header.Bpp = 8;
     header.NPlanes = 3;
     header.BytesPerLine = header.width();
@@ -558,7 +561,7 @@ static void writeImage24(QImage &img, QDataStream &s, PCXHEADER &header)
     QByteArray b_buf(header.width(), 0);
 
     for (int y = 0; y < header.height(); ++y) {
-        uint *p = (uint *)img.scanLine(y);
+        auto p = (QRgb*)img.scanLine(y);
 
         for (int x = 0; x < header.width(); ++x) {
             QRgb rgb = *p++;
@@ -634,6 +637,8 @@ bool PCXHandler::read(QImage *outImage)
     //   qDebug() << "Image Depth: " << img.depth();
 
     if (!img.isNull()) {
+        img.setDotsPerMeterX(qRound(header.HDpi / 25.4 * 1000));
+        img.setDotsPerMeterY(qRound(header.YDpi / 25.4 * 1000));
         *outImage = img;
         return true;
     } else {
@@ -655,12 +660,6 @@ bool PCXHandler::write(const QImage &image)
         return false;
     }
 
-    //   qDebug() << "Width: " << w;
-    //   qDebug() << "Height: " << h;
-    //   qDebug() << "Depth: " << img.depth();
-    //   qDebug() << "BytesPerLine: " << img.bytesPerLine();
-    //   qDebug() << "Color Count: " << img.colorCount();
-
     PCXHEADER header;
 
     header.Manufacturer = 10;
@@ -670,8 +669,8 @@ bool PCXHandler::write(const QImage &image)
     header.YMin = 0;
     header.XMax = w - 1;
     header.YMax = h - 1;
-    header.HDpi = 300;
-    header.YDpi = 300;
+    header.HDpi = qRound(image.dotsPerMeterX() * 25.4 / 1000);
+    header.YDpi = qRound(image.dotsPerMeterY() * 25.4 / 1000);
     header.Reserved = 0;
     header.PaletteInfo = 1;
 
@@ -681,8 +680,10 @@ bool PCXHandler::write(const QImage &image)
         writeImage4(img, s, header);
     } else if (img.depth() == 8) {
         writeImage8(img, s, header);
-    } else if (img.depth() == 32) {
+    } else if (img.depth() >= 24) {
         writeImage24(img, s, header);
+    } else {
+        return false;
     }
 
     return true;
