@@ -230,7 +230,7 @@ PCXHEADER::PCXHEADER()
     s >> *this;
 }
 
-static void readLine(QDataStream &s, QByteArray &buf, const PCXHEADER &header)
+static bool readLine(QDataStream &s, QByteArray &buf, const PCXHEADER &header)
 {
     quint32 i = 0;
     quint32 size = buf.size();
@@ -257,9 +257,11 @@ static void readLine(QDataStream &s, QByteArray &buf, const PCXHEADER &header)
             buf[i++] = byte;
         }
     }
+
+    return (s.status() == QDataStream::Ok);
 }
 
-static void readImage1(QImage &img, QDataStream &s, const PCXHEADER &header)
+static bool readImage1(QImage &img, QDataStream &s, const PCXHEADER &header)
 {
     QByteArray buf(header.BytesPerLine, 0);
 
@@ -268,16 +270,18 @@ static void readImage1(QImage &img, QDataStream &s, const PCXHEADER &header)
 
     if (img.isNull()) {
         qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
-        return;
+        return false;
     }
 
     for (int y = 0; y < header.height(); ++y) {
         if (s.atEnd()) {
-            img = QImage();
-            return;
+            return false;
         }
 
-        readLine(s, buf, header);
+        if (!readLine(s, buf, header)) {
+            return false;
+        }
+
         uchar *p = img.scanLine(y);
         unsigned int bpl = qMin((quint16)((header.width() + 7) / 8), header.BytesPerLine);
         for (unsigned int x = 0; x < bpl; ++x) {
@@ -288,9 +292,11 @@ static void readImage1(QImage &img, QDataStream &s, const PCXHEADER &header)
     // Set the color palette
     img.setColor(0, qRgb(0, 0, 0));
     img.setColor(1, qRgb(255, 255, 255));
+
+    return true;
 }
 
-static void readImage4(QImage &img, QDataStream &s, const PCXHEADER &header)
+static bool readImage4(QImage &img, QDataStream &s, const PCXHEADER &header)
 {
     QByteArray buf(header.BytesPerLine * 4, 0);
     QByteArray pixbuf(header.width(), 0);
@@ -299,17 +305,18 @@ static void readImage4(QImage &img, QDataStream &s, const PCXHEADER &header)
     img.setColorCount(16);
     if (img.isNull()) {
         qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
-        return;
+        return false;
     }
 
     for (int y = 0; y < header.height(); ++y) {
         if (s.atEnd()) {
-            img = QImage();
-            return;
+            return false;
         }
 
         pixbuf.fill(0);
-        readLine(s, buf, header);
+        if (!readLine(s, buf, header)) {
+            return false;
+        }
 
         for (int i = 0; i < 4; i++) {
             quint32 offset = i * header.BytesPerLine;
@@ -333,9 +340,11 @@ static void readImage4(QImage &img, QDataStream &s, const PCXHEADER &header)
     for (int i = 0; i < 16; ++i) {
         img.setColor(i, header.ColorMap.color(i));
     }
+
+    return true;
 }
 
-static void readImage8(QImage &img, QDataStream &s, const PCXHEADER &header)
+static bool readImage8(QImage &img, QDataStream &s, const PCXHEADER &header)
 {
     QByteArray buf(header.BytesPerLine, 0);
 
@@ -344,21 +353,21 @@ static void readImage8(QImage &img, QDataStream &s, const PCXHEADER &header)
 
     if (img.isNull()) {
         qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
-        return;
+        return false;
     }
 
     for (int y = 0; y < header.height(); ++y) {
         if (s.atEnd()) {
-            img = QImage();
-            return;
+            return false;
         }
 
-        readLine(s, buf, header);
+        if (!readLine(s, buf, header)) {
+            return false;
+        }
 
         uchar *p = img.scanLine(y);
-
         if (!p) {
-            return;
+            return false;
         }
 
         unsigned int bpl = qMin(header.BytesPerLine, (quint16)header.width());
@@ -392,9 +401,11 @@ static void readImage8(QImage &img, QDataStream &s, const PCXHEADER &header)
             img.setColor(i, qRgb(r, g, b));
         }
     }
+
+    return (s.status() == QDataStream::Ok);
 }
 
-static void readImage24(QImage &img, QDataStream &s, const PCXHEADER &header)
+static bool readImage24(QImage &img, QDataStream &s, const PCXHEADER &header)
 {
     QByteArray r_buf(header.BytesPerLine, 0);
     QByteArray g_buf(header.BytesPerLine, 0);
@@ -404,27 +415,34 @@ static void readImage24(QImage &img, QDataStream &s, const PCXHEADER &header)
 
     if (img.isNull()) {
         qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
-        return;
+        return false;
     }
 
     for (int y = 0; y < header.height(); ++y) {
         if (s.atEnd()) {
-            img = QImage();
-            return;
+            return false;
         }
 
-        readLine(s, r_buf, header);
-        readLine(s, g_buf, header);
-        readLine(s, b_buf, header);
+        if (!readLine(s, r_buf, header)) {
+            return false;
+        }
+        if (!readLine(s, g_buf, header)) {
+            return false;
+        }
+        if (!readLine(s, b_buf, header)) {
+            return false;
+        }
 
         uint *p = (uint *)img.scanLine(y);
         for (int x = 0; x < header.width(); ++x) {
             p[x] = qRgb(r_buf[x], g_buf[x], b_buf[x]);
         }
     }
+
+    return true;
 }
 
-static void writeLine(QDataStream &s, QByteArray &buf)
+static bool writeLine(QDataStream &s, QByteArray &buf)
 {
     quint32 i = 0;
     quint32 size = buf.size();
@@ -450,15 +468,26 @@ static void writeLine(QDataStream &s, QByteArray &buf)
 
         s << data;
     }
+    return (s.status() == QDataStream::Ok);
 }
 
-static void writeImage1(QImage &img, QDataStream &s, PCXHEADER &header)
+static bool writeImage1(QImage &img, QDataStream &s, PCXHEADER &header)
 {
-    img = img.convertToFormat(QImage::Format_Mono);
+    if (img.format() != QImage::Format_Mono) {
+        img = img.convertToFormat(QImage::Format_Mono);
+    }
+    if (img.isNull() || img.colorCount() < 1) {
+        return false;
+    }
+    auto rgb = img.color(0);
+    auto minIsBlack = (qRed(rgb) + qGreen(rgb) + qBlue(rgb)) / 3 < 127;
 
     header.Bpp = 1;
     header.NPlanes = 1;
     header.BytesPerLine = img.bytesPerLine();
+    if (header.BytesPerLine == 0) {
+        return false;
+    }
 
     s << header;
 
@@ -469,18 +498,24 @@ static void writeImage1(QImage &img, QDataStream &s, PCXHEADER &header)
 
         // Invert as QImage uses reverse palette for monochrome images?
         for (int i = 0; i < header.BytesPerLine; ++i) {
-            buf[i] = ~p[i];
+            buf[i] = minIsBlack ? p[i] : ~p[i];
         }
 
-        writeLine(s, buf);
+        if (!writeLine(s, buf)) {
+            return false;
+        }
     }
+    return true;
 }
 
-static void writeImage4(QImage &img, QDataStream &s, PCXHEADER &header)
+static bool writeImage4(QImage &img, QDataStream &s, PCXHEADER &header)
 {
     header.Bpp = 1;
     header.NPlanes = 4;
     header.BytesPerLine = header.width() / 8;
+    if (header.BytesPerLine == 0) {
+        return false;
+    }
 
     for (int i = 0; i < 16; ++i) {
         header.ColorMap.setColor(i, img.color(i));
@@ -510,16 +545,22 @@ static void writeImage4(QImage &img, QDataStream &s, PCXHEADER &header)
         }
 
         for (int i = 0; i < 4; ++i) {
-            writeLine(s, buf[i]);
+            if (!writeLine(s, buf[i])) {
+                return false;
+            }
         }
     }
+    return true;
 }
 
-static void writeImage8(QImage &img, QDataStream &s, PCXHEADER &header)
+static bool writeImage8(QImage &img, QDataStream &s, PCXHEADER &header)
 {
     header.Bpp = 8;
     header.NPlanes = 1;
     header.BytesPerLine = img.bytesPerLine();
+    if (header.BytesPerLine == 0) {
+        return false;
+    }
 
     s << header;
 
@@ -532,7 +573,9 @@ static void writeImage8(QImage &img, QDataStream &s, PCXHEADER &header)
             buf[i] = p[i];
         }
 
-        writeLine(s, buf);
+        if (!writeLine(s, buf)) {
+            return false;
+        }
     }
 
     // Write palette flag
@@ -543,16 +586,25 @@ static void writeImage8(QImage &img, QDataStream &s, PCXHEADER &header)
     for (int i = 0; i < 256; ++i) {
         s << RGB::from(img.color(i));
     }
+
+    return (s.status() == QDataStream::Ok);
 }
 
-static void writeImage24(QImage &img, QDataStream &s, PCXHEADER &header)
+static bool writeImage24(QImage &img, QDataStream &s, PCXHEADER &header)
 {
-    if(img.format() != QImage::Format_ARGB32 && img.format() != QImage::Format_RGB32)
-        img = img.convertToFormat(QImage::Format_RGB32);
-
     header.Bpp = 8;
     header.NPlanes = 3;
     header.BytesPerLine = header.width();
+    if (header.BytesPerLine == 0) {
+        return false;
+    }
+
+    if (img.format() != QImage::Format_ARGB32 && img.format() != QImage::Format_RGB32) {
+        img = img.convertToFormat(QImage::Format_RGB32);
+    }
+    if (img.isNull()) {
+        return false;
+    }
 
     s << header;
 
@@ -570,10 +622,18 @@ static void writeImage24(QImage &img, QDataStream &s, PCXHEADER &header)
             b_buf[x] = qBlue(rgb);
         }
 
-        writeLine(s, r_buf);
-        writeLine(s, g_buf);
-        writeLine(s, b_buf);
+        if (!writeLine(s, r_buf)) {
+            return false;
+        }
+        if (!writeLine(s, g_buf)) {
+            return false;
+        }
+        if (!writeLine(s, b_buf)) {
+            return false;
+        }
     }
+
+    return true;
 }
 
 PCXHandler::PCXHandler()
@@ -602,48 +662,30 @@ bool PCXHandler::read(QImage *outImage)
 
     s >> header;
 
-    if (header.Manufacturer != 10 || s.atEnd()) {
+    if (header.Manufacturer != 10 || header.BytesPerLine == 0 || s.atEnd()) {
         return false;
     }
 
-    //   int w = header.width();
-    //   int h = header.height();
-
-    //   qDebug() << "Manufacturer: " << header.Manufacturer;
-    //   qDebug() << "Version: " << header.Version;
-    //   qDebug() << "Encoding: " << header.Encoding;
-    //   qDebug() << "Bpp: " << header.Bpp;
-    //   qDebug() << "Width: " << w;
-    //   qDebug() << "Height: " << h;
-    //   qDebug() << "Window: " << header.XMin << "," << header.XMax << ","
-    //                  << header.YMin << "," << header.YMax << endl;
-    //   qDebug() << "BytesPerLine: " << header.BytesPerLine;
-    //   qDebug() << "NPlanes: " << header.NPlanes;
-
+    auto ok = false;
     QImage img;
-
     if (header.Bpp == 1 && header.NPlanes == 1) {
-        readImage1(img, s, header);
+        ok = readImage1(img, s, header);
     } else if (header.Bpp == 1 && header.NPlanes == 4) {
-        readImage4(img, s, header);
+        ok = readImage4(img, s, header);
     } else if (header.Bpp == 8 && header.NPlanes == 1) {
-        readImage8(img, s, header);
+        ok = readImage8(img, s, header);
     } else if (header.Bpp == 8 && header.NPlanes == 3) {
-        readImage24(img, s, header);
+        ok = readImage24(img, s, header);
     }
 
-    //   qDebug() << "Image Bytes: " << img.numBytes();
-    //   qDebug() << "Image Bytes Per Line: " << img.bytesPerLine();
-    //   qDebug() << "Image Depth: " << img.depth();
-
-    if (!img.isNull()) {
-        img.setDotsPerMeterX(qRound(header.HDpi / 25.4 * 1000));
-        img.setDotsPerMeterY(qRound(header.YDpi / 25.4 * 1000));
-        *outImage = img;
-        return true;
-    } else {
+    if (img.isNull() || !ok) {
         return false;
     }
+
+    img.setDotsPerMeterX(qRound(header.HDpi / 25.4 * 1000));
+    img.setDotsPerMeterY(qRound(header.YDpi / 25.4 * 1000));
+    *outImage = img;
+    return true;
 }
 
 bool PCXHandler::write(const QImage &image)
@@ -674,19 +716,18 @@ bool PCXHandler::write(const QImage &image)
     header.Reserved = 0;
     header.PaletteInfo = 1;
 
+    auto ok = false;
     if (img.depth() == 1) {
-        writeImage1(img, s, header);
+        ok = writeImage1(img, s, header);
     } else if (img.depth() == 8 && img.colorCount() <= 16) {
-        writeImage4(img, s, header);
+        ok = writeImage4(img, s, header);
     } else if (img.depth() == 8) {
-        writeImage8(img, s, header);
+        ok = writeImage8(img, s, header);
     } else if (img.depth() >= 24) {
-        writeImage24(img, s, header);
-    } else {
-        return false;
+        ok = writeImage24(img, s, header);
     }
 
-    return true;
+    return ok;
 }
 
 bool PCXHandler::canRead(QIODevice *device)
