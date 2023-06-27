@@ -71,9 +71,6 @@ endif()
 if (LibJXL_FOUND AND LibJXLThreads_FOUND)
     kimageformats_add_plugin(kimg_jxl SOURCES jxl.cpp)
     target_link_libraries(kimg_jxl PRIVATE PkgConfig::LibJXL PkgConfig::LibJXLThreads)
-    if (LibJXL_VERSION VERSION_GREATER_EQUAL "0.7.0")
-        target_compile_definitions(kimg_jxl PRIVATE KIMG_JXL_API_VERSION=70)
-    endif()
 endif()
 
 ##################################
