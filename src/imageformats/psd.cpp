@@ -1414,3 +1414,5 @@ QImageIOHandler *PSDPlugin::create(QIODevice *device, const QByteArray &format) 
     handler->setFormat(format);
     return handler;
 }
+
+#include "moc_psd_p.cpp"

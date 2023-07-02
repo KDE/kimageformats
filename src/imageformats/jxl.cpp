@@ -1020,3 +1020,5 @@ QImageIOHandler *QJpegXLPlugin::create(QIODevice *device, const QByteArray &form
     handler->setFormat(format);
     return handler;
 }
+
+#include "moc_jxl_p.cpp"
