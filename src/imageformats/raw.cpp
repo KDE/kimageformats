@@ -910,3 +910,5 @@ QImageIOHandler *RAWPlugin::create(QIODevice *device, const QByteArray &format) 
     handler->setFormat(format);
     return handler;
 }
+
+#include "moc_raw_p.cpp"

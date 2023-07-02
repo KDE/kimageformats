@@ -527,3 +527,5 @@ QImageIOHandler *TGAPlugin::create(QIODevice *device, const QByteArray &format) 
     handler->setFormat(format);
     return handler;
 }
+
+#include "moc_tga_p.cpp"

@@ -792,3 +792,5 @@ QImageIOHandler *PCXPlugin::create(QIODevice *device, const QByteArray &format) 
     handler->setFormat(format);
     return handler;
 }
+
+#include "moc_pcx_p.cpp"

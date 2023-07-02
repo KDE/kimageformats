@@ -926,3 +926,5 @@ QImageIOHandler *HEIFPlugin::create(QIODevice *device, const QByteArray &format)
     handler->setFormat(format);
     return handler;
 }
+
+#include "moc_heif_p.cpp"
