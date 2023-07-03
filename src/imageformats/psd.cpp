@@ -669,7 +669,7 @@ static bool IsSupported(const PSDHeader &header)
         return false;
     }
     if (header.color_mode == CM_MULTICHANNEL &&
-        header.channel_count < 4) {
+        header.channel_count < 3) {
         return false;
     }
     return true;
@@ -896,8 +896,8 @@ inline void cmykToRgb(uchar *target, qint32 targetChannels, const char *source, 
     auto max = double(std::numeric_limits<T>::max());
     auto invmax = 1.0 / max; // speed improvements by ~10%
 
-    if (sourceChannels < 4) {
-        qDebug() << "cmykToRgb: image is not a valid CMYK!";
+    if (sourceChannels < 3) {
+        qDebug() << "cmykToRgb: image is not a valid CMY/CMYK!";
         return;
     }
 
@@ -906,7 +906,7 @@ inline void cmykToRgb(uchar *target, qint32 targetChannels, const char *source, 
         auto C = 1 - *(ps + 0) * invmax;
         auto M = 1 - *(ps + 1) * invmax;
         auto Y = 1 - *(ps + 2) * invmax;
-        auto K = 1 - *(ps + 3) * invmax;
+        auto K = sourceChannels > 3 ? 1 - *(ps + 3) * invmax : 0.0;
 
         auto pt = t + targetChannels * w;
         *(pt + 0) = T(std::min(max - (C * (1 - K) + K) * max + 0.5, max));
