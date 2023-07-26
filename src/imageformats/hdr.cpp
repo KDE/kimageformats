@@ -9,6 +9,7 @@
 #include "hdr_p.h"
 #include "util_p.h"
 
+#include <QColorSpace>
 #include <QDataStream>
 #include <QImage>
 #include <QLoggingCategory>
@@ -28,11 +29,8 @@ namespace // Private.
 
 static inline uchar ClipToByte(float value)
 {
-    if (value > 255.0f) {
-        return 255;
-    }
-    // else if (value < 0.0f) return 0;  // we know value is positive.
-    return uchar(value);
+    // we know value is positive.
+    return uchar(std::min(value + 0.5f, 255.0f));
 }
 
 // read an old style line from the hdr image file
@@ -242,6 +240,9 @@ bool HDRHandler::read(QImage *outImage)
         // qDebug() << "Error loading HDR file.";
         return false;
     }
+    // The images read by Gimp and Photoshop (including those of the tests) are interpreted with linear color space.
+    // By setting the linear color space, programs that support profiles display HDR files as in GIMP and Photoshop.
+    img.setColorSpace(QColorSpace(QColorSpace::SRgbLinear));
 
     *outImage = img;
     return true;
