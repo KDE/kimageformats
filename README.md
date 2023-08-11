@@ -20,6 +20,7 @@ The following image formats have read-only support:
 - Photoshop documents (psd, psb, pdd, psdt)
 - Radiance HDR (hdr)
 - Sun Raster (ras)
+- Quite OK Image format (qoi)
 
 The following image formats have read and write support:
 

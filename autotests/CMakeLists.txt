@@ -70,6 +70,7 @@ kimageformats_read_tests(
     hdr
     pcx
     psd
+    qoi
     ras
     rgb
     tga

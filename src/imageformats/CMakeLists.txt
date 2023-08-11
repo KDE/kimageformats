@@ -133,6 +133,10 @@ endif()
 
 ##################################
 
+kimageformats_add_plugin(kimg_qoi SOURCES qoi.cpp)
+
+##################################
+
 kimageformats_add_plugin(kimg_ras SOURCES ras.cpp)
 if (QT_MAJOR_VERSION STREQUAL "5")
     install(FILES ras.desktop DESTINATION ${KDE_INSTALL_KSERVICESDIR}/qimageioplugins/)
