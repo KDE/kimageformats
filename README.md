@@ -19,6 +19,7 @@ The following image formats have read-only support:
 - Photoshop documents (psd, psb, pdd, psdt)
 - Sun Raster (ras)
 - Camera RAW images (arw, cr2, cr3, dcs, dng, ...)
+- Quite OK Image format (qoi)
 
 The following image formats have read and write support:
 
