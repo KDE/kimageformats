@@ -70,10 +70,16 @@ static int QoiHash(const Px &px)
     return px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11;
 }
 
-static bool LoadQOI(QDataStream &s, const QoiHeader &qoi, QImage &img)
+static QImage::Format imageFormat(const QoiHeader &head)
 {
-    s.device()->seek(QOI_HEADER_SIZE);
+    if (IsSupported(head)) {
+        return (head.Channels == 3 ? QImage::Format_RGB32 : QImage::Format_ARGB32);
+    }
+    return QImage::Format_Invalid;
+}
 
+static bool LoadQOI(QIODevice *device, const QoiHeader &qoi, QImage &img)
+{
     Px index[64] = {Px{
         0,
         0,
@@ -88,51 +94,37 @@ static bool LoadQOI(QDataStream &s, const QoiHeader &qoi, QImage &img)
         255,
     };
 
-    if (qoi.Width * qoi.Height > UINT64_MAX / qoi.Channels) {
-        return false;
-    }
-
-    quint64 px_len = quint64(qoi.Width) * qoi.Height * qoi.Channels;
-    quint32 chunks_len = s.device()->size() - 8; // 8 is the size of the QOI padding
-    quint32 run = 0;
-    quint32 p = 0;
-
+    quint64 px_len = quint64(qoi.Width) * qoi.Channels * 3 / 2;
     if (px_len > kMaxQVectorSize) {
         return false;
     }
 
-    QVector<quint8> input(px_len);
-
-    int i = 0;
-    while (!s.atEnd() && i < input.size()) {
-        s >> input[i];
-        i++;
-    }
-
     // Allocate image
-    img = QImage(qoi.Width, qoi.Height, QImage::Format_ARGB32);
-
+    img = imageAlloc(qoi.Width, qoi.Height, imageFormat(qoi));
     if (img.isNull()) {
         return false;
     }
 
     // Set the image colorspace based on the qoi.Colorspace value
     // As per specification: 0 = sRGB with linear alpha, 1 = all channels linear
-    switch (qoi.Colorspace) {
-    case 0:
-        img.setColorSpace(QColorSpace(QColorSpace::SRgb));
-        break;
-    case 1: {
+    if (qoi.Colorspace) {
         img.setColorSpace(QColorSpace(QColorSpace::SRgbLinear));
-        break;
-    }
+    } else {
+        img.setColorSpace(QColorSpace(QColorSpace::SRgb));
     }
 
     // Handle the byte stream
-    for (quint32 y = 0; y < qoi.Height; y++) {
-        QRgb *scanline = (QRgb *)img.scanLine(y);
+    QByteArray ba;
+    for (quint32 y = 0, run = 0; y < qoi.Height; ++y) {
+        if (quint64(ba.size()) < px_len) {
+            ba.append(device->read(px_len));
+        }
 
-        for (quint32 x = 0; x < qoi.Width; x++) {
+        quint64 chunks_len = ba.size() - 8; // 8 is the size of the QOI padding
+        quint64 p = 0;
+        QRgb *scanline = (QRgb *)img.scanLine(y);
+        quint8 *input = reinterpret_cast<quint8 *>(ba.data());
+        for (quint32 x = 0; x < qoi.Width; ++x) {
             if (run > 0) {
                 run--;
             } else if (p < chunks_len) {
@@ -162,10 +154,14 @@ static bool LoadQOI(QDataStream &s, const QoiHeader &qoi, QImage &img)
                 } else if ((b1 & QOI_MASK_2) == QOI_OP_RUN) {
                     run = (b1 & 0x3f);
                 }
-                index[QoiHash(px) % 64] = px;
+                index[QoiHash(px) & 0x3F] = px;
             }
             // Set the values for the pixel at (x, y)
             scanline[x] = qRgba(px.r, px.g, px.b, px.a);
+        }
+
+        if (p) {
+            ba.remove(0, p);
         }
     }
 
@@ -193,15 +189,11 @@ bool QOIHandler::canRead(QIODevice *device)
         qWarning("QOIHandler::canRead() called with no device");
         return false;
     }
-    if (device->isSequential()) {
-        return false;
-    }
 
-    qint64 oldPos = device->pos();
+    device->startTransaction();
     QByteArray head = device->read(QOI_HEADER_SIZE);
-    int readBytes = head.size();
-
-    device->seek(oldPos);
+    qsizetype readBytes = head.size();
+    device->rollbackTransaction();
 
     if (readBytes < QOI_HEADER_SIZE) {
         return false;
@@ -230,7 +222,7 @@ bool QOIHandler::read(QImage *image)
     }
 
     QImage img;
-    bool result = LoadQOI(s, qoi, img);
+    bool result = LoadQOI(s.device(), qoi, img);
 
     if (result == false) {
         return false;
@@ -238,6 +230,62 @@ bool QOIHandler::read(QImage *image)
 
     *image = img;
     return true;
+}
+
+bool QOIHandler::supportsOption(ImageOption option) const
+{
+    if (option == QImageIOHandler::Size) {
+        return true;
+    }
+    if (option == QImageIOHandler::ImageFormat) {
+        return true;
+    }
+    return false;
+}
+
+QVariant QOIHandler::option(ImageOption option) const
+{
+    QVariant v;
+
+    if (option == QImageIOHandler::Size) {
+        if (auto d = device()) {
+            // transactions works on both random and sequential devices
+            d->startTransaction();
+            auto ba = d->read(sizeof(QoiHeader));
+            d->rollbackTransaction();
+
+            QDataStream s(ba);
+            s.setByteOrder(QDataStream::BigEndian);
+
+            QoiHeader header;
+            s >> header;
+
+            if (s.status() == QDataStream::Ok && IsSupported(header)) {
+                v = QVariant::fromValue(QSize(header.Width, header.Height));
+            }
+        }
+    }
+
+    if (option == QImageIOHandler::ImageFormat) {
+        if (auto d = device()) {
+            // transactions works on both random and sequential devices
+            d->startTransaction();
+            auto ba = d->read(sizeof(QoiHeader));
+            d->rollbackTransaction();
+
+            QDataStream s(ba);
+            s.setByteOrder(QDataStream::BigEndian);
+
+            QoiHeader header;
+            s >> header;
+
+            if (s.status() == QDataStream::Ok && IsSupported(header)) {
+                v = QVariant::fromValue(imageFormat(header));
+            }
+        }
+    }
+
+    return v;
 }
 
 QImageIOPlugin::Capabilities QOIPlugin::capabilities(QIODevice *device, const QByteArray &format) const
@@ -266,3 +314,5 @@ QImageIOHandler *QOIPlugin::create(QIODevice *device, const QByteArray &format) 
     handler->setFormat(format);
     return handler;
 }
+
+#include "moc_qoi.cpp"
