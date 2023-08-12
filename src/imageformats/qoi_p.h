@@ -5,8 +5,8 @@
     SPDX-License-Identifier: LGPL-2.0-or-later
 */
 
-#ifndef KIMG_QOI_H
-#define KIMG_QOI_H
+#ifndef KIMG_QOI_P_H
+#define KIMG_QOI_P_H
 
 #include <QImageIOPlugin>
 
@@ -34,4 +34,4 @@ public:
     QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const override;
 };
 
-#endif // KIMG_QOI_H
+#endif // KIMG_QOI_P_H

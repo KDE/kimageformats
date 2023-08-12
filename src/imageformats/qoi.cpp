@@ -5,9 +5,9 @@
     SPDX-License-Identifier: LGPL-2.0-or-later
 */
 
-#include "qoi.h"
-
+#include "qoi_p.h"
 #include "util_p.h"
+
 #include <QColorSpace>
 #include <QFile>
 #include <QIODevice>
@@ -315,4 +315,4 @@ QImageIOHandler *QOIPlugin::create(QIODevice *device, const QByteArray &format) 
     return handler;
 }
 
-#include "moc_qoi.cpp"
+#include "moc_qoi_p.cpp"
