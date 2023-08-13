@@ -14,11 +14,12 @@ image formats.
 The following image formats have read-only support:
 
 - Animated Windows cursors (ani)
+- Camera RAW images (arw, cr2, cr3, dcs, dng, ...)
 - Gimp (xcf)
 - OpenEXR (exr)
 - Photoshop documents (psd, psb, pdd, psdt)
+- Radiance HDR (hdr)
 - Sun Raster (ras)
-- Camera RAW images (arw, cr2, cr3, dcs, dng, ...)
 - Quite OK Image format (qoi)
 
 The following image formats have read and write support:

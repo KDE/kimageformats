@@ -9,11 +9,11 @@
 #include "hdr_p.h"
 #include "util_p.h"
 
+#include <QColorSpace>
 #include <QDataStream>
 #include <QImage>
 #include <QLoggingCategory>
 #include <QRegularExpressionMatch>
-#include <QColorSpace>
 
 #include <QDebug>
 
@@ -26,15 +26,6 @@ namespace // Private.
 #define MAXLINE 1024
 #define MINELEN 8 // minimum scanline length for encoding
 #define MAXELEN 0x7fff // maximum scanline length for encoding
-
-static inline uchar ClipToByte(float value)
-{
-    if (value > 255.0f) {
-        return 255;
-    }
-    // else if (value < 0.0f) return 0;  // we know value is positive.
-    return uchar(value);
-}
 
 // read an old style line from the hdr image file
 // if 'first' is true the first byte is already read
@@ -70,7 +61,7 @@ static bool Read_Old_Line(uchar *image, int width, QDataStream &s)
     return true;
 }
 
-static void RGBE_To_QRgbLine(uchar *image, QRgb *scanline, int width)
+static void RGBE_To_QRgbLine(uchar *image, float *scanline, int width)
 {
     for (int j = 0; j < width; j++) {
         // v = ldexp(1.0, int(image[3]) - 128);
@@ -82,8 +73,12 @@ static void RGBE_To_QRgbLine(uchar *image, QRgb *scanline, int width)
             v = 1.0f / float(1 << -e);
         }
 
-        scanline[j] = qRgb(ClipToByte(float(image[0]) * v), ClipToByte(float(image[1]) * v), ClipToByte(float(image[2]) * v));
-
+        auto j4 = j * 4;
+        auto vn = v / 255.0f;
+        scanline[j4] = std::min(float(image[0]) * vn, 1.0f);
+        scanline[j4 + 1] = std::min(float(image[1]) * vn, 1.0f);
+        scanline[j4 + 2] = std::min(float(image[2]) * vn, 1.0f);
+        scanline[j4 + 3] = 1.0f;
         image += 4;
     }
 }
@@ -95,7 +90,7 @@ static bool LoadHDR(QDataStream &s, const int width, const int height, QImage &i
     uchar code;
 
     // Create dst image.
-    img = imageAlloc(width, height, QImage::Format_RGB32);
+    img = imageAlloc(width, height, QImage::Format_RGBX32FPx4);
     if (img.isNull()) {
         qCDebug(HDRPLUGIN) << "Couldn't create image with size" << width << height << "and format RGB32";
         return false;
@@ -106,7 +101,7 @@ static bool LoadHDR(QDataStream &s, const int width, const int height, QImage &i
     uchar *image = (uchar *)lineArray.data();
 
     for (int cline = 0; cline < height; cline++) {
-        QRgb *scanline = (QRgb *)img.scanLine(cline);
+        auto scanline = (float *)img.scanLine(cline);
 
         // determine scanline type
         if ((width < MINELEN) || (MAXELEN < width)) {
