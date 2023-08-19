@@ -134,6 +134,9 @@ endif()
 ##################################
 
 kimageformats_add_plugin(kimg_qoi SOURCES qoi.cpp)
+if (QT_MAJOR_VERSION STREQUAL "5")
+    install(FILES qoi.desktop DESTINATION ${KDE_INSTALL_KSERVICESDIR}/qimageioplugins/)
+endif()
 
 ##################################
 
