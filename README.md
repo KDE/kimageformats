@@ -16,7 +16,9 @@ The following image formats have read-only support:
 - Animated Windows cursors (ani)
 - Camera RAW images (arw, cr2, cr3, dcs, dng, ...)
 - Gimp (xcf)
+- Krita (kra)
 - OpenEXR (exr)
+- OpenRaster (ora)
 - Photoshop documents (psd, psb, pdd, psdt)
 - Radiance HDR (hdr)
 - Sun Raster (ras)
@@ -32,7 +34,6 @@ The following image formats have read and write support:
 - SGI images (rgb, rgba, sgi, bw)
 - Softimage PIC (pic)
 - Targa (tga): supports more formats than Qt's version
-- XView (xv)
 
 ## Contributing
 
