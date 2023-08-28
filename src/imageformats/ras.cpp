@@ -3,6 +3,7 @@
     SPDX-FileCopyrightText: 2003 Dominik Seichter <domseichter@web.de>
     SPDX-FileCopyrightText: 2004 Ignacio Castaño <castano@ludicon.com>
     SPDX-FileCopyrightText: 2010 Troy Unrau <troy@kde.org>
+    SPDX-FileCopyrightText: 2023 Mirco Miranda <mircomir@outlook.com>
 
     SPDX-License-Identifier: LGPL-2.0-or-later
 */
@@ -80,152 +81,161 @@ static bool IsSupported(const RasHeader &head)
         return false;
     }
     // check for an appropriate depth
-    // we support 8bit+palette, 24bit and 32bit ONLY!
-    // TODO: add support for 1bit
-    if (!((head.Depth == 8 && head.ColorMapType == 1) || head.Depth == 24 || head.Depth == 32)) {
+    if (head.Depth != 1 && head.Depth != 8 && head.Depth != 24 && head.Depth != 32) {
+        return false;
+    }
+    if (head.Width == 0 || head.Height == 0) {
         return false;
     }
     // the Type field adds support for RLE(BGR), RGB and other encodings
     // we support Type 1: Normal(BGR) and Type 3: Normal(RGB) ONLY!
     // TODO: add support for Type 2: RLE(BGR) & Type 4,5: TIFF/IFF
-    if (!(head.Type == 1 || head.Type == 3)) {
-        return false;
-    }
-    // Old files didn't have Length set - reject them for now
-    // TODO: add length recalculation to support old files
-    if (!head.Length) {
+    if (!(head.Type == RAS_TYPE_STANDARD || head.Type == RAS_TYPE_RGB_FORMAT)) {
         return false;
     }
     return true;
+}
+
+static QImage::Format imageFormat(const RasHeader &header)
+{
+    if (header.ColorMapType == RAS_COLOR_MAP_TYPE_RGB) {
+        return QImage::Format_Indexed8;
+    }
+    if (header.Depth == 8 && header.ColorMapType == RAS_COLOR_MAP_TYPE_NONE) {
+        return QImage::Format_Grayscale8;
+    }
+    if (header.Depth == 1) {
+        return QImage::Format_Mono;
+    }
+    return QImage::Format_RGB32;
 }
 
 static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
 {
     s.device()->seek(RasHeader::SIZE);
 
-    if (ras.ColorMapLength > kMaxQVectorSize) {
-        qWarning() << "LoadRAS() unsupported image color map length in file header" << ras.ColorMapLength;
+    // The width of a scan line is always a multiple of 16 bits, padded when necessary.
+    auto rasLineSize = (qint64(ras.Width) * ras.Depth + 7) / 8;
+    if (rasLineSize & 1)
+        ++rasLineSize;
+    if (rasLineSize > kMaxQVectorSize) {
+        qWarning() << "LoadRAS() unsupported line size" << rasLineSize;
         return false;
-    }
-
-    // Read palette if needed.
-    QVector<quint8> palette(ras.ColorMapLength);
-    if (ras.ColorMapType == 1) {
-        for (quint32 i = 0; i < ras.ColorMapLength; ++i) {
-            s >> palette[i];
-        }
-    }
-
-    const int bpp = ras.Depth / 8;
-    if (ras.Height == 0) {
-        return false;
-    }
-    if (bpp == 0) {
-        return false;
-    }
-    if (ras.Length / ras.Height / bpp < ras.Width) {
-        qWarning() << "LoadRAS() mistmatch between height and width" << ras.Width << ras.Height << ras.Length << ras.Depth;
-        return false;
-    }
-    if (ras.Length > kMaxQVectorSize) {
-        qWarning() << "LoadRAS() unsupported image length in file header" << ras.Length;
-        return false;
-    }
-
-    // each line must be a factor of 16 bits, so they may contain padding
-    // this will be 1 if padding required, 0 otherwise
-    const int paddingrequired = (ras.Width * bpp % 2);
-
-    // qDebug() << "paddingrequired: " << paddingrequired;
-    // don't trust ras.Length
-    QVector<quint8> input(ras.Length);
-
-    int i = 0;
-    while (!s.atEnd() && i < input.size()) {
-        s >> input[i];
-        // I guess we need to find out if we're at the end of a line
-        if (paddingrequired && i != 0 && !(i % (ras.Width * bpp))) {
-            s >> input[i];
-        }
-        i++;
     }
 
     // Allocate image
-    img = imageAlloc(ras.Width, ras.Height, QImage::Format_ARGB32);
+    img = imageAlloc(ras.Width, ras.Height, imageFormat(ras));
     if (img.isNull()) {
         return false;
     }
 
-    // Reconstruct image from RGB palette if we have a palette
-    // TODO: make generic so it works with 24bit or 32bit palettes
-    if (ras.ColorMapType == 1 && ras.Depth == 8) {
-        quint8 red;
-        quint8 green;
-        quint8 blue;
-        for (quint32 y = 0; y < ras.Height; y++) {
-            for (quint32 x = 0; x < ras.Width; x++) {
-                red = palette.value((int)input[y * ras.Width + x]);
-                green = palette.value((int)input[y * ras.Width + x] + (ras.ColorMapLength / 3));
-                blue = palette.value((int)input[y * ras.Width + x] + 2 * (ras.ColorMapLength / 3));
-                img.setPixel(x, y, qRgb(red, green, blue));
-            }
+    // Read palette if needed.
+    if (ras.ColorMapType == RAS_COLOR_MAP_TYPE_RGB) {
+        QVector<quint8> palette(ras.ColorMapLength);
+        for (quint32 i = 0; i < ras.ColorMapLength; ++i) {
+            s >> palette[i];
+        }
+        QList<QRgb> colorTable;
+        for (quint32 i = 0, n = ras.ColorMapLength / 3; i < n; ++i) {
+            colorTable << qRgb(palette.at(i), palette.at(i + n), palette.at(i + 2 * n));
+        }
+        for (; colorTable.size() < 256;) {
+            colorTable << qRgb(255, 255, 255);
+        }
+        img.setColorTable(colorTable);
+        if (s.status() != QDataStream::Ok) {
+            return false;
         }
     }
 
-    if (ras.ColorMapType == 0 && ras.Depth == 24 && (ras.Type == 1 || ras.Type == 2)) {
-        quint8 red;
-        quint8 green;
-        quint8 blue;
-        for (quint32 y = 0; y < ras.Height; y++) {
-            for (quint32 x = 0; x < ras.Width; x++) {
-                red = input[y * 3 * ras.Width + x * 3 + 2];
-                green = input[y * 3 * ras.Width + x * 3 + 1];
-                blue = input[y * 3 * ras.Width + x * 3];
-                img.setPixel(x, y, qRgb(red, green, blue));
-            }
+    QByteArray rasLine(rasLineSize, 0);
+    auto bytesPerLine = std::min(img.bytesPerLine(), rasLine.size());
+    for (quint32 y = 0; y < ras.Height; ++y) {
+        auto read = s.readRawData(rasLine.data(), rasLine.size());
+        if (read != rasLine.size()) {
+            qWarning() << "LoadRAS() unable to read line" << y << ": the seems corrupted!";
+            return false;
         }
-    }
 
-    if (ras.ColorMapType == 0 && ras.Depth == 24 && ras.Type == 3) {
-        quint8 red;
-        quint8 green;
-        quint8 blue;
-        for (quint32 y = 0; y < ras.Height; y++) {
-            for (quint32 x = 0; x < ras.Width; x++) {
-                red = input[y * 3 * ras.Width + x * 3];
-                green = input[y * 3 * ras.Width + x * 3 + 1];
-                blue = input[y * 3 * ras.Width + x * 3 + 2];
-                img.setPixel(x, y, qRgb(red, green, blue));
+        // Grayscale 1-bit / Grayscale 8-bit (never seen)
+        if (ras.ColorMapType == RAS_COLOR_MAP_TYPE_NONE && (ras.Depth == 1 || ras.Depth == 8)) {
+            for (auto &&b : rasLine) {
+                b = ~b;
             }
+            std::memcpy(img.scanLine(y), rasLine.constData(), bytesPerLine);
+            continue;
         }
-    }
 
-    if (ras.ColorMapType == 0 && ras.Depth == 32 && (ras.Type == 1 || ras.Type == 2)) {
-        quint8 red;
-        quint8 green;
-        quint8 blue;
-        for (quint32 y = 0; y < ras.Height; y++) {
-            for (quint32 x = 0; x < ras.Width; x++) {
-                red = input[y * 4 * ras.Width + x * 4 + 3];
-                green = input[y * 4 * ras.Width + x * 4 + 2];
-                blue = input[y * 4 * ras.Width + x * 4 + 1];
-                img.setPixel(x, y, qRgb(red, green, blue));
-            }
+        // Image with palette
+        if (ras.ColorMapType == RAS_COLOR_MAP_TYPE_RGB && (ras.Depth == 1 || ras.Depth == 8)) {
+            std::memcpy(img.scanLine(y), rasLine.constData(), bytesPerLine);
+            continue;
         }
-    }
 
-    if (ras.ColorMapType == 0 && ras.Depth == 32 && ras.Type == 3) {
-        quint8 red;
-        quint8 green;
-        quint8 blue;
-        for (quint32 y = 0; y < ras.Height; y++) {
+        // BGR 24-bit
+        if (ras.ColorMapType == RAS_COLOR_MAP_TYPE_NONE && ras.Depth == 24 && (ras.Type == RAS_TYPE_STANDARD || ras.Type == RAS_TYPE_BYTE_ENCODED)) {
+            quint8 red;
+            quint8 green;
+            quint8 blue;
+            auto scanLine = reinterpret_cast<QRgb *>(img.scanLine(y));
             for (quint32 x = 0; x < ras.Width; x++) {
-                red = input[y * 4 * ras.Width + x * 4 + 1];
-                green = input[y * 4 * ras.Width + x * 4 + 2];
-                blue = input[y * 4 * ras.Width + x * 4 + 3];
-                img.setPixel(x, y, qRgb(red, green, blue));
+                red = rasLine.at(x * 3 + 2);
+                green = rasLine.at(x * 3 + 1);
+                blue = rasLine.at(x * 3);
+                *(scanLine + x) = qRgb(red, green, blue);
             }
+            continue;
         }
+
+        // RGB 24-bit
+        if (ras.ColorMapType == RAS_COLOR_MAP_TYPE_NONE && ras.Depth == 24 && ras.Type == RAS_TYPE_RGB_FORMAT) {
+            quint8 red;
+            quint8 green;
+            quint8 blue;
+            auto scanLine = reinterpret_cast<QRgb *>(img.scanLine(y));
+            for (quint32 x = 0; x < ras.Width; x++) {
+                red = rasLine.at(x * 3);
+                green = rasLine.at(x * 3 + 1);
+                blue = rasLine.at(x * 3 + 2);
+                *(scanLine + x) = qRgb(red, green, blue);
+            }
+            continue;
+        }
+
+        // BGR 32-bit (not tested: test case missing)
+        if (ras.ColorMapType == RAS_COLOR_MAP_TYPE_NONE && ras.Depth == 32 && (ras.Type == RAS_TYPE_STANDARD || ras.Type == RAS_TYPE_BYTE_ENCODED)) {
+            quint8 red;
+            quint8 green;
+            quint8 blue;
+            auto scanLine = reinterpret_cast<QRgb *>(img.scanLine(y));
+            for (quint32 x = 0; x < ras.Width; x++) {
+                red = rasLine.at(x * 4 + 3);
+                green = rasLine.at(x * 4 + 2);
+                blue = rasLine.at(x * 4 + 1);
+                *(scanLine + x) = qRgb(red, green, blue);
+            }
+
+            continue;
+        }
+
+        // RGB 32-bit (tested: test case missing due to image too large)
+        if (ras.ColorMapType == RAS_COLOR_MAP_TYPE_NONE && ras.Depth == 32 && ras.Type == RAS_TYPE_RGB_FORMAT) {
+            quint8 red;
+            quint8 green;
+            quint8 blue;
+            auto scanLine = reinterpret_cast<QRgb *>(img.scanLine(y));
+            for (quint32 x = 0; x < ras.Width; x++) {
+                red = rasLine.at(x * 4 + 1);
+                green = rasLine.at(x * 4 + 2);
+                blue = rasLine.at(x * 4 + 3);
+                *(scanLine + x) = qRgb(red, green, blue);
+            }
+            continue;
+        }
+
+        qWarning() << "LoadRAS() unsupported format!"
+                   << "ColorMapType:" << ras.ColorMapType << "Type:" << ras.Type << "Depth:" << ras.Depth;
+        return false;
     }
 
     return true;
@@ -283,16 +293,8 @@ bool RASHandler::read(QImage *outImage)
     RasHeader ras;
     s >> ras;
 
-    if (ras.ColorMapLength > std::numeric_limits<int>::max()) {
-        return false;
-    }
-
-    // TODO: add support for old versions of RAS where Length may be zero in header
-    s.device()->seek(RasHeader::SIZE + ras.Length + ras.ColorMapLength);
-
-    // Check image file format. Type 2 is RLE, which causing seeking to be silly.
-    if (!s.atEnd() && ras.Type != 2) {
-        //         qDebug() << "This RAS file is not valid, or an older version of the format.";
+    if (ras.ColorMapLength > kMaxQVectorSize) {
+        qWarning() << "LoadRAS() unsupported image color map length in file header" << ras.ColorMapLength;
         return false;
     }
 
@@ -314,9 +316,65 @@ bool RASHandler::read(QImage *outImage)
     return true;
 }
 
+bool RASHandler::supportsOption(ImageOption option) const
+{
+    if (option == QImageIOHandler::Size) {
+        return true;
+    }
+    if (option == QImageIOHandler::ImageFormat) {
+        return true;
+    }
+    return false;
+}
+
+QVariant RASHandler::option(ImageOption option) const
+{
+    QVariant v;
+
+    if (option == QImageIOHandler::Size) {
+        if (auto d = device()) {
+            // transactions works on both random and sequential devices
+            d->startTransaction();
+            auto ba = d->read(RasHeader::SIZE);
+            d->rollbackTransaction();
+
+            QDataStream s(ba);
+            s.setByteOrder(QDataStream::BigEndian);
+
+            RasHeader header;
+            s >> header;
+
+            if (s.status() == QDataStream::Ok && IsSupported(header)) {
+                v = QVariant::fromValue(QSize(header.Width, header.Height));
+            }
+        }
+    }
+
+    if (option == QImageIOHandler::ImageFormat) {
+        if (auto d = device()) {
+            // transactions works on both random and sequential devices
+            d->startTransaction();
+            auto ba = d->read(RasHeader::SIZE);
+            d->rollbackTransaction();
+
+            QDataStream s(ba);
+            s.setByteOrder(QDataStream::BigEndian);
+
+            RasHeader header;
+            s >> header;
+
+            if (s.status() == QDataStream::Ok && IsSupported(header)) {
+                v = QVariant::fromValue(imageFormat(header));
+            }
+        }
+    }
+
+    return v;
+}
+
 QImageIOPlugin::Capabilities RASPlugin::capabilities(QIODevice *device, const QByteArray &format) const
 {
-    if (format == "ras") {
+    if (format == "im1" || format == "im8" || format == "im24" || format == "im32" || format == "ras" || format == "sun") {
         return Capabilities(CanRead);
     }
     if (!format.isEmpty()) {
