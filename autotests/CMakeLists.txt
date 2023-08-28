@@ -123,6 +123,7 @@ kimageformats_read_tests(FUZZ 1
 kimageformats_write_tests(
     pcx-lossless
     pic-lossless
+    qoi-lossless
     rgb-lossless
     tga # fixme: the alpha images appear not to be written properly
 )
