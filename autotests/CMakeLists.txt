@@ -1,7 +1,6 @@
 #find_package(Qt5Test ${REQUIRED_QT_VERSION} NO_MODULE)
 
 include(ECMMarkAsTest)
-include(CMakeParseArguments)
 
 add_definitions(-DPLUGIN_DIR="${CMAKE_CURRENT_BINARY_DIR}/../bin")
 remove_definitions(-DQT_NO_CAST_FROM_ASCII)
