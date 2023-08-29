@@ -51,7 +51,10 @@ set_package_properties(OpenEXR PROPERTIES
     PURPOSE "Required for the QImage plugin for OpenEXR images"
 )
 
-find_package(libavif 0.8.2 CONFIG)
+find_package(libavif 0.8.2 CONFIG QUIET)
+if(NOT libavif_FOUND)
+    find_package(libavif 1 CONFIG)
+endif()
 set_package_properties(libavif PROPERTIES
     TYPE OPTIONAL
     PURPOSE "Required for the QImage plugin for AVIF images"
