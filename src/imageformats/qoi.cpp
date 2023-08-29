@@ -411,7 +411,7 @@ QVariant QOIHandler::option(ImageOption option) const
             QDataStream s(ba);
             s.setByteOrder(QDataStream::BigEndian);
 
-            QoiHeader header;
+            QoiHeader header = {0, 0, 0, 0, 2};
             s >> header;
 
             if (s.status() == QDataStream::Ok && IsSupported(header)) {
@@ -430,7 +430,7 @@ QVariant QOIHandler::option(ImageOption option) const
             QDataStream s(ba);
             s.setByteOrder(QDataStream::BigEndian);
 
-            QoiHeader header;
+            QoiHeader header = {0, 0, 0, 0, 2};
             s >> header;
 
             if (s.status() == QDataStream::Ok && IsSupported(header)) {
