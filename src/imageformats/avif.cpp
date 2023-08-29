@@ -424,7 +424,7 @@ bool QAVIFHandler::decode_one_frame()
     }
 
     if (m_decoder->image->transformFlags & AVIF_TRANSFORM_IMIR) {
-#if AVIF_VERSION > 90100
+#if AVIF_VERSION > 90100 && AVIF_VERSION < 1000000
         switch (m_decoder->image->imir.mode) {
 #else
         switch (m_decoder->image->imir.axis) {
