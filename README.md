@@ -21,7 +21,7 @@ The following image formats have read-only support:
 - OpenRaster (ora)
 - Photoshop documents (psd, psb, pdd, psdt)
 - Radiance HDR (hdr)
-- Sun Raster (ras)
+- Sun Raster (im1, im8, im24, im32, ras, sun)
 
 The following image formats have read and write support:
 

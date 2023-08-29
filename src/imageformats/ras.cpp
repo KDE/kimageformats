@@ -40,14 +40,14 @@ enum RASColorMapType {
 };
 
 struct RasHeader {
-    quint32 MagicNumber;
-    quint32 Width;
-    quint32 Height;
-    quint32 Depth;
-    quint32 Length;
-    quint32 Type;
-    quint32 ColorMapType;
-    quint32 ColorMapLength;
+    quint32 MagicNumber = 0;
+    quint32 Width = 0;
+    quint32 Height = 0;
+    quint32 Depth = 0;
+    quint32 Length = 0;
+    quint32 Type = 0;
+    quint32 ColorMapType = 0;
+    quint32 ColorMapLength = 0;
     enum {
         SIZE = 32,
     }; // 8 fields of four bytes each
@@ -88,9 +88,9 @@ static bool IsSupported(const RasHeader &head)
         return false;
     }
     // the Type field adds support for RLE(BGR), RGB and other encodings
-    // we support Type 1: Normal(BGR) and Type 3: Normal(RGB) ONLY!
-    // TODO: add support for Type 2: RLE(BGR) & Type 4,5: TIFF/IFF
-    if (!(head.Type == RAS_TYPE_STANDARD || head.Type == RAS_TYPE_RGB_FORMAT)) {
+    // we support Type 1: Normal(BGR), Type 2: RLE(BGR) and Type 3: Normal(RGB) ONLY!
+    // TODO: add support for Type 4,5: TIFF/IFF
+    if (!(head.Type == RAS_TYPE_STANDARD || head.Type == RAS_TYPE_RGB_FORMAT || head.Type == RAS_TYPE_BYTE_ENCODED)) {
         return false;
     }
     return true;
@@ -109,6 +109,96 @@ static QImage::Format imageFormat(const RasHeader &header)
     }
     return QImage::Format_RGB32;
 }
+
+class LineDecoder
+{
+public:
+    LineDecoder(QIODevice *d, const RasHeader &ras)
+        : device(d)
+        , header(ras)
+    {
+    }
+
+    QByteArray readLine(qint64 size)
+    {
+        /* *** uncompressed
+         */
+        if (header.Type != RAS_TYPE_BYTE_ENCODED) {
+            return device->read(size);
+        }
+
+        /* *** rle compressed
+         * The Run-length encoding (RLE) scheme optionally used in Sun Raster
+         * files (Type = 0002h) is used to encode bytes of image data
+         * separately. RLE encoding may be found in any Sun Raster file
+         * regardless of the type of image data it contains.
+         *
+         * The RLE packets are typically three bytes in size:
+         * - The first byte is a Flag Value indicating the type of RLE packet.
+         * - The second byte is the Run Count.
+         * - The third byte is the Run Value.
+         *
+         * A Flag Value of 80h is followed by a Run Count in the range of 01h
+         * to FFh. The Run Value follows the Run count and is in the range of
+         * 00h to FFh. The pixel run is the Run Value repeated Run Count times.
+         * There are two exceptions to this algorithm. First, if the Run Count
+         * following the Flag Value is 00h, this is an indication that the run
+         * is a single byte in length and has a value of 80h. And second, if
+         * the Flag Value is not 80h, then it is assumed that the data is
+         * unencoded pixel data and is written directly to the output stream.
+         *
+         * source: http://www.fileformat.info/format/sunraster/egff.htm
+         */
+        for (qsizetype psz = 0, ptr = 0; uncBuffer.size() < size;) {
+            rleBuffer.append(device->read(std::min(qint64(32768), size)));
+            qsizetype sz = rleBuffer.size();
+            if (psz == sz) {
+                break; // avoid infinite loop (data corrupted?!)
+            }
+            auto data = reinterpret_cast<uchar *>(rleBuffer.data());
+            for (; ptr < sz;) {
+                auto flag = data[ptr++];
+                if (flag == 0x80) {
+                    if (ptr >= sz) {
+                        ptr -= 1;
+                        break;
+                    }
+                    auto cnt = data[ptr++];
+                    if (cnt == 0) {
+                        uncBuffer.append(char(0x80));
+                        continue;
+                    } else if (ptr >= sz) {
+                        ptr -= 2;
+                        break;
+                    }
+                    auto val = data[ptr++];
+                    uncBuffer.append(QByteArray(1 + cnt, char(val)));
+                } else {
+                    uncBuffer.append(char(flag));
+                }
+            }
+            if (ptr) { // remove consumed data
+                rleBuffer.remove(0, ptr);
+                ptr = 0;
+            }
+            psz = rleBuffer.size();
+        }
+        if (uncBuffer.size() < size) {
+            return QByteArray(); // something wrong
+        }
+        auto line = uncBuffer.mid(0, size);
+        uncBuffer.remove(0, line.size()); // remove consumed data
+        return line;
+    }
+
+private:
+    QIODevice *device;
+    RasHeader header;
+
+    // RLE decoding buffers
+    QByteArray rleBuffer;
+    QByteArray uncBuffer;
+};
 
 static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
 {
@@ -148,11 +238,11 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
         }
     }
 
-    QByteArray rasLine(rasLineSize, 0);
-    auto bytesPerLine = std::min(img.bytesPerLine(), rasLine.size());
+    LineDecoder dec(s.device(), ras);
+    auto bytesPerLine = std::min(img.bytesPerLine(), qsizetype(rasLineSize));
     for (quint32 y = 0; y < ras.Height; ++y) {
-        auto read = s.readRawData(rasLine.data(), rasLine.size());
-        if (read != rasLine.size()) {
+        auto rasLine = dec.readLine(rasLineSize);
+        if (rasLine.size() != rasLineSize) {
             qWarning() << "LoadRAS() unable to read line" << y << ": the seems corrupted!";
             return false;
         }
