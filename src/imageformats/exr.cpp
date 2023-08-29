@@ -54,9 +54,7 @@
 #include <QImage>
 #include <QImageIOPlugin>
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 #include <QTimeZone>
-#endif
 
 // Allow the code to works on all QT versions supported by KDE
 // project (Qt 5.15 and Qt 6.x) to easy backports fixes.
@@ -194,11 +192,7 @@ bool EXRHandler::read(QImage *outImage)
             }
             auto dateTime = QDateTime::fromString(QString::fromStdString(capDate->value()), QStringLiteral("yyyy:MM:dd HH:mm:ss"));
             if (dateTime.isValid()) {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
                 dateTime.setTimeZone(QTimeZone::fromSecondsAheadOfUtc(off));
-#else
-                dateTime.setOffsetFromUtc(off);
-#endif
                 image.setText(QStringLiteral("Date"), dateTime.toString(Qt::ISODate));
             }
         }
