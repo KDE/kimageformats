@@ -141,7 +141,7 @@ static bool LoadQOI(QIODevice *device, const QoiHeader &qoi, QImage &img)
 
         quint64 chunks_len = ba.size() - QOI_END_STREAM_PAD;
         quint64 p = 0;
-        QRgb *scanline = (QRgb *)img.scanLine(y);
+        QRgb *scanline = reinterpret_cast<QRgb *>(img.scanLine(y));
         const quint8 *input = reinterpret_cast<const quint8 *>(ba.constData());
         for (quint32 x = 0; x < qoi.Width; ++x) {
             if (run > 0) {
@@ -328,7 +328,7 @@ bool QOIHandler::canRead(QIODevice *device)
 
     QDataStream stream(head);
     stream.setByteOrder(QDataStream::BigEndian);
-    QoiHeader qoi;
+    QoiHeader qoi = {0, 0, 0, 0, 2};
     stream >> qoi;
 
     return IsSupported(qoi);
@@ -340,7 +340,7 @@ bool QOIHandler::read(QImage *image)
     s.setByteOrder(QDataStream::BigEndian);
 
     // Read image header
-    QoiHeader qoi;
+    QoiHeader qoi = {0, 0, 0, 0, 2};
     s >> qoi;
 
     // Check if file is supported

@@ -5,6 +5,7 @@
 */
 
 #include "scanlineconverter_p.h"
+#include <cstring>
 
 ScanLineConverter::ScanLineConverter(const QImage::Format &targetFormat)
     : _targetFormat(targetFormat)
