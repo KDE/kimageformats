@@ -20,7 +20,6 @@ The following image formats have read-only support:
 - Photoshop documents (psd, psb, pdd, psdt)
 - Radiance HDR (hdr)
 - Sun Raster (ras)
-- Quite OK Image format (qoi)
 
 The following image formats have read and write support:
 
@@ -28,6 +27,7 @@ The following image formats have read and write support:
 - Encapsulated PostScript (eps)
 - JPEG XL (jxl)
 - Personal Computer Exchange (pcx)
+- Quite OK Image format (qoi)
 - SGI images (rgb, rgba, sgi, bw)
 - Softimage PIC (pic)
 - Targa (tga): supports more formats than Qt's version

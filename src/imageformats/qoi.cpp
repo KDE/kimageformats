@@ -1,11 +1,13 @@
 /*
     This file is part of the KDE project
     SPDX-FileCopyrightText: 2023 Ernest Gupik <ernestgupik@wp.pl>
+    SPDX-FileCopyrightText: 2023 Mirco Miranda <mircomir@outlook.com>
 
     SPDX-License-Identifier: LGPL-2.0-or-later
 */
 
 #include "qoi_p.h"
+#include "scanlineconverter_p.h"
 #include "util_p.h"
 
 #include <QColorSpace>
@@ -37,6 +39,10 @@ struct QoiHeader {
 };
 
 struct Px {
+    bool operator==(const Px &other) const
+    {
+        return r == other.r && g == other.g && b == other.b && a == other.a;
+    }
     quint8 r;
     quint8 g;
     quint8 b;
@@ -50,6 +56,16 @@ static QDataStream &operator>>(QDataStream &s, QoiHeader &head)
     s >> head.Height;
     s >> head.Channels;
     s >> head.Colorspace;
+    return s;
+}
+
+static QDataStream &operator<<(QDataStream &s, const QoiHeader &head)
+{
+    s << head.MagicNumber;
+    s << head.Width;
+    s << head.Height;
+    s << head.Channels;
+    s << head.Colorspace;
     return s;
 }
 
@@ -85,19 +101,8 @@ static QImage::Format imageFormat(const QoiHeader &head)
 
 static bool LoadQOI(QIODevice *device, const QoiHeader &qoi, QImage &img)
 {
-    Px index[64] = {Px{
-        0,
-        0,
-        0,
-        0,
-    }};
-
-    Px px = Px{
-        0,
-        0,
-        0,
-        255,
-    };
+    Px index[64] = {Px{0, 0, 0, 0}};
+    Px px = Px{0, 0, 0, 255};
 
     // The px_len should be enough to read a complete "compressed" row: an uncompressible row can become
     // larger than the row itself. It should never be more than 1/3 (RGB) or 1/4 (RGBA) the length of the
@@ -136,7 +141,7 @@ static bool LoadQOI(QIODevice *device, const QoiHeader &qoi, QImage &img)
 
         quint64 chunks_len = ba.size() - QOI_END_STREAM_PAD;
         quint64 p = 0;
-        QRgb *scanline = (QRgb *)img.scanLine(y);
+        QRgb *scanline = reinterpret_cast<QRgb *>(img.scanLine(y));
         const quint8 *input = reinterpret_cast<const quint8 *>(ba.constData());
         for (quint32 x = 0; x < qoi.Width; ++x) {
             if (run > 0) {
@@ -185,6 +190,111 @@ static bool LoadQOI(QIODevice *device, const QoiHeader &qoi, QImage &img)
     return (ba.startsWith(QByteArray::fromRawData("\x00\x00\x00\x00\x00\x00\x00\x01", 8)));
 }
 
+static bool SaveQOI(QIODevice *device, const QoiHeader &qoi, const QImage &img)
+{
+    Px index[64] = {Px{0, 0, 0, 0}};
+    Px px = Px{0, 0, 0, 255};
+    Px px_prev = px;
+
+    auto run = 0;
+    auto channels = qoi.Channels;
+
+    QByteArray ba;
+    ba.reserve(img.width() * channels * 3 / 2);
+
+    ScanLineConverter converter(channels == 3 ? QImage::Format_RGB888 : QImage::Format_RGBA8888);
+    converter.setTargetColorSpace(QColorSpace(qoi.Colorspace == 1 ? QColorSpace::SRgbLinear : QColorSpace::SRgb));
+
+    for (auto h = img.height(), y = 0; y < h; ++y) {
+        auto pixels = converter.convertedScanLine(img, y);
+        if (pixels == nullptr) {
+            return false;
+        }
+
+        for (auto w = img.width() * channels, px_pos = 0; px_pos < w; px_pos += channels) {
+            px.r = pixels[px_pos + 0];
+            px.g = pixels[px_pos + 1];
+            px.b = pixels[px_pos + 2];
+
+            if (channels == 4) {
+                px.a = pixels[px_pos + 3];
+            }
+
+            if (px == px_prev) {
+                run++;
+                if (run == 62 || (px_pos == w - channels && y == h - 1)) {
+                    ba.append(QOI_OP_RUN | (run - 1));
+                    run = 0;
+                }
+            } else {
+                int index_pos;
+
+                if (run > 0) {
+                    ba.append(QOI_OP_RUN | (run - 1));
+                    run = 0;
+                }
+
+                index_pos = QoiHash(px) & 0x3F;
+
+                if (index[index_pos] == px) {
+                    ba.append(QOI_OP_INDEX | index_pos);
+                } else {
+                    index[index_pos] = px;
+
+                    if (px.a == px_prev.a) {
+                        signed char vr = px.r - px_prev.r;
+                        signed char vg = px.g - px_prev.g;
+                        signed char vb = px.b - px_prev.b;
+
+                        signed char vg_r = vr - vg;
+                        signed char vg_b = vb - vg;
+
+                        if (vr > -3 && vr < 2 && vg > -3 && vg < 2 && vb > -3 && vb < 2) {
+                            ba.append(QOI_OP_DIFF | (vr + 2) << 4 | (vg + 2) << 2 | (vb + 2));
+                        } else if (vg_r > -9 && vg_r < 8 && vg > -33 && vg < 32 && vg_b > -9 && vg_b < 8) {
+                            ba.append(QOI_OP_LUMA | (vg + 32));
+                            ba.append((vg_r + 8) << 4 | (vg_b + 8));
+                        } else {
+                            ba.append(char(QOI_OP_RGB));
+                            ba.append(px.r);
+                            ba.append(px.g);
+                            ba.append(px.b);
+                        }
+                    } else {
+                        ba.append(char(QOI_OP_RGBA));
+                        ba.append(px.r);
+                        ba.append(px.g);
+                        ba.append(px.b);
+                        ba.append(px.a);
+                    }
+                }
+            }
+            px_prev = px;
+        }
+
+        auto written = device->write(ba);
+        if (written < 0) {
+            return false;
+        }
+        if (written) {
+            ba.remove(0, written);
+        }
+    }
+
+    // QOI end of stream
+    ba.append(QByteArray::fromRawData("\x00\x00\x00\x00\x00\x00\x00\x01", 8));
+
+    // write remaining data
+    for (qint64 w = 0, write = 0, size = ba.size(); write < size; write += w) {
+        w = device->write(ba.constData() + write, size - write);
+        if (w < 0) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 } // namespace
 
 QOIHandler::QOIHandler()
@@ -218,7 +328,7 @@ bool QOIHandler::canRead(QIODevice *device)
 
     QDataStream stream(head);
     stream.setByteOrder(QDataStream::BigEndian);
-    QoiHeader qoi;
+    QoiHeader qoi = {0, 0, 0, 0, 2};
     stream >> qoi;
 
     return IsSupported(qoi);
@@ -230,7 +340,7 @@ bool QOIHandler::read(QImage *image)
     s.setByteOrder(QDataStream::BigEndian);
 
     // Read image header
-    QoiHeader qoi;
+    QoiHeader qoi = {0, 0, 0, 0, 2};
     s >> qoi;
 
     // Check if file is supported
@@ -247,6 +357,33 @@ bool QOIHandler::read(QImage *image)
 
     *image = img;
     return true;
+}
+
+bool QOIHandler::write(const QImage &image)
+{
+    if (image.isNull()) {
+        return false;
+    }
+
+    QoiHeader qoi;
+    qoi.MagicNumber = QOI_MAGIC;
+    qoi.Width = image.width();
+    qoi.Height = image.height();
+    qoi.Channels = image.hasAlphaChannel() ? 4 : 3;
+    qoi.Colorspace = image.colorSpace().transferFunction() == QColorSpace::TransferFunction::Linear ? 1 : 0;
+
+    if (!IsSupported(qoi)) {
+        return false;
+    }
+
+    QDataStream s(device());
+    s.setByteOrder(QDataStream::BigEndian);
+    s << qoi;
+    if (s.status() != QDataStream::Ok) {
+        return false;
+    }
+
+    return SaveQOI(s.device(), qoi, image);
 }
 
 bool QOIHandler::supportsOption(ImageOption option) const
@@ -274,7 +411,7 @@ QVariant QOIHandler::option(ImageOption option) const
             QDataStream s(ba);
             s.setByteOrder(QDataStream::BigEndian);
 
-            QoiHeader header;
+            QoiHeader header = {0, 0, 0, 0, 2};
             s >> header;
 
             if (s.status() == QDataStream::Ok && IsSupported(header)) {
@@ -293,7 +430,7 @@ QVariant QOIHandler::option(ImageOption option) const
             QDataStream s(ba);
             s.setByteOrder(QDataStream::BigEndian);
 
-            QoiHeader header;
+            QoiHeader header = {0, 0, 0, 0, 2};
             s >> header;
 
             if (s.status() == QDataStream::Ok && IsSupported(header)) {
@@ -308,7 +445,7 @@ QVariant QOIHandler::option(ImageOption option) const
 QImageIOPlugin::Capabilities QOIPlugin::capabilities(QIODevice *device, const QByteArray &format) const
 {
     if (format == "qoi" || format == "QOI") {
-        return Capabilities(CanRead);
+        return Capabilities(CanRead | CanWrite);
     }
     if (!format.isEmpty()) {
         return {};
@@ -320,6 +457,9 @@ QImageIOPlugin::Capabilities QOIPlugin::capabilities(QIODevice *device, const QB
     Capabilities cap;
     if (device->isReadable() && QOIHandler::canRead(device)) {
         cap |= CanRead;
+    }
+    if (device->isWritable()) {
+        cap |= CanWrite;
     }
     return cap;
 }
