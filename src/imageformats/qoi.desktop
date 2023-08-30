@@ -4,4 +4,4 @@ X-KDE-ServiceTypes=QImageIOPlugins
 X-KDE-ImageFormat=qoi
 X-KDE-MimeType=image/qoi
 X-KDE-Read=true
-X-KDE-Write=false
+X-KDE-Write=true
