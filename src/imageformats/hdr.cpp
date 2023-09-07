@@ -40,6 +40,7 @@ static bool Read_Old_Line(uchar *image, int width, QDataStream &s)
     int rshift = 0;
     int i;
 
+    uchar *start = image;
     while (width > 0) {
         s >> image[0];
         s >> image[1];
@@ -51,7 +52,11 @@ static bool Read_Old_Line(uchar *image, int width, QDataStream &s)
         }
 
         if ((image[0] == 1) && (image[1] == 1) && (image[2] == 1)) {
-            for (i = image[3] << rshift; i > 0; i--) {
+            // NOTE: we don't have an image sample that cover this code
+            for (i = image[3] << rshift; i > 0 && width > 0; i--) {
+                if (image == start) {
+                    return false; // you cannot be here at the first run
+                }
                 // memcpy(image, image-4, 4);
                 (uint &)image[0] = (uint &)image[0 - 4];
                 image += 4;
@@ -72,7 +77,7 @@ static void RGBE_To_QRgbLine(uchar *image, QRgb *scanline, int width)
     for (int j = 0; j < width; j++) {
         // v = ldexp(1.0, int(image[3]) - 128);
         float v;
-        int e = int(image[3]) - 128;
+        int e = qBound(-31, int(image[3]) - 128, 31);
         if (e > 0) {
             v = float(1 << e);
         } else {
@@ -146,7 +151,7 @@ static bool LoadHDR(QDataStream &s, const int width, const int height, QImage &i
         }
 
         // read each component
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0, len = int(lineArray.size()); i < 4; i++) {
             for (int j = 0; j < width;) {
                 s >> code;
                 if (s.atEnd()) {
@@ -158,14 +163,20 @@ static bool LoadHDR(QDataStream &s, const int width, const int height, QImage &i
                     code &= 127;
                     s >> val;
                     while (code != 0) {
-                        image[i + j * 4] = val;
+                        auto idx = i + j * 4;
+                        if (idx < len) {
+                            image[idx] = val;
+                        }
                         j++;
                         code--;
                     }
                 } else {
                     // non-run
                     while (code != 0) {
-                        s >> image[i + j * 4];
+                        auto idx = i + j * 4;
+                        if (idx < len) {
+                            s >> image[idx];
+                        }
                         j++;
                         code--;
                     }
