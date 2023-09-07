@@ -2048,7 +2048,7 @@ bool XCFImageFormat::loadLevel(QDataStream &xcf_io, Layer &layer, qint32 bpp, co
 
             switch (layer.compression) {
             case COMPRESS_NONE: {
-                if (xcf_io.version() > 11) {
+                if (xcf_io.version() > 11 || size_t(bpp) > sizeof(QRgba64)) {
                     qCDebug(XCFPLUGIN) << "Component reading not supported yet";
                     return false;
                 }
