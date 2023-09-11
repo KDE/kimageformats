@@ -53,6 +53,9 @@ static bool Read_Old_Line(uchar *image, int width, QDataStream &s)
 
         if ((image[0] == 1) && (image[1] == 1) && (image[2] == 1)) {
             // NOTE: we don't have an image sample that cover this code
+            if (rshift > 31) {
+                return false;
+            }
             for (i = image[3] << rshift; i > 0 && width > 0; i--) {
                 if (image == start) {
                     return false; // you cannot be here at the first run
