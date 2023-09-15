@@ -20,12 +20,6 @@
 #include <QVector>
 #include <QtEndian>
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-// To test the plugin with OSS FUZZ (in 2023) you need to make it compatible with Qt 5.
-// The plugin has been made compatible with all Qt (5 and 6) versions supported by the KDE project.
-#define XCF_QT5_SUPPORT
-#endif
-
 #ifndef XCF_QT5_SUPPORT
 // Float images are not supported by Qt 5 and can be disabled in QT 6 to reduce memory usage.
 // Unfortunately enabling/disabling this define results in slightly different images, so leave the default if possible.
