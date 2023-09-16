@@ -103,7 +103,7 @@ int main(int argc, char **argv)
             QTextStream(stderr) << "Unknown QImage data format " << parser.value(qimgformat) << '\n';
             return 4;
         }
-        img = img.convertToFormat(qformat);
+        img.convertTo(qformat);
     }
     qint64 written = output.write(reinterpret_cast<const char *>(img.bits()), img.sizeInBytes());
     if (written != img.sizeInBytes()) {

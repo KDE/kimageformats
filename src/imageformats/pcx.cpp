@@ -383,8 +383,7 @@ static bool readImage8(QImage &img, QDataStream &s, const PCXHEADER &header)
             while (flag != 12 && s.status() == QDataStream::Ok) {
                 s >> flag;
             }
-        }
-        else {
+        } else {
             device->seek(device->size() - 769);
             s >> flag;
         }
@@ -613,7 +612,7 @@ static bool writeImage24(QImage &img, QDataStream &s, PCXHEADER &header)
     QByteArray b_buf(header.width(), 0);
 
     for (int y = 0; y < header.height(); ++y) {
-        auto p = (QRgb*)img.scanLine(y);
+        auto p = (QRgb *)img.scanLine(y);
 
         for (int x = 0; x < header.width(); ++x) {
             QRgb rgb = *p++;
@@ -684,7 +683,7 @@ bool PCXHandler::read(QImage *outImage)
 
     img.setDotsPerMeterX(qRound(header.HDpi / 25.4 * 1000));
     img.setDotsPerMeterY(qRound(header.YDpi / 25.4 * 1000));
-    *outImage = img;
+    *outImage = std::move(img);
     return true;
 }
 

@@ -249,7 +249,7 @@ bool EXRHandler::read(QImage *outImage)
 #endif // !EXR_ALLOW_LINEAR_COLORSPACE
 #endif // !EXR_USE_LEGACY_CONVERSIONS
 
-        *outImage = image;
+        *outImage = std::move(image);
 
         return true;
     } catch (const std::exception &exc) {

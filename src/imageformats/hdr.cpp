@@ -283,7 +283,7 @@ bool HDRHandler::read(QImage *outImage)
     // By setting the linear color space, programs that support profiles display HDR files as in GIMP and Photoshop.
     img.setColorSpace(QColorSpace(QColorSpace::SRgbLinear));
 
-    *outImage = img;
+    *outImage = std::move(img);
     return true;
 }
 

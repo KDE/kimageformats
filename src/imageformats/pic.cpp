@@ -255,7 +255,7 @@ bool SoftimagePICHandler::read(QImage *image)
         }
     }
 
-    *image = img;
+    *image = std::move(img);
     m_state = Ready;
 
     return true;

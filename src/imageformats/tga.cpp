@@ -419,7 +419,7 @@ bool TGAHandler::read(QImage *outImage)
         return false;
     }
 
-    *outImage = img;
+    *outImage = std::move(img);
     return true;
 }
 

@@ -1326,7 +1326,7 @@ bool PSDHandler::read(QImage *image)
         return false;
     }
 
-    *image = img;
+    *image = std::move(img);
     return true;
 }
 
