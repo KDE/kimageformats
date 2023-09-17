@@ -15,13 +15,15 @@ ScanLineConverter::ScanLineConverter(const QImage::Format &targetFormat)
 ScanLineConverter::ScanLineConverter(const ScanLineConverter &other)
     : _targetFormat(other._targetFormat)
     , _colorSpace(other._colorSpace)
+    , _defaultColorSpace(other._defaultColorSpace)
 {
 }
 
 ScanLineConverter &ScanLineConverter::operator=(const ScanLineConverter &other)
 {
-    this->_targetFormat = other._targetFormat;
-    this->_colorSpace = other._colorSpace;
+    _targetFormat = other._targetFormat;
+    _colorSpace = other._colorSpace;
+    _defaultColorSpace = other._defaultColorSpace;
     return (*this);
 }
 
@@ -40,9 +42,19 @@ QColorSpace ScanLineConverter::targetColorSpace() const
     return _colorSpace;
 }
 
+void ScanLineConverter::setDefaultSourceColorSpace(const QColorSpace &colorSpace)
+{
+    _defaultColorSpace = colorSpace;
+}
+
+QColorSpace ScanLineConverter::defaultSourceColorSpace() const
+{
+    return _defaultColorSpace;
+}
+
 const uchar *ScanLineConverter::convertedScanLine(const QImage &image, qint32 y)
 {
-    auto colorSpaceConversion = isColorSpaceConversionNeeded(image, _colorSpace);
+    auto colorSpaceConversion = isColorSpaceConversionNeeded(image);
     if (image.format() == _targetFormat && !colorSpaceConversion) {
         return image.constScanLine(y);
     }
@@ -54,7 +66,11 @@ const uchar *ScanLineConverter::convertedScanLine(const QImage &image, qint32 y)
     }
     std::memcpy(_tmpBuffer.bits(), image.constScanLine(y), std::min(_tmpBuffer.bytesPerLine(), image.bytesPerLine()));
     if (colorSpaceConversion) {
-        _tmpBuffer.setColorSpace(image.colorSpace());
+        auto cs = image.colorSpace();
+        if (!cs.isValid()) {
+            cs = _defaultColorSpace;
+        }
+        _tmpBuffer.setColorSpace(cs);
         _tmpBuffer.convertToColorSpace(_colorSpace);
     }
     _convBuffer = _tmpBuffer.convertToFormat(_targetFormat);
@@ -72,12 +88,15 @@ qsizetype ScanLineConverter::bytesPerLine() const
     return _convBuffer.bytesPerLine();
 }
 
-bool ScanLineConverter::isColorSpaceConversionNeeded(const QImage &image, const QColorSpace &targetColorSpace) const
+bool ScanLineConverter::isColorSpaceConversionNeeded(const QImage &image, const QColorSpace &targetColorSpace, const QColorSpace &defaultColorSpace)
 {
     if (image.depth() < 24) { // RGB 8 bit or grater only
         return false;
     }
     auto sourceColorSpace = image.colorSpace();
+    if (!sourceColorSpace.isValid()) {
+        sourceColorSpace = defaultColorSpace;
+    }
     if (!sourceColorSpace.isValid() || !targetColorSpace.isValid()) {
         return false;
     }

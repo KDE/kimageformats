@@ -43,6 +43,14 @@ public:
     QColorSpace targetColorSpace() const;
 
     /*!
+     * \brief setDefaultSourceColorSpace
+     * Set the source color space to use when the image does not have a color space.
+     * \param colorSpace
+     */
+    void setDefaultSourceColorSpace(const QColorSpace &colorSpace);
+    QColorSpace defaultSourceColorSpace() const;
+
+    /*!
      * \brief convertedScanLine
      * Convert the scanline \a y.
      * \note If the image format (and color space) is the same of converted format, it returns the image scan line.
@@ -62,14 +70,24 @@ public:
      * \note Only 24 bit or grater images.
      * \param image The source image.
      * \param targetColorSpace The target color space.
+     * \param defaultColorSpace The default color space to use it image does not contains one.
      * \return True if the conversion should be done otherwise false.
      */
-    bool isColorSpaceConversionNeeded(const QImage &image, const QColorSpace &targetColorSpace) const;
+    static bool isColorSpaceConversionNeeded(const QImage &image, const QColorSpace &targetColorSpace, const QColorSpace &defaultColorSpace = QColorSpace());
+
+    /*!
+     * \brief isColorSpaceConversionNeeded
+     */
+    inline bool isColorSpaceConversionNeeded(const QImage &image) const
+    {
+        return isColorSpaceConversionNeeded(image, _colorSpace, _defaultColorSpace);
+    }
 
 private:
     // data
     QImage::Format _targetFormat;
     QColorSpace _colorSpace;
+    QColorSpace _defaultColorSpace;
 
     // internal buffers
     QImage _tmpBuffer;

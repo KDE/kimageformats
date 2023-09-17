@@ -41,7 +41,7 @@ endif()
 ##################################
 
 if(OpenEXR_FOUND)
-    kimageformats_add_plugin(kimg_exr SOURCES exr.cpp)
+    kimageformats_add_plugin(kimg_exr SOURCES exr.cpp scanlineconverter.cpp)
     if(TARGET OpenEXR::OpenEXR)
         target_link_libraries(kimg_exr PRIVATE OpenEXR::OpenEXR)
     else()
