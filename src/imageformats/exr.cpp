@@ -231,7 +231,7 @@ inline QRgb RgbaToQrgba(struct Imf::Rgba &imagePixel)
 EXRHandler::EXRHandler()
     : m_compressionRatio(-1)
     , m_quality(-1)
-    , m_imageNumber(-1)
+    , m_imageNumber(0)
     , m_imageCount(0)
     , m_startPos(-1)
 {
@@ -772,7 +772,7 @@ bool EXRHandler::jumpToNextImage()
 
 bool EXRHandler::jumpToImage(int imageNumber)
 {
-    if (imageNumber >= imageCount()) {
+    if (imageNumber < 0 || imageNumber >= imageCount()) {
         return false;
     }
     m_imageNumber = imageNumber;
