@@ -443,7 +443,9 @@ void setParams(QImageIOHandler *handler, LibRaw *rawProcessor)
     auto &&rawparams = rawProcessor->imgdata.rawparams;
 #endif
     // Select one raw image from input file (0 - first, ...)
-    rawparams.shot_select = handler->currentImageNumber();
+    if (handler->currentImageNumber() > -1) {
+        rawparams.shot_select = handler->currentImageNumber();
+    }
 
     // *** Set processing parameters
 
@@ -723,6 +725,7 @@ RAWHandler::RAWHandler()
     : m_imageNumber(0)
     , m_imageCount(0)
     , m_quality(-1)
+    , m_startPos(-1)
 {
 }
 
@@ -738,6 +741,15 @@ bool RAWHandler::canRead() const
 bool RAWHandler::read(QImage *image)
 {
     auto dev = device();
+
+    // set the image position after the first run.
+    if (!dev->isSequential()) {
+        if (m_startPos < 0) {
+            m_startPos = dev->pos();
+        } else {
+            dev->seek(m_startPos);
+        }
+    }
 
     // Check image file format.
     if (dev->atEnd()) {
@@ -820,7 +832,7 @@ bool RAWHandler::jumpToNextImage()
 
 bool RAWHandler::jumpToImage(int imageNumber)
 {
-    if (imageNumber >= imageCount()) {
+    if (imageNumber < 0 || imageNumber >= imageCount()) {
         return false;
     }
     m_imageNumber = imageNumber;

@@ -78,6 +78,12 @@ private:
      * @note It is safe to set both W and A: W is used if camera white balance is found, otherwise A is used.
      */
     qint32 m_quality;
+
+    /*!
+     * \brief m_startPos
+     * The initial device position to allow multi image load (cache value).
+     */
+    qint64 m_startPos;
 };
 
 class RAWPlugin : public QImageIOPlugin
