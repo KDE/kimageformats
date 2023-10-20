@@ -13,7 +13,7 @@
 #include <QImage>
 #include <QImageIOHandler>
 
-// QVector uses some extra space for stuff, hence the 32 here suggested by Thiago Macieira
+// QList uses some extra space for stuff, hence the 32 here suggested by Thiago Macieira
 static constexpr int kMaxQVectorSize = std::numeric_limits<int>::max() - 32;
 
 // On Qt 6 to make the plugins fail to allocate if the image size is greater than QImageReader::allocationLimit()

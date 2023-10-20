@@ -383,7 +383,7 @@ bool ANIHandler::ensureScanned() const
 
             // TODO should we check that the number of rate entries matches nSteps?
             auto *dataPtr = data.data();
-            QVector<int> list;
+            QList<int> list;
             for (int i = 0; i < data.size(); i += sizeof(quint32_le)) {
                 const auto entry = *(reinterpret_cast<const quint32_le *>(dataPtr + i));
                 list.append(entry);

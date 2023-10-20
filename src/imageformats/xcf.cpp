@@ -14,10 +14,10 @@
 #include <QIODevice>
 #include <QImage>
 #include <QImageReader>
+#include <QList>
 #include <QLoggingCategory>
 #include <QPainter>
 #include <QStack>
-#include <QVector>
 #include <QtEndian>
 
 #ifndef XCF_QT5_SUPPORT
@@ -110,7 +110,7 @@ struct RandomTable {
  * parallel processing on a tile-by-tile basis. Here, though,
  * we just read them in en-masse and store them in a matrix.
  */
-typedef QVector<QVector<QImage>> Tiles;
+typedef QList<QList<QImage>> Tiles;
 
 class XCFImageFormat
 {
@@ -492,7 +492,7 @@ public:
         qint32 tattoo; //!< (unique identifier?)
         quint32 unit; //!< Units of The GIMP (inch, mm, pica, etc...)
         qint32 num_colors = 0; //!< number of colors in an indexed image
-        QVector<QRgb> palette; //!< indexed image color palette
+        QList<QRgb> palette; //!< indexed image color palette
 
         int num_layers; //!< number of layers
         Layer layer; //!< most recently read layer
@@ -545,7 +545,7 @@ private:
     //! This table is used as a shared grayscale ramp to be set on grayscale
     //! images. This is because Qt does not differentiate between indexed and
     //! grayscale images.
-    static QVector<QRgb> grayTable;
+    static QList<QRgb> grayTable;
 
     //! This table provides the add_pixel saturation values (i.e. 250 + 250 = 255).
     // static int add_lut[256][256]; - this is so lame waste of 256k of memory
@@ -646,7 +646,7 @@ bool XCFImageFormat::random_table_initialized;
 
 constexpr RandomTable XCFImageFormat::randomTable;
 
-QVector<QRgb> XCFImageFormat::grayTable;
+QList<QRgb> XCFImageFormat::grayTable;
 
 bool XCFImageFormat::modeAffectsSourceAlpha(const quint32 type)
 {
@@ -993,7 +993,7 @@ bool XCFImageFormat::loadImageProperties(QDataStream &xcf_io, XCFImage &xcf_imag
                 return false;
             }
 
-            xcf_image.palette = QVector<QRgb>();
+            xcf_image.palette = QList<QRgb>();
             xcf_image.palette.reserve(xcf_image.num_colors);
 
             for (int i = 0; i < xcf_image.num_colors; i++) {
@@ -2013,7 +2013,7 @@ bool XCFImageFormat::loadLevel(QDataStream &xcf_io, Layer &layer, qint32 bpp, co
 
     const uint blockSize = TILE_WIDTH * TILE_HEIGHT * bpp * 1.5;
 
-    QVector<uchar> buffer;
+    QList<uchar> buffer;
     if (needConvert) {
         buffer.resize(blockSize * (bpp == 2 ? 2 : 1));
     }

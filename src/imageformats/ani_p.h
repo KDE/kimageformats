@@ -41,14 +41,14 @@ private:
     int m_frameCount = 0; // "physical" frames
     int m_imageCount = 0; // logical images
     // Stores a custom sequence of images
-    QVector<int> m_imageSequence;
+    QList<int> m_imageSequence;
     // and the corresponding offsets where they are
     // since we can't read the image data sequentally in this case then
-    QVector<qint64> m_frameOffsets;
+    QList<qint64> m_frameOffsets;
     qint64 m_firstFrameOffset = 0;
 
     int m_displayRate = 0;
-    QVector<int> m_displayRates;
+    QList<int> m_displayRates;
 
     QString m_name;
     QString m_artist;

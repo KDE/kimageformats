@@ -22,13 +22,13 @@
 #include "rgb_p.h"
 #include "util_p.h"
 
+#include <QList>
 #include <QMap>
-#include <QVector>
 
 #include <QDebug>
 #include <QImage>
 
-class RLEData : public QVector<uchar>
+class RLEData : public QList<uchar>
 {
 public:
     RLEData()
@@ -61,7 +61,7 @@ public:
     {
     }
     uint insert(const uchar *d, uint l);
-    QVector<const RLEData *> vector();
+    QList<const RLEData *> vector();
     void setBaseOffset(uint o)
     {
         _offset = o;
@@ -107,7 +107,7 @@ private:
     QByteArray _data;
     QByteArray::Iterator _pos;
     RLEMap _rlemap;
-    QVector<const RLEData *> _rlevector;
+    QList<const RLEData *> _rlevector;
     uint _numrows;
 
     bool readData(QImage &);
@@ -421,9 +421,9 @@ uint RLEMap::insert(const uchar *d, uint l)
     return QMap<RLEData, uint>::insert(data, _counter++).value();
 }
 
-QVector<const RLEData *> RLEMap::vector()
+QList<const RLEData *> RLEMap::vector()
 {
-    QVector<const RLEData *> v(size());
+    QList<const RLEData *> v(size());
     for (Iterator it = begin(); it != end(); ++it) {
         v.replace(it.value(), &it.key());
     }

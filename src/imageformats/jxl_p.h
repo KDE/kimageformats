@@ -14,8 +14,8 @@
 #include <QImage>
 #include <QImageIOHandler>
 #include <QImageIOPlugin>
+#include <QList>
 #include <QVariant>
-#include <QVector>
 
 #include <jxl/decode.h>
 
@@ -71,7 +71,7 @@ private:
     void *m_runner;
     JxlBasicInfo m_basicinfo;
 
-    QVector<int> m_framedelays;
+    QList<int> m_framedelays;
     int m_next_image_delay;
 
     QImage m_current_image;

@@ -221,7 +221,7 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
 
     // Read palette if needed.
     if (ras.ColorMapType == RAS_COLOR_MAP_TYPE_RGB) {
-        QVector<quint8> palette(ras.ColorMapLength);
+        QList<quint8> palette(ras.ColorMapLength);
         for (quint32 i = 0; i < ras.ColorMapLength; ++i) {
             s >> palette[i];
         }

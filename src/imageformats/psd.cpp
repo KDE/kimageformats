@@ -126,7 +126,7 @@ struct PSDDuotoneOptions {
  */
 struct PSDColorModeDataSection {
     PSDDuotoneOptions duotone;
-    QVector<QRgb> palette;
+    QList<QRgb> palette;
 };
 
 using PSDImageResourceSection = QHash<quint16, PSDImageResourceBlock>;
@@ -458,7 +458,7 @@ PSDColorModeDataSection readColorModeDataSection(QDataStream &s, bool *ok = null
     }
     else {              // read the palette (768 bytes)
         auto&& palette = cms.palette;
-        QVector<quint8> vect(size);
+        QList<quint8> vect(size);
         for (auto&& v : vect)
             s >> v;
         for (qsizetype i = 0, n = vect.size()/3; i < n; ++i)
@@ -1109,7 +1109,7 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
         return false;
     }
 
-    QVector<quint32> strides(header.height * header.channel_count, raw_count);
+    QList<quint32> strides(header.height * header.channel_count, raw_count);
     // Read the compressed stride sizes
     if (compression) {
         for (auto&& v : strides) {
@@ -1124,7 +1124,7 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
     }
     // calculate the absolute file positions of each stride (required when a colorspace conversion should be done)
     auto device = stream.device();
-    QVector<quint64> stridePositions(strides.size());
+    QList<quint64> stridePositions(strides.size());
     if (!stridePositions.isEmpty()) {
         stridePositions[0] = device->pos();
     }
