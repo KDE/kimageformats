@@ -81,7 +81,7 @@ set_package_properties(LibRaw PROPERTIES
 )
 
 ecm_set_disabled_deprecation_versions(
-    QT 6.4
+    QT 6.5
     KF 5.102
 )
 
