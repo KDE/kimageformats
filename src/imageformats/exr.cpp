@@ -94,7 +94,7 @@
 
 // Allow the code to works on all QT versions supported by KDE
 // project (Qt 5.15 and Qt 6.x) to easy backports fixes.
-#if (QT_VERSION_MAJOR >= 6) && !defined(EXR_USE_LEGACY_CONVERSIONS)
+#if !defined(EXR_USE_LEGACY_CONVERSIONS)
 // If uncommented, the image is rendered in a float16 format, the result is very precise
 #define EXR_USE_QT6_FLOAT_IMAGE // default uncommented
 #endif
