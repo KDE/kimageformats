@@ -621,7 +621,14 @@ bool EXRHandler::write(const QImage &image)
 
         // write the EXR
         K_OStream ostr(device(), QByteArray());
-        Imf::RgbaOutputFile file(ostr, header, image.hasAlphaChannel() ? Imf::RgbaChannels::WRITE_RGBA : Imf::RgbaChannels::WRITE_RGB);
+        auto channelsType = image.hasAlphaChannel() ? Imf::RgbaChannels::WRITE_RGBA : Imf::RgbaChannels::WRITE_RGB;
+        if (image.format() == QImage::Format_Mono ||
+            image.format() == QImage::Format_MonoLSB ||
+            image.format() == QImage::Format_Grayscale16 ||
+            image.format() == QImage::Format_Grayscale8) {
+            channelsType = Imf::RgbaChannels::WRITE_Y;
+        }
+        Imf::RgbaOutputFile file(ostr, header, channelsType);
         Imf::Array2D<Imf::Rgba> pixels;
         pixels.resizeErase(EXR_LINES_PER_BLOCK, width);
 
