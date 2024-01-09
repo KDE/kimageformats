@@ -73,12 +73,20 @@ const uchar *ScanLineConverter::convertedScanLine(const QImage &image, qint32 y)
             cs = _defaultColorSpace;
         }
         if (tmp.depth() < 24) {
-            tmp = tmp.convertToFormat(tmp.hasAlphaChannel() ? QImage::Format_ARGB32 : QImage::Format_RGB32);
+            tmp.convertTo(tmp.hasAlphaChannel() ? QImage::Format_ARGB32 : QImage::Format_RGB32);
         }
         tmp.setColorSpace(cs);
         tmp.convertToColorSpace(_colorSpace);
     }
-    _convBuffer = tmp.convertToFormat(_targetFormat);
+
+    /*
+     * Work Around for wrong RGBA64 -> 16FPx4/32FPx4 conversion on Intel architecture.
+     * Luckily convertTo() works fine with 16FPx4 images so I can use it instead convertToFormat().
+     * See also: https://bugreports.qt.io/browse/QTBUG-120614
+     */
+    tmp.convertTo(_targetFormat);
+    _convBuffer = tmp;
+
     if (_convBuffer.isNull()) {
         return nullptr;
     }
