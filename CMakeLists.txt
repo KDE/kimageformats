@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(KImageFormats)
+set(KF_VERSION "6.1.0") # handled by release scripts
+set(KF_DEP_VERSION "6.0.0") # handled by release scripts
+project(KImageFormats VERSION ${KF_VERSION})
 
 include(FeatureSummary)
 find_package(ECM 6.0.0  NO_MODULE)
@@ -22,7 +24,7 @@ include(FindPkgConfig)
 set(REQUIRED_QT_VERSION 6.5.0)
 find_package(Qt6Gui ${REQUIRED_QT_VERSION} REQUIRED NO_MODULE)
 
-find_package(KF6Archive)
+find_package(KF6Archive ${KF_DEP_VERSION})
 set_package_properties(KF6Archive PROPERTIES
     TYPE OPTIONAL
     PURPOSE "Required for the QImage plugin for Krita and OpenRaster images"
