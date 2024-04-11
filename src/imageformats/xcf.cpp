@@ -963,7 +963,7 @@ bool XCFImageFormat::loadImageProperties(QDataStream &xcf_io, XCFImage &xcf_imag
 #if QT_VERSION < QT_VERSION_CHECK(6, 7, 0)
                 quint32 size;
 #else
-                qsizetype size;
+                qint64 size;
 #endif
 
                 property.readBytes(tag, size);
