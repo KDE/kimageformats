@@ -319,7 +319,7 @@ public:
     {
         auto xmp = xmpData();
         if (!xmp.isEmpty()) {
-            image.setText(QStringLiteral(META_KEY_XMP), xmp);
+            image.setText(QStringLiteral(META_KEY_XMP_ADOBE), xmp);
         }
         auto descr = description();
         if (!descr.isEmpty()) {
@@ -563,7 +563,7 @@ public:
             meta.pvarSoftware.VT.pszVal = software.data();
         }
 
-        auto xmp = image.text(QStringLiteral(META_KEY_XMP)).toUtf8();
+        auto xmp = image.text(QStringLiteral(META_KEY_XMP_ADOBE)).toUtf8();
         if (!xmp.isNull()) {
             if (auto err = PKImageEncode_SetXMPMetadata_WMP(pEncoder, reinterpret_cast<quint8 *>(xmp.data()), xmp.size())) {
                 qCWarning(LOG_JXRPLUGIN) << "JXRHandler::write() error while setting XMP data:" << err;

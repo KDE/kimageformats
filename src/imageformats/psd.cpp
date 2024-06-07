@@ -521,7 +521,7 @@ static bool setXmpData(QImage& img, const PSDImageResourceSection& irs)
     // NOTE: "XML:com.adobe.xmp" is the meta set by Qt reader when an
     //       XMP packet is found (e.g. when reading a PNG saved by Photoshop).
     //       I'm reusing the same key because a programs could search for it.
-    img.setText(QStringLiteral("XML:com.adobe.xmp"), xmp);
+    img.setText(QStringLiteral(META_KEY_XMP_ADOBE), xmp);
     return true;
 }
 

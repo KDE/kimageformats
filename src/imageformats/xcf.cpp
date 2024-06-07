@@ -1596,7 +1596,7 @@ void XCFImageFormat::setImageParasites(const XCFImage &xcf_image, QImage &image)
         //    comments may also be present in the "gimp-metadata" parasite.
         if (key == QStringLiteral("gimp-comment")) {
             value.replace('\0', QByteArray());
-            image.setText(QStringLiteral("Comment"), QString::fromUtf8(value));
+            image.setText(QStringLiteral(META_KEY_COMMENT), QString::fromUtf8(value));
             continue;
         }
 
@@ -1607,7 +1607,7 @@ void XCFImageFormat::setImageParasites(const XCFImage &xcf_image, QImage &image)
             // NOTE: I arbitrary defined the metadata "XML:org.gimp.xml" because it seems
             //       a GIMP proprietary XML format (no xmlns defined)
             value.replace('\0', QByteArray());
-            image.setText(QStringLiteral("XML:org.gimp.xml"), QString::fromUtf8(value));
+            image.setText(QStringLiteral(META_KEY_XML_GIMP), QString::fromUtf8(value));
             continue;
         }
 
@@ -1623,7 +1623,7 @@ void XCFImageFormat::setImageParasites(const XCFImage &xcf_image, QImage &image)
             //       XMP packet is found (e.g. when reading a PNG saved by Photoshop).
             //       I reused the same key because some programs could search for it.
             value.replace('\0', QByteArray());
-            image.setText(QStringLiteral("XML:com.adobe.xmp"), QString::fromUtf8(value));
+            image.setText(QStringLiteral(META_KEY_XMP_ADOBE), QString::fromUtf8(value));
             continue;
         }
 #endif
