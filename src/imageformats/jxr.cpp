@@ -855,7 +855,7 @@ bool JXRHandler::read(QImage *outImage)
                 return false;
             }
             for (qint32 y = 0, h = img.height(); y < h; ++y) {
-                std::memcpy(img.scanLine(y), ba.data() + convStrideSize * y, min(convStrideSize, img.bytesPerLine()));
+                std::memcpy(img.scanLine(y), ba.data() + convStrideSize * y, (std::min)(convStrideSize, img.bytesPerLine()));
             }
         }
         PKFormatConverter_Release(&pConverter);
