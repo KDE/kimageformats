@@ -11,7 +11,7 @@ macro(kimageformats_read_tests)
     endif()
 
     if (NOT TARGET readtest)
-        add_executable(readtest readtest.cpp)
+        add_executable(readtest readtest.cpp templateimage.cpp)
         target_link_libraries(readtest Qt6::Gui)
         target_compile_definitions(readtest
             PRIVATE IMAGEDIR="${CMAKE_CURRENT_SOURCE_DIR}/read")
