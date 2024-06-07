@@ -13,6 +13,19 @@
 #include <QImage>
 #include <QImageIOHandler>
 
+// Image metadata keys to use in plugins (so they are consistent)
+#define META_KEY_DESCRIPTION "Description"
+#define META_KEY_MANUFACTURER "Manufacturer"
+#define META_KEY_SOFTWARE "Software"
+#define META_KEY_MODEL "Model"
+#define META_KEY_AUTHOR "Author"
+#define META_KEY_COPYRIGHT "Copyright"
+#define META_KEY_CREATIONDATE "CreationDate"
+#define META_KEY_TITLE "Title"
+#define META_KEY_DOCUMENTNAME "DocumentName"
+#define META_KEY_HOSTCOMPUTER "HostComputer"
+#define META_KEY_XMP "XML:com.adobe.xmp"
+
 // QList uses some extra space for stuff, hence the 32 here suggested by Thiago Macieira
 static constexpr int kMaxQVectorSize = std::numeric_limits<int>::max() - 32;
 

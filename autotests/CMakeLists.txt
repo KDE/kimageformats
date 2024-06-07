@@ -114,6 +114,15 @@ if (LibJXL_FOUND AND LibJXLThreads_FOUND)
     )
 endif()
 
+if (LibJXR_FOUND)
+    kimageformats_read_tests(
+        jxr
+    )
+    kimageformats_write_tests(
+        jxr-nodatacheck
+    )
+endif()
+
 # Allow some fuzziness when reading this formats, to allow for
 # rounding errors (eg: in alpha blending).
 kimageformats_read_tests(FUZZ 1

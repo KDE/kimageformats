@@ -75,12 +75,17 @@ if(KIMAGEFORMATS_JXL)
 endif()
 add_feature_info(LibJXL LibJXL_FOUND "required for the QImage plugin for JPEG XL images")
 
-# note: module FindLibRaw missing from https://invent.kde.org/frameworks/extra-cmake-modules
 find_package(LibRaw 0.20.2)
 set_package_properties(LibRaw PROPERTIES
     TYPE OPTIONAL
     PURPOSE "Required for the QImage plugin for RAW images"
 )
+
+option(KIMAGEFORMATS_JXR "Enable plugin for JPEG XR format" ON)
+if(KIMAGEFORMATS_JXR)
+    find_package(LibJXR)
+endif()
+add_feature_info(LibJXR LibJXR_FOUND "required for the QImage plugin for JPEG XR images")
 
 ecm_set_disabled_deprecation_versions(
     QT 6.5
