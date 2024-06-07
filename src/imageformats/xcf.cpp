@@ -1091,7 +1091,9 @@ bool XCFImageFormat::loadProperty(QDataStream &xcf_io, PropType &type, QByteArra
         size = 0;
     } else {
         xcf_io >> size;
-        if (size > 256000) {
+        if (size > 256000 * 4) {
+            // NOTE: I didn't find any reference to maximum property dimensions in the specs, so I assume it's just a sanity check.
+            qCDebug(XCFPLUGIN) << "XCF: loadProperty skips" << type << "due to size being too large";
             return false;
         }
         data = new char[size];
