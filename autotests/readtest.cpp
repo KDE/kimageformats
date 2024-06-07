@@ -165,7 +165,13 @@ int main(int argc, char **argv)
                 continue;
             }
 
-            QFileInfo expFileInfo = timg.compareImage();
+            bool skipTest = false;
+            QFileInfo expFileInfo = timg.compareImage(skipTest);
+            if (skipTest) {
+                QTextStream(stdout) << "SKIP : " << fi.fileName() << ": image format not supported by current Qt version!\n";
+                ++skipped;
+                continue;
+            }
             if (!formatStrings.contains(expFileInfo.suffix(), Qt::CaseInsensitive)) {
                 // Work Around for CCBUG: 468288
                 QTextStream(stdout) << "SKIP : " << fi.fileName() << ": comparison image " << expFileInfo.fileName() << " cannot be loaded due to the lack of "

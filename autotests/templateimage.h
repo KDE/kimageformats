@@ -42,9 +42,10 @@ public:
 
     /*!
      * \brief compareImage
+     * \param skipTest True if the test should be skipped (e.g. image format not supported by current Qt version).
      * \return The template image to use for the comparison.
      */
-    QFileInfo compareImage() const;
+    QFileInfo compareImage(bool &skipTest) const;
 
     /*!
      * \brief suffixes
@@ -61,9 +62,10 @@ private:
 
     /*!
      * \brief jsonImage
+     * \param skipTest True if the test should be skipped (not supported).
      * \return The template image read from the corresponding JSON.
      */
-    QFileInfo jsonImage() const;
+    QFileInfo jsonImage(bool &skipTest) const;
 
 private:
     QFileInfo m_fi;
