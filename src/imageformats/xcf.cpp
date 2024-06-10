@@ -2755,10 +2755,10 @@ void XCFImageFormat::copyLayerToImage(XCFImage &xcf_image)
     // For each tile...
 
     for (uint j = 0; j < layer.nrows; j++) {
-        uint y = j * TILE_HEIGHT;
+        qint32 y = qint32(j * TILE_HEIGHT);
 
         for (uint i = 0; i < layer.ncols; i++) {
-            uint x = i * TILE_WIDTH;
+            qint32 x = qint32(i * TILE_WIDTH);
 
             // This seems the best place to apply the dissolve because it
             // depends on the global position of each tile's
@@ -3045,7 +3045,7 @@ void XCFImageFormat::mergeLayerIntoImage(XCFImage &xcf_image)
         merge = mergeRGBToRGB;
         break;
     case GRAY_GIMAGE:
-        if (layer.opacity == OPAQUE_OPACITY) {
+        if (layer.opacity == OPAQUE_OPACITY && xcf_image.image.depth() <= 8) {
             merge = mergeGrayToGray;
         } else {
             merge = mergeGrayToRGB;
@@ -3181,10 +3181,10 @@ void XCFImageFormat::mergeLayerIntoImage(XCFImage &xcf_image)
             qCDebug(XCFPLUGIN) << "Using QPainter for mode" << layer.mode;
 
             for (uint j = 0; j < layer.nrows; j++) {
-                uint y = j * TILE_HEIGHT;
+                qint32 y = qint32(j * TILE_HEIGHT);
 
                 for (uint i = 0; i < layer.ncols; i++) {
-                    uint x = i * TILE_WIDTH;
+                    qint32 x = qint32(i * TILE_WIDTH);
 
                     QImage &tile = layer.image_tiles[j][i];
                     if (x + layer.x_offset < MAX_IMAGE_WIDTH &&
@@ -3210,10 +3210,10 @@ void XCFImageFormat::mergeLayerIntoImage(XCFImage &xcf_image)
 #endif
 
     for (uint j = 0; j < layer.nrows; j++) {
-        uint y = j * TILE_HEIGHT;
+        qint32 y = qint32(j * TILE_HEIGHT);
 
         for (uint i = 0; i < layer.ncols; i++) {
-            uint x = i * TILE_WIDTH;
+            qint32 x = qint32(i * TILE_WIDTH);
 
             // This seems the best place to apply the dissolve because it
             // depends on the global position of each tile's
@@ -3853,6 +3853,9 @@ bool XCFImageFormat::mergeGrayAToRGB(const Layer &layer, uint i, uint j, int k, 
     }
 
     switch (layer.mode) {
+    case GIMP_LAYER_MODE_NORMAL:
+    case GIMP_LAYER_MODE_NORMAL_LEGACY:
+        break;
     case GIMP_LAYER_MODE_MULTIPLY:
     case GIMP_LAYER_MODE_MULTIPLY_LEGACY: {
         src = INT_MULT(src, dst);
