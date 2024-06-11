@@ -221,9 +221,16 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
 
     // Read palette if needed.
     if (ras.ColorMapType == RAS_COLOR_MAP_TYPE_RGB) {
+        // max 256 rgb elements palette is supported
+        if (ras.ColorMapLength > 768) {
+            return false;
+        }
         QList<quint8> palette(ras.ColorMapLength);
         for (quint32 i = 0; i < ras.ColorMapLength; ++i) {
             s >> palette[i];
+            if (s.status() != QDataStream::Ok) {
+                return false;
+            }
         }
         QList<QRgb> colorTable;
         for (quint32 i = 0, n = ras.ColorMapLength / 3; i < n; ++i) {
@@ -233,9 +240,6 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
             colorTable << qRgb(255, 255, 255);
         }
         img.setColorTable(colorTable);
-        if (s.status() != QDataStream::Ok) {
-            return false;
-        }
     }
 
     LineDecoder dec(s.device(), ras);
