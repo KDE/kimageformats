@@ -18,6 +18,7 @@ The following image formats have read-only support:
 - Gimp (xcf)
 - Krita (kra)
 - OpenRaster (ora)
+- Pixar raster (pxr)
 - Photoshop documents (psd, psb, pdd, psdt)
 - Radiance HDR (hdr)
 - Sun Raster (im1, im8, im24, im32, ras, sun)
