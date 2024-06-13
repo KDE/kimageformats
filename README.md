@@ -26,11 +26,11 @@ The following image formats have read-only support:
 
 The following image formats have read and write support:
 
-- AV1 Image File Format (AVIF)
+- AV1 Image File Format (avif)
 - Encapsulated PostScript (eps)
 - High Efficiency Image File Format (heif). Can be enabled with the KIMAGEFORMATS_HEIF build option.
 - JPEG XL (jxl)
-- JPEG XR (jxr)
+- JPEG XR (jxr). Can be enabled with the KIMAGEFORMATS_JXR build option.
 - OpenEXR (exr)
 - Personal Computer Exchange (pcx)
 - Quite OK Image format (qoi)
