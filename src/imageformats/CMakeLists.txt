@@ -83,6 +83,10 @@ kimageformats_add_plugin(kimg_pic SOURCES pic.cpp)
 
 ##################################
 
+kimageformats_add_plugin(kimg_pfm SOURCES pfm.cpp)
+
+##################################
+
 kimageformats_add_plugin(kimg_psd SOURCES psd.cpp scanlineconverter.cpp)
 
 ##################################
