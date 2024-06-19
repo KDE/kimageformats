@@ -9,7 +9,9 @@
 #define KIMG_PFM_P_H
 
 #include <QImageIOPlugin>
+#include <QScopedPointer>
 
+class PFMHandlerPrivate;
 class PFMHandler : public QImageIOHandler
 {
 public:
@@ -22,6 +24,9 @@ public:
     QVariant option(QImageIOHandler::ImageOption option) const override;
 
     static bool canRead(QIODevice *device);
+
+private:
+    const QScopedPointer<PFMHandlerPrivate> d;
 };
 
 class PFMPlugin : public QImageIOPlugin

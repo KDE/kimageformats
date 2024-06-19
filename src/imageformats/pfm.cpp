@@ -21,7 +21,7 @@
 Q_DECLARE_LOGGING_CATEGORY(LOG_PFMPLUGIN)
 Q_LOGGING_CATEGORY(LOG_PFMPLUGIN, "kf.imageformats.plugins.pfm", QtWarningMsg)
 
-class PfmHeader
+class PFMHeader
 {
 private:
     /*!
@@ -61,7 +61,7 @@ private:
     QDataStream::ByteOrder m_byteOrder;
 
 public:
-    PfmHeader() :
+    PFMHeader() :
         m_bw(false),
         m_ps(false),
         m_width(0),
@@ -157,7 +157,18 @@ public:
     }
 } ;
 
+class PFMHandlerPrivate
+{
+public:
+    PFMHandlerPrivate() {}
+    ~PFMHandlerPrivate() {}
+
+    PFMHeader m_header;
+};
+
 PFMHandler::PFMHandler()
+    : QImageIOHandler()
+    , d(new PFMHandlerPrivate)
 {
 }
 
@@ -177,7 +188,7 @@ bool PFMHandler::canRead(QIODevice *device)
         return false;
     }
 
-    PfmHeader h;
+    PFMHeader h;
     if (!h.peek(device)) {
         return false;
     }
@@ -187,8 +198,7 @@ bool PFMHandler::canRead(QIODevice *device)
 
 bool PFMHandler::read(QImage *image)
 {
-    PfmHeader header;
-
+    auto&& header = d->m_header;
     if (!header.read(device())) {
         qCWarning(LOG_PFMPLUGIN) << "PFMHandler::read() invalid header";
         return false;
@@ -265,27 +275,33 @@ QVariant PFMHandler::option(ImageOption option) const
     QVariant v;
 
     if (option == QImageIOHandler::Size) {
-        if (auto d = device()) {
-            PfmHeader h;
-            if (h.peek(d)) {
+        auto&& h = d->m_header;
+        if (h.isValid()) {
+            v = QVariant::fromValue(h.size());
+        } else if (auto dev = device()) {
+            if (h.peek(dev)) {
                 v = QVariant::fromValue(h.size());
             }
         }
     }
 
     if (option == QImageIOHandler::ImageFormat) {
-        if (auto d = device()) {
-            PfmHeader h;
-            if (h.peek(d)) {
+        auto&& h = d->m_header;
+        if (h.isValid()) {
+            v = QVariant::fromValue(h.format());
+        } else if (auto dev = device()) {
+            if (h.peek(dev)) {
                 v = QVariant::fromValue(h.format());
             }
         }
     }
 
     if (option == QImageIOHandler::Endianness) {
-        if (auto d = device()) {
-            PfmHeader h;
-            if (h.peek(d)) {
+        auto&& h = d->m_header;
+        if (h.isValid()) {
+            v = QVariant::fromValue(h.byteOrder());
+        } else if (auto dev = device()) {
+            if (h.peek(dev)) {
                 v = QVariant::fromValue(h.byteOrder());
             }
         }

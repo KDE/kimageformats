@@ -4149,7 +4149,9 @@ bool XCFHandler::canRead() const
 bool XCFHandler::read(QImage *image)
 {
     XCFImageFormat xcfif;
-    return xcfif.readXCF(device(), image);
+    auto ok = xcfif.readXCF(device(), image);
+    m_imageSize = image->size();
+    return ok;
 }
 
 bool XCFHandler::write(const QImage &)
@@ -4169,6 +4171,9 @@ QVariant XCFHandler::option(ImageOption option) const
     QVariant v;
 
     if (option == QImageIOHandler::Size) {
+        if (!m_imageSize.isEmpty()) {
+            return m_imageSize;
+        }
         /*
          * The image structure always starts at offset 0 in the XCF file.
          * byte[9]     "gimp xcf " File type identification
@@ -4181,7 +4186,7 @@ QVariant XCFHandler::option(ImageOption option) const
          * uint32      width        Width of canvas
          * uint32      height       Height of canvas
          */
-        if (auto d = device()) {
+        else if (auto d = device()) {
             // transactions works on both random and sequential devices
             d->startTransaction();
             auto ba9 = d->read(9);      // "gimp xcf "

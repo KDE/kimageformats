@@ -336,7 +336,19 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
 }
 } // namespace
 
+class RASHandlerPrivate
+{
+public:
+    RASHandlerPrivate() {}
+    ~RASHandlerPrivate() {}
+
+    RasHeader m_header;
+};
+
+
 RASHandler::RASHandler()
+    : QImageIOHandler()
+    , d(new RASHandlerPrivate)
 {
 }
 
@@ -384,7 +396,7 @@ bool RASHandler::read(QImage *outImage)
     s.setByteOrder(QDataStream::BigEndian);
 
     // Read image header.
-    RasHeader ras;
+    auto&& ras = d->m_header;
     s >> ras;
 
     if (ras.ColorMapLength > kMaxQVectorSize) {
@@ -426,18 +438,19 @@ QVariant RASHandler::option(ImageOption option) const
     QVariant v;
 
     if (option == QImageIOHandler::Size) {
-        if (auto d = device()) {
+        auto&& header = d->m_header;
+        if (IsSupported(header)) {
+            v = QVariant::fromValue(QSize(header.Width, header.Height));
+        }
+        else if (auto dev = device()) {
             // transactions works on both random and sequential devices
-            d->startTransaction();
-            auto ba = d->read(RasHeader::SIZE);
-            d->rollbackTransaction();
+            dev->startTransaction();
+            auto ba = dev->read(RasHeader::SIZE);
+            dev->rollbackTransaction();
 
             QDataStream s(ba);
             s.setByteOrder(QDataStream::BigEndian);
-
-            RasHeader header;
             s >> header;
-
             if (s.status() == QDataStream::Ok && IsSupported(header)) {
                 v = QVariant::fromValue(QSize(header.Width, header.Height));
             }
@@ -445,18 +458,19 @@ QVariant RASHandler::option(ImageOption option) const
     }
 
     if (option == QImageIOHandler::ImageFormat) {
-        if (auto d = device()) {
+        auto&& header = d->m_header;
+        if (IsSupported(header)) {
+            v = QVariant::fromValue(imageFormat(header));
+        }
+        else if (auto dev = device()) {
             // transactions works on both random and sequential devices
-            d->startTransaction();
-            auto ba = d->read(RasHeader::SIZE);
-            d->rollbackTransaction();
+            dev->startTransaction();
+            auto ba = dev->read(RasHeader::SIZE);
+            dev->rollbackTransaction();
 
             QDataStream s(ba);
             s.setByteOrder(QDataStream::BigEndian);
-
-            RasHeader header;
             s >> header;
-
             if (s.status() == QDataStream::Ok && IsSupported(header)) {
                 v = QVariant::fromValue(imageFormat(header));
             }

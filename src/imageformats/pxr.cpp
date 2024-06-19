@@ -15,7 +15,7 @@
 Q_DECLARE_LOGGING_CATEGORY(LOG_PXRPLUGIN)
 Q_LOGGING_CATEGORY(LOG_PXRPLUGIN, "kf.imageformats.plugins.pxr", QtWarningMsg)
 
-class PxrHeader
+class PXRHeader
 {
 private:
     QByteArray m_rawHeader;
@@ -29,7 +29,7 @@ private:
     }
 
 public:
-    PxrHeader()
+    PXRHeader()
     {
 
     }
@@ -139,7 +139,18 @@ public:
     }
 };
 
+class PXRHandlerPrivate
+{
+public:
+    PXRHandlerPrivate() {}
+    ~PXRHandlerPrivate() {}
+
+    PXRHeader m_header;
+};
+
 PXRHandler::PXRHandler()
+    : QImageIOHandler()
+    , d(new PXRHandlerPrivate)
 {
 }
 
@@ -159,7 +170,7 @@ bool PXRHandler::canRead(QIODevice *device)
         return false;
     }
 
-    PxrHeader h;
+    PXRHeader h;
     if (!h.peek(device)) {
         return false;
     }
@@ -169,7 +180,7 @@ bool PXRHandler::canRead(QIODevice *device)
 
 bool PXRHandler::read(QImage *image)
 {
-    PxrHeader header;
+    auto&& header = d->m_header;
 
     if (!header.read(device())) {
         qCWarning(LOG_PXRPLUGIN) << "PXRHandler::read() invalid header";
@@ -217,8 +228,10 @@ QVariant PXRHandler::option(ImageOption option) const
     QVariant v;
 
     if (option == QImageIOHandler::Size) {
-        if (auto d = device()) {
-            PxrHeader h;
+        auto&& h = d->m_header;
+        if (h.isValid()) {
+            v = QVariant::fromValue(h.size());
+        } else if (auto d = device()) {
             if (h.peek(d)) {
                 v = QVariant::fromValue(h.size());
             }
@@ -226,8 +239,10 @@ QVariant PXRHandler::option(ImageOption option) const
     }
 
     if (option == QImageIOHandler::ImageFormat) {
-        if (auto d = device()) {
-            PxrHeader h;
+        auto&& h = d->m_header;
+        if (h.isValid()) {
+            v = QVariant::fromValue(h.format());
+        } else if (auto d = device()) {
             if (h.peek(d)) {
                 v = QVariant::fromValue(h.format());
             }

@@ -22,6 +22,13 @@ public:
     QVariant option(QImageIOHandler::ImageOption option) const override;
 
     static bool canRead(QIODevice *device);
+
+private:
+    /*!
+     * \brief m_imageSize
+     * Image size cache used by option()
+     */
+    QSize m_imageSize;
 };
 
 class HDRPlugin : public QImageIOPlugin

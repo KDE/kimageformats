@@ -734,10 +734,12 @@ void EXRHandler::setOption(ImageOption option, const QVariant &value)
 bool EXRHandler::supportsOption(ImageOption option) const
 {
     if (option == QImageIOHandler::Size) {
-        return true;
+        if (auto d = device())
+            return !d->isSequential();
     }
     if (option == QImageIOHandler::ImageFormat) {
-        return true;
+        if (auto d = device())
+            return !d->isSequential();
     }
     if (option == QImageIOHandler::CompressionRatio) {
         return true;
@@ -756,6 +758,9 @@ QVariant EXRHandler::option(ImageOption option) const
         if (auto d = device()) {
             // transactions works on both random and sequential devices
             d->startTransaction();
+            if (m_startPos > -1) {
+                d->seek(m_startPos);
+            }
             try {
                 K_IStream istr(d, QByteArray());
                 Imf::RgbaInputFile file(istr);
@@ -778,6 +783,9 @@ QVariant EXRHandler::option(ImageOption option) const
         if (auto d = device()) {
             // transactions works on both random and sequential devices
             d->startTransaction();
+            if (m_startPos > -1) {
+                d->seek(m_startPos);
+            }
             try {
                 K_IStream istr(d, QByteArray());
                 Imf::RgbaInputFile file(istr);

@@ -112,6 +112,10 @@ enum LayerId : quint32 {
 };
 
 struct PSDHeader {
+    PSDHeader() {
+        memset(this, 0, sizeof(PSDHeader));
+    }
+
     uint signature;
     ushort version;
     uchar reserved[6];
@@ -1375,7 +1379,17 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
 
 } // Private
 
+class PSDHandlerPrivate
+{
+public:
+    PSDHandlerPrivate() {}
+    ~PSDHandlerPrivate() {}
+    PSDHeader m_header;
+};
+
 PSDHandler::PSDHandler()
+    : QImageIOHandler()
+    , d(new PSDHandlerPrivate)
 {
 }
 
@@ -1393,7 +1407,7 @@ bool PSDHandler::read(QImage *image)
     QDataStream s(device());
     s.setByteOrder(QDataStream::BigEndian);
 
-    PSDHeader header;
+    auto&& header = d->m_header;
     s >> header;
 
     // Check image file format.
@@ -1430,18 +1444,20 @@ QVariant PSDHandler::option(ImageOption option) const
     QVariant v;
 
     if (option == QImageIOHandler::Size) {
-        if (auto d = device()) {
+        auto&& header = d->m_header;
+        if (IsValid(header)) {
+            v = QVariant::fromValue(QSize(header.width, header.height));
+        }
+        else if (auto dev = device()) {
             // transactions works on both random and sequential devices
-            d->startTransaction();
-            auto ba = d->read(sizeof(PSDHeader));
-            d->rollbackTransaction();
+            dev->startTransaction();
+            auto ba = dev->read(sizeof(PSDHeader));
+            dev->rollbackTransaction();
 
             QDataStream s(ba);
             s.setByteOrder(QDataStream::BigEndian);
 
-            PSDHeader header;
             s >> header;
-
             if (s.status() == QDataStream::Ok && IsValid(header))
                 v = QVariant::fromValue(QSize(header.width, header.height));
         }
