@@ -9,7 +9,9 @@
 #define KIMG_HDR_P_H
 
 #include <QImageIOPlugin>
+#include <QScopedPointer>
 
+class HDRHandlerPrivate;
 class HDRHandler : public QImageIOHandler
 {
 public:
@@ -24,11 +26,7 @@ public:
     static bool canRead(QIODevice *device);
 
 private:
-    /*!
-     * \brief m_imageSize
-     * Image size cache used by option()
-     */
-    QSize m_imageSize;
+    const QScopedPointer<HDRHandlerPrivate> d;
 };
 
 class HDRPlugin : public QImageIOPlugin

@@ -109,7 +109,7 @@ public:
     QImage::Format format() const
     {
         if (isValid()) {
-            return isBlackAndWhite() ? QImage::Format_Grayscale16 : QImage::Format_RGBX32FPx4;
+            return QImage::Format_RGBX32FPx4;
         }
         return QImage::Format_Invalid;
     }
@@ -155,7 +155,7 @@ public:
         d->rollbackTransaction();
         return ok;
     }
-} ;
+};
 
 class PFMHandlerPrivate
 {
@@ -215,42 +215,26 @@ bool PFMHandler::read(QImage *image)
     }
 
     for (auto y = 0, h = img.height(); y < h; ++y) {
-        float f;
-        if (header.isBlackAndWhite()) {
-            auto line = reinterpret_cast<quint16*>(img.scanLine(header.isPhotoshop() ? y : h - y - 1));
-            for (auto x = 0, w = img.width(); x < w; ++x) {
-                s >> f;
-                // QColorSpace does not handle gray linear profile, so I have to convert to non-linear
-                f = f < 0.0031308f ? (f * 12.92f) : (1.055 * std::pow(f, 1.0 / 2.4) - 0.055);
-                line[x] = quint16(std::clamp(f, float(0), float(1)) * std::numeric_limits<quint16>::max() + float(0.5));
-
-                if (s.status() != QDataStream::Ok) {
-                    qCWarning(LOG_PFMPLUGIN) << "PFMHandler::read() detected corrupted data";
-                    return false;
-                }
+        auto bw = header.isBlackAndWhite();
+        auto line = reinterpret_cast<float *>(img.scanLine(header.isPhotoshop() ? y : h - y - 1));
+        for (auto x = 0, n = img.width() * 4; x < n; x += 4) {
+            line[x + 3] = float(1);
+            s >> line[x];
+            if (bw) {
+                line[x + 1] = line[x];
+                line[x + 2] = line[x];
+            } else {
+                s >> line[x + 1];
+                s >> line[x + 2];
             }
-        } else {
-            auto line = reinterpret_cast<float*>(img.scanLine(header.isPhotoshop() ? y : h - y - 1));
-            for (auto x = 0, n = img.width() * 4; x < n; x += 4) {
-                s >> f;
-                line[x] = std::clamp(f, float(0), float(1));
-                s >> f;
-                line[x + 1] = std::clamp(f, float(0), float(1));
-                s >> f;
-                line[x + 2] = std::clamp(f, float(0), float(1));
-                line[x + 3] = float(1);
-
-                if (s.status() != QDataStream::Ok) {
-                    qCWarning(LOG_PFMPLUGIN) << "PFMHandler::read() detected corrupted data";
-                    return false;
-                }
+            if (s.status() != QDataStream::Ok) {
+                qCWarning(LOG_PFMPLUGIN) << "PFMHandler::read() detected corrupted data";
+                return false;
             }
         }
     }
 
-    if (!header.isBlackAndWhite()) {
-        img.setColorSpace(QColorSpace(QColorSpace::SRgbLinear));
-    }
+    img.setColorSpace(QColorSpace(QColorSpace::SRgbLinear));
 
     *image = img;
     return true;
