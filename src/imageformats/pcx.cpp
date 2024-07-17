@@ -344,6 +344,46 @@ static bool readImage4(QImage &img, QDataStream &s, const PCXHEADER &header)
     return true;
 }
 
+static bool readImage4v2(QImage &img, QDataStream &s, const PCXHEADER &header)
+{
+    QByteArray buf(header.BytesPerLine, 0);
+
+    img = imageAlloc(header.width(), header.height(), QImage::Format_Indexed8);
+    img.setColorCount(16);
+
+    if (img.isNull()) {
+        qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
+        return false;
+    }
+
+    for (int y = 0; y < header.height(); ++y) {
+        if (s.atEnd()) {
+            return false;
+        }
+
+        if (!readLine(s, buf, header)) {
+            return false;
+        }
+
+        uchar *p = img.scanLine(y);
+        if (!p) {
+            return false;
+        }
+
+        for (unsigned int x = 0; x < header.BytesPerLine; ++x) {
+            p[x * 2] = (buf[x] & 240) >> 4;
+            p[x * 2 + 1] = buf[x] & 15;
+        }
+    }
+
+    // Read the palette
+    for (int i = 0; i < 16; ++i) {
+        img.setColor(i, header.ColorMap.color(i));
+    }
+
+    return (s.status() == QDataStream::Ok);
+}
+
 static bool readImage8(QImage &img, QDataStream &s, const PCXHEADER &header)
 {
     QByteArray buf(header.BytesPerLine, 0);
@@ -672,6 +712,8 @@ bool PCXHandler::read(QImage *outImage)
         ok = readImage1(img, s, header);
     } else if (header.Bpp == 1 && header.NPlanes == 4) {
         ok = readImage4(img, s, header);
+    } else if (header.Bpp == 4 && header.NPlanes == 1) {
+        ok = readImage4v2(img, s, header);
     } else if (header.Bpp == 8 && header.NPlanes == 1) {
         ok = readImage8(img, s, header);
     } else if (header.Bpp == 8 && header.NPlanes == 3) {
