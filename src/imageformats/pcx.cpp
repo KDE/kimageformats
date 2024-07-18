@@ -308,6 +308,11 @@ static bool readImage4(QImage &img, QDataStream &s, const PCXHEADER &header)
         return false;
     }
 
+    if (header.BytesPerLine < (header.width() / 8)) {
+        qWarning() << "PCX image has invalid BytesPerLine value";
+        return false;
+    }
+
     for (int y = 0; y < header.height(); ++y) {
         if (s.atEnd()) {
             return false;
