@@ -375,7 +375,8 @@ static bool readImage4v2(QImage &img, QDataStream &s, const PCXHEADER &header)
             return false;
         }
 
-        for (unsigned int x = 0; x < header.BytesPerLine; ++x) {
+        const unsigned int bpl = std::min(header.BytesPerLine, static_cast<quint16>(header.width() / 2));
+        for (unsigned int x = 0; x < bpl; ++x) {
             p[x * 2] = (buf[x] & 240) >> 4;
             p[x * 2 + 1] = buf[x] & 15;
         }
