@@ -464,6 +464,8 @@ static bool readImage24(QImage &img, QDataStream &s, const PCXHEADER &header)
         return false;
     }
 
+    const unsigned int bpl = std::min(header.BytesPerLine, static_cast<quint16>(header.width()));
+
     for (int y = 0; y < header.height(); ++y) {
         if (s.atEnd()) {
             return false;
@@ -480,7 +482,8 @@ static bool readImage24(QImage &img, QDataStream &s, const PCXHEADER &header)
         }
 
         uint *p = (uint *)img.scanLine(y);
-        for (int x = 0; x < header.width(); ++x) {
+
+        for (unsigned int x = 0; x < bpl; ++x) {
             p[x] = qRgb(r_buf[x], g_buf[x], b_buf[x]);
         }
     }
