@@ -1672,7 +1672,7 @@ bool XCFImageFormat::assignImageBytes(Layer &layer, uint i, uint j, const GimpPr
         for (int y = 0; y < height; y++) {
             uchar *dataPtr = bits + y * bytesPerLine;
             uchar *alphaPtr = nullptr;
-            if (!layer.alpha_tiles.isEmpty()) {
+            if (layer.alpha_tiles.size() > j && layer.alpha_tiles.at(j).size() > i) {
                 QImage &alphaTile = layer.alpha_tiles[j][i];
                 if (alphaTile.width() >= width && alphaTile.height() > y) {
                     alphaPtr = alphaTile.scanLine(y);
