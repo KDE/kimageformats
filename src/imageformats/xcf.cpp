@@ -1093,7 +1093,9 @@ bool XCFImageFormat::loadProperty(QDataStream &xcf_io, PropType &type, QByteArra
         size = 0;
     } else {
         xcf_io >> size;
-        if (size > 256000) {
+        if (size > 256000 * 4) {
+            // NOTE: I didn't find any reference to maximum property dimensions in the specs, so I assume it's just a sanity check.
+            qCDebug(XCFPLUGIN) << "XCF: loadProperty skips" << type << "due to size being too large";
             return false;
         }
         data = new char[size];
@@ -1672,8 +1674,12 @@ bool XCFImageFormat::assignImageBytes(Layer &layer, uint i, uint j, const GimpPr
         for (int y = 0; y < height; y++) {
             uchar *dataPtr = bits + y * bytesPerLine;
             uchar *alphaPtr = nullptr;
-            if (!layer.alpha_tiles.isEmpty())
-                alphaPtr = layer.alpha_tiles[j][i].scanLine(y);
+            if (layer.alpha_tiles.size() > j && layer.alpha_tiles.at(j).size() > i) {
+                QImage &alphaTile = layer.alpha_tiles[j][i];
+                if (alphaTile.width() >= width && alphaTile.height() > y) {
+                    alphaPtr = alphaTile.scanLine(y);
+                }
+            }
             if (bpc == 4) {
 #ifdef USE_FLOAT_IMAGES
                 if (precision < GimpPrecision::GIMP_PRECISION_HALF_LINEAR) {
@@ -2755,10 +2761,10 @@ void XCFImageFormat::copyLayerToImage(XCFImage &xcf_image)
     // For each tile...
 
     for (uint j = 0; j < layer.nrows; j++) {
-        uint y = j * TILE_HEIGHT;
+        qint32 y = qint32(j * TILE_HEIGHT);
 
         for (uint i = 0; i < layer.ncols; i++) {
-            uint x = i * TILE_WIDTH;
+            qint32 x = qint32(i * TILE_WIDTH);
 
             // This seems the best place to apply the dissolve because it
             // depends on the global position of each tile's
@@ -3045,7 +3051,7 @@ void XCFImageFormat::mergeLayerIntoImage(XCFImage &xcf_image)
         merge = mergeRGBToRGB;
         break;
     case GRAY_GIMAGE:
-        if (layer.opacity == OPAQUE_OPACITY) {
+        if (layer.opacity == OPAQUE_OPACITY && xcf_image.image.depth() <= 8) {
             merge = mergeGrayToGray;
         } else {
             merge = mergeGrayToRGB;
@@ -3181,10 +3187,10 @@ void XCFImageFormat::mergeLayerIntoImage(XCFImage &xcf_image)
             qCDebug(XCFPLUGIN) << "Using QPainter for mode" << layer.mode;
 
             for (uint j = 0; j < layer.nrows; j++) {
-                uint y = j * TILE_HEIGHT;
+                qint32 y = qint32(j * TILE_HEIGHT);
 
                 for (uint i = 0; i < layer.ncols; i++) {
-                    uint x = i * TILE_WIDTH;
+                    qint32 x = qint32(i * TILE_WIDTH);
 
                     QImage &tile = layer.image_tiles[j][i];
                     if (x + layer.x_offset < MAX_IMAGE_WIDTH &&
@@ -3210,10 +3216,10 @@ void XCFImageFormat::mergeLayerIntoImage(XCFImage &xcf_image)
 #endif
 
     for (uint j = 0; j < layer.nrows; j++) {
-        uint y = j * TILE_HEIGHT;
+        qint32 y = qint32(j * TILE_HEIGHT);
 
         for (uint i = 0; i < layer.ncols; i++) {
-            uint x = i * TILE_WIDTH;
+            qint32 x = qint32(i * TILE_WIDTH);
 
             // This seems the best place to apply the dissolve because it
             // depends on the global position of each tile's
@@ -3853,6 +3859,9 @@ bool XCFImageFormat::mergeGrayAToRGB(const Layer &layer, uint i, uint j, int k, 
     }
 
     switch (layer.mode) {
+    case GIMP_LAYER_MODE_NORMAL:
+    case GIMP_LAYER_MODE_NORMAL_LEGACY:
+        break;
     case GIMP_LAYER_MODE_MULTIPLY:
     case GIMP_LAYER_MODE_MULTIPLY_LEGACY: {
         src = INT_MULT(src, dst);
@@ -4146,7 +4155,9 @@ bool XCFHandler::canRead() const
 bool XCFHandler::read(QImage *image)
 {
     XCFImageFormat xcfif;
-    return xcfif.readXCF(device(), image);
+    auto ok = xcfif.readXCF(device(), image);
+    m_imageSize = image->size();
+    return ok;
 }
 
 bool XCFHandler::write(const QImage &)
@@ -4166,6 +4177,9 @@ QVariant XCFHandler::option(ImageOption option) const
     QVariant v;
 
     if (option == QImageIOHandler::Size) {
+        if (!m_imageSize.isEmpty()) {
+            return m_imageSize;
+        }
         /*
          * The image structure always starts at offset 0 in the XCF file.
          * byte[9]     "gimp xcf " File type identification
@@ -4178,7 +4192,7 @@ QVariant XCFHandler::option(ImageOption option) const
          * uint32      width        Width of canvas
          * uint32      height       Height of canvas
          */
-        if (auto d = device()) {
+        else if (auto d = device()) {
             // transactions works on both random and sequential devices
             d->startTransaction();
             auto ba9 = d->read(9);      // "gimp xcf "
