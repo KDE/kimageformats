@@ -117,7 +117,7 @@ plugin ('n/a' means no limit, i.e. the limit depends on the format encoding).
 - HDR: n/a (large image)
 - HEIF: n/a
 - JXL: 65,535 x 65,535 pixels, in any case no larger than 256 megapixels
-- JXR: n/a
+- JXR: n/a, in any case no larger than 4 GB
 - PCX: 65,535 x 65,535 pixels
 - PFM: n/a (large image)
 - PIC: 65,535 x 65,535 pixels
