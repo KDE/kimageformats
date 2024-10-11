@@ -68,8 +68,8 @@
 class K_IStream : public Imf::IStream
 {
 public:
-    K_IStream(QIODevice *dev, const QByteArray &fileName)
-        : IStream(fileName.data())
+    K_IStream(QIODevice *dev)
+        : IStream("K_IStream")
         , m_dev(dev)
     {
     }
@@ -159,7 +159,7 @@ bool EXRHandler::read(QImage *outImage)
         int width;
         int height;
 
-        K_IStream istr(device(), QByteArray());
+        K_IStream istr(device());
         Imf::RgbaInputFile file(istr);
         Imath::Box2i dw = file.dataWindow();
         bool isRgba = file.channels() & Imf::RgbaChannels::WRITE_A;
@@ -270,6 +270,13 @@ bool EXRHandler::canRead(QIODevice *device)
         qWarning("EXRHandler::canRead() called with no device");
         return false;
     }
+
+#if OPENEXR_VERSION_MAJOR == 3 && OPENEXR_VERSION_MINOR > 2
+    // openexpr >= 3.3 uses seek and tell extensively
+    if (device->isSequential()) {
+        return false;
+    }
+#endif
 
     const QByteArray head = device->peek(4);
 
