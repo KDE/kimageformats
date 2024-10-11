@@ -86,8 +86,8 @@
 class K_IStream : public Imf::IStream
 {
 public:
-    K_IStream(QIODevice *dev, const QByteArray &fileName)
-        : IStream(fileName.data())
+    K_IStream(QIODevice *dev)
+        : IStream("K_IStream")
         , m_dev(dev)
     {
     }
@@ -145,8 +145,8 @@ void K_IStream::clear()
 class K_OStream : public Imf::OStream
 {
 public:
-    K_OStream(QIODevice *dev, const QByteArray &fileName)
-        : OStream(fileName.data())
+    K_OStream(QIODevice *dev)
+        : OStream("K_OStream")
         , m_dev(dev)
     {
     }
@@ -360,7 +360,7 @@ bool EXRHandler::read(QImage *outImage)
             }
         }
 
-        K_IStream istr(d, QByteArray());
+        K_IStream istr(d);
         Imf::RgbaInputFile file(istr);
         auto &&header = file.header();
 
@@ -583,7 +583,7 @@ bool EXRHandler::write(const QImage &image)
         setMetadata(image, header);
 
         // write the EXR
-        K_OStream ostr(device(), QByteArray());
+        K_OStream ostr(device());
         auto channelsType = image.hasAlphaChannel() ? Imf::RgbaChannels::WRITE_RGBA : Imf::RgbaChannels::WRITE_RGB;
         if (image.format() == QImage::Format_Mono ||
             image.format() == QImage::Format_MonoLSB ||
@@ -673,7 +673,7 @@ QVariant EXRHandler::option(ImageOption option) const
                 d->seek(m_startPos);
             }
             try {
-                K_IStream istr(d, QByteArray());
+                K_IStream istr(d);
                 Imf::RgbaInputFile file(istr);
                 if (m_imageNumber > -1) { // set the image to read
                     auto views = viewList(file.header());
@@ -698,7 +698,7 @@ QVariant EXRHandler::option(ImageOption option) const
                 d->seek(m_startPos);
             }
             try {
-                K_IStream istr(d, QByteArray());
+                K_IStream istr(d);
                 Imf::RgbaInputFile file(istr);
                 v = QVariant::fromValue(imageFormat(file));
             } catch (const std::exception &) {
@@ -747,7 +747,7 @@ int EXRHandler::imageCount() const
     d->startTransaction();
 
     try {
-        K_IStream istr(d, QByteArray());
+        K_IStream istr(d);
         Imf::RgbaInputFile file(istr);
         auto views = viewList(file.header());
         if (!views.isEmpty()) {
@@ -773,6 +773,13 @@ bool EXRHandler::canRead(QIODevice *device)
         qWarning("EXRHandler::canRead() called with no device");
         return false;
     }
+
+#if OPENEXR_VERSION_MAJOR == 3 && OPENEXR_VERSION_MINOR > 2
+    // openexpr >= 3.3 uses seek and tell extensively
+    if (device->isSequential()) {
+        return false;
+    }
+#endif
 
     const QByteArray head = device->peek(4);
 
