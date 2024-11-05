@@ -32,7 +32,7 @@ private:
 class ScitexPlugin : public QImageIOPlugin
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QImageIOHandlerFactoryInterface" FILE "scitex.json")
+    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QImageIOHandlerFactoryInterface" FILE "sct.json")
 
 public:
     Capabilities capabilities(QIODevice *device, const QByteArray &format) const override;

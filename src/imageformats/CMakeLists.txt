@@ -107,7 +107,7 @@ kimageformats_add_plugin(kimg_rgb SOURCES rgb.cpp)
 
 ##################################
 
-kimageformats_add_plugin(kimg_sct SOURCES scitex.cpp)
+kimageformats_add_plugin(kimg_sct SOURCES sct.cpp)
 
 ##################################
 

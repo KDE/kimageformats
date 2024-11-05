@@ -5,7 +5,7 @@
     SPDX-License-Identifier: LGPL-2.0-or-later
 */
 
-#include "scitex_p.h"
+#include "sct_p.h"
 #include "scanlineconverter_p.h"
 #include "util_p.h"
 
