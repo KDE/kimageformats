@@ -14,6 +14,7 @@
 
 #include <QColorSpace>
 #include <QDataStream>
+#include <QFloat16>
 #include <QIODevice>
 #include <QImage>
 #include <QLoggingCategory>
@@ -28,6 +29,11 @@ private:
      * \brief m_bw True if grayscale.
      */
     bool m_bw;
+
+    /*!
+     * \brief m_half True if half float.
+     */
+    bool m_half;
 
     /*!
      * \brief m_ps True if saved by Photoshop (Photoshop variant).
@@ -61,12 +67,13 @@ private:
     QDataStream::ByteOrder m_byteOrder;
 
 public:
-    PFMHeader() :
-        m_bw(false),
-        m_ps(false),
-        m_width(0),
-        m_height(0),
-        m_byteOrder(QDataStream::BigEndian)
+    PFMHeader()
+        : m_bw(false)
+        , m_half(false)
+        , m_ps(false)
+        , m_width(0)
+        , m_height(0)
+        , m_byteOrder(QDataStream::BigEndian)
     {
 
     }
@@ -79,6 +86,11 @@ public:
     bool isBlackAndWhite() const
     {
         return m_bw;
+    }
+
+    bool isHalfFloat() const
+    {
+        return m_half;
     }
 
     bool isPhotoshop() const
@@ -109,7 +121,7 @@ public:
     QImage::Format format() const
     {
         if (isValid()) {
-            return QImage::Format_RGBX32FPx4;
+            return m_half ? QImage::Format_RGBX16FPx4 : QImage::Format_RGBX32FPx4;
         }
         return QImage::Format_Invalid;
     }
@@ -118,8 +130,16 @@ public:
     {
         auto pf = d->read(3);
         if (pf == QByteArray("PF\n")) {
+            m_half = false;
             m_bw = false;
         } else if (pf == QByteArray("Pf\n")) {
+            m_half = false;
+            m_bw = true;
+        } else if (pf == QByteArray("PH\n")) {
+            m_half = true;
+            m_bw = false;
+        } else if (pf == QByteArray("Ph\n")) {
+            m_half = true;
             m_bw = true;
         } else {
             return false;
@@ -196,6 +216,28 @@ bool PFMHandler::canRead(QIODevice *device)
     return h.isValid();
 }
 
+template<class T>
+bool readScanLine(qint32 y, QDataStream &s, QImage &img, const PFMHeader &header)
+{
+    auto bw = header.isBlackAndWhite();
+    auto line = reinterpret_cast<T *>(img.scanLine(header.isPhotoshop() ? y : img.height() - y - 1));
+    for (auto x = 0, n = img.width() * 4; x < n; x += 4) {
+        line[x + 3] = T(1);
+        s >> line[x];
+        if (bw) {
+            line[x + 1] = line[x];
+            line[x + 2] = line[x];
+        } else {
+            s >> line[x + 1];
+            s >> line[x + 2];
+        }
+        if (s.status() != QDataStream::Ok) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool PFMHandler::read(QImage *image)
 {
     auto&& header = d->m_header;
@@ -215,22 +257,15 @@ bool PFMHandler::read(QImage *image)
     }
 
     for (auto y = 0, h = img.height(); y < h; ++y) {
-        auto bw = header.isBlackAndWhite();
-        auto line = reinterpret_cast<float *>(img.scanLine(header.isPhotoshop() ? y : h - y - 1));
-        for (auto x = 0, n = img.width() * 4; x < n; x += 4) {
-            line[x + 3] = float(1);
-            s >> line[x];
-            if (bw) {
-                line[x + 1] = line[x];
-                line[x + 2] = line[x];
-            } else {
-                s >> line[x + 1];
-                s >> line[x + 2];
-            }
-            if (s.status() != QDataStream::Ok) {
-                qCWarning(LOG_PFMPLUGIN) << "PFMHandler::read() detected corrupted data";
-                return false;
-            }
+        auto ok = false;
+        if (header.isHalfFloat()) {
+            ok = readScanLine<qfloat16>(y, s, img, header);
+        } else {
+            ok = readScanLine<float>(y, s, img, header);
+        }
+        if (!ok) {
+            qCWarning(LOG_PFMPLUGIN) << "PFMHandler::read() detected corrupted data";
+            return false;
         }
     }
 
@@ -296,7 +331,7 @@ QVariant PFMHandler::option(ImageOption option) const
 
 QImageIOPlugin::Capabilities PFMPlugin::capabilities(QIODevice *device, const QByteArray &format) const
 {
-    if (format == "pfm") {
+    if (format == "pfm" || format == "phm") {
         return Capabilities(CanRead);
     }
     if (!format.isEmpty()) {

@@ -19,7 +19,7 @@ The following image formats have read-only support:
 - Krita (kra)
 - OpenRaster (ora)
 - Pixar raster (pxr)
-- Portable FloatMap (pfm)
+- Portable FloatMap/HalfMap (pfm, phm)
 - Photoshop documents (psd, psb, pdd, psdt)
 - Radiance HDR (hdr)
 - Scitex CT (sct)
