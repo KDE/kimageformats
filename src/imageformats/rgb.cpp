@@ -225,7 +225,7 @@ bool SGIImagePrivate::readData(QImage &img)
         if (!getRow(line)) {
             return false;
         }
-        c = (QRgb *)img.scanLine(_ysize - y - 1);
+        c = reinterpret_cast<QRgb *>(img.scanLine(_ysize - y - 1));
         for (x = 0; x < _xsize; x++, c++) {
             *c = qRgb(line[x], line[x], line[x]);
         }
@@ -243,7 +243,7 @@ bool SGIImagePrivate::readData(QImage &img)
             if (!getRow(line)) {
                 return false;
             }
-            c = (QRgb *)img.scanLine(_ysize - y - 1);
+            c = reinterpret_cast<QRgb *>(img.scanLine(_ysize - y - 1));
             for (x = 0; x < _xsize; x++, c++) {
                 *c = qRgb(qRed(*c), line[x], line[x]);
             }
@@ -256,7 +256,7 @@ bool SGIImagePrivate::readData(QImage &img)
             if (!getRow(line)) {
                 return false;
             }
-            c = (QRgb *)img.scanLine(_ysize - y - 1);
+            c = reinterpret_cast<QRgb *>(img.scanLine(_ysize - y - 1));
             for (x = 0; x < _xsize; x++, c++) {
                 *c = qRgb(qRed(*c), qGreen(*c), line[x]);
             }
@@ -274,7 +274,7 @@ bool SGIImagePrivate::readData(QImage &img)
         if (!getRow(line)) {
             return false;
         }
-        c = (QRgb *)img.scanLine(_ysize - y - 1);
+        c = reinterpret_cast<QRgb *>(img.scanLine(_ysize - y - 1));
         for (x = 0; x < _xsize; x++, c++) {
             *c = qRgba(qRed(*c), qGreen(*c), qBlue(*c), line[x]);
         }

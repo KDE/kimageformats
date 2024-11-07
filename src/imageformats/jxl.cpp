@@ -952,6 +952,7 @@ QVariant QJpegXLHandler::option(ImageOption option) const
         } else if (m_basicinfo.orientation == JXL_ORIENT_ROTATE_90_CCW) {
             return int(QImageIOHandler::TransformationRotate270);
         }
+        break;
 #endif
     default:
         return QVariant();
