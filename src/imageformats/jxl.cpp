@@ -1172,7 +1172,7 @@ bool QJpegXLHandler::decodeBoxes()
             JxlDecoderGetBoxType(m_decoder, type, JXL_FALSE);
             if (memcmp(type, "xml ", 4) == 0) {
                 uint64_t size;
-                if (JxlDecoderGetBoxSizeRaw(m_decoder, &size) == JXL_DEC_SUCCESS) {
+                if (JxlDecoderGetBoxSizeRaw(m_decoder, &size) == JXL_DEC_SUCCESS && size < uint64_t(kMaxQVectorSize)) {
                     m_xmp = QByteArray(size, '\0');
                     JxlDecoderSetBoxBuffer(m_decoder, reinterpret_cast<uint8_t *>(m_xmp.data()), m_xmp.size());
                 }
