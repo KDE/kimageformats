@@ -316,6 +316,9 @@ bool SGIImagePrivate::readImage(QImage &img)
         for (l = 0; !_stream.atEnd() && l < _numrows; l++) {
             _stream >> _starttab[l];
             _starttab[l] -= 512 + _numrows * 2 * sizeof(quint32);
+            if (_stream.status() != QDataStream::Ok) {
+                return false;
+            }
         }
         for (; l < _numrows; l++) {
             _starttab[l] = 0;
@@ -324,6 +327,9 @@ bool SGIImagePrivate::readImage(QImage &img)
         _lengthtab = new quint32[_numrows];
         for (l = 0; !_stream.atEnd() && l < _numrows; l++) {
             _stream >> _lengthtab[l];
+            if (_stream.status() != QDataStream::Ok) {
+                return false;
+            }
         }
     }
 
