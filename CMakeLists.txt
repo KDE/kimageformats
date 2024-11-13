@@ -21,7 +21,7 @@ include(ECMDeprecationSettings)
 include(CheckIncludeFiles)
 include(FindPkgConfig)
 
-set(REQUIRED_QT_VERSION 6.5.0)
+set(REQUIRED_QT_VERSION 6.6.0)
 find_package(Qt6Gui ${REQUIRED_QT_VERSION} REQUIRED NO_MODULE)
 
 find_package(KF6Archive ${KF_DEP_VERSION})
