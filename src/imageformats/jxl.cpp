@@ -203,7 +203,7 @@ bool QJpegXLHandler::ensureDecoder()
         return false;
     }
 
-    if (!decodeBoxes()) {
+    if (!decodeBoxes(status)) {
         return false;
     }
 
@@ -236,7 +236,11 @@ bool QJpegXLHandler::countALLFrames()
         return false;
     }
 
-    JxlDecoderStatus status = JxlDecoderProcessInput(m_decoder);
+    JxlDecoderStatus status;
+    if (!decodeBoxes(status)) {
+        return false;
+    }
+
     if (status != JXL_DEC_COLOR_ENCODING) {
         qWarning("Unexpected event %d instead of JXL_DEC_COLOR_ENCODING", status);
         m_parseState = ParseJpegXLError;
@@ -401,7 +405,7 @@ bool QJpegXLHandler::countALLFrames()
     }
 
 #ifndef JXL_DECODE_BOXES_DISABLED
-    if (!decodeBoxes()) {
+    if (!decodeBoxes(status)) {
         return false;
     }
 #endif
@@ -1162,9 +1166,8 @@ bool QJpegXLHandler::rewind()
     return true;
 }
 
-bool QJpegXLHandler::decodeBoxes()
+bool QJpegXLHandler::decodeBoxes(JxlDecoderStatus &status)
 {
-    JxlDecoderStatus status;
     do { // decode metadata
         status = JxlDecoderProcessInput(m_decoder);
         if (status == JXL_DEC_BOX) {
