@@ -584,6 +584,9 @@ bool QJpegXLHandler::write(const QImage &image)
     case QImage::Format_RGBX8888:
     case QImage::Format_RGBA8888:
     case QImage::Format_RGBA8888_Premultiplied:
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    case QImage::Format_CMYK8888:
+#endif
         save_depth = 8;
         break;
     case QImage::Format_Grayscale16:
@@ -757,7 +760,20 @@ bool QJpegXLHandler::write(const QImage &image)
         }
     }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    // TODO: add native CMYK support (libjxl supports CMYK images)
+    QImage tmpimage;
+    auto cs = image.colorSpace();
+    if (cs.isValid() && cs.colorModel() == QColorSpace::ColorModel::Cmyk && image.format() == QImage::Format_CMYK8888) {
+        tmpimage = image.convertedToColorSpace(QColorSpace(QColorSpace::SRgb), tmpformat);
+    }
+    else {
+        tmpimage = image.convertToFormat(tmpformat);
+    }
+#else
     QImage tmpimage = image.convertToFormat(tmpformat);
+#endif
+
     const size_t xsize = tmpimage.width();
     const size_t ysize = tmpimage.height();
 
