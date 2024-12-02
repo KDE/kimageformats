@@ -228,7 +228,7 @@ bool QJpegXLHandler::countALLFrames()
     }
 
     JxlColorEncoding color_encoding;
-    if (m_basicinfo.uses_original_profile == JXL_FALSE) {
+    if (m_basicinfo.uses_original_profile == JXL_FALSE && m_basicinfo.have_animation == JXL_FALSE) {
         JxlColorEncodingSetToSRGB(&color_encoding, JXL_FALSE);
         JxlDecoderSetPreferredColorProfile(m_decoder, &color_encoding);
     }
@@ -960,13 +960,7 @@ bool QJpegXLHandler::rewind()
 
     JxlDecoderCloseInput(m_decoder);
 
-    if (m_basicinfo.uses_original_profile) {
-        if (JxlDecoderSubscribeEvents(m_decoder, JXL_DEC_FULL_IMAGE) != JXL_DEC_SUCCESS) {
-            qWarning("ERROR: JxlDecoderSubscribeEvents failed");
-            m_parseState = ParseJpegXLError;
-            return false;
-        }
-    } else {
+    if (m_basicinfo.uses_original_profile == JXL_FALSE && m_basicinfo.have_animation == JXL_FALSE) {
         if (JxlDecoderSubscribeEvents(m_decoder, JXL_DEC_COLOR_ENCODING | JXL_DEC_FULL_IMAGE) != JXL_DEC_SUCCESS) {
             qWarning("ERROR: JxlDecoderSubscribeEvents failed");
             m_parseState = ParseJpegXLError;
@@ -983,6 +977,12 @@ bool QJpegXLHandler::rewind()
         JxlColorEncoding color_encoding;
         JxlColorEncodingSetToSRGB(&color_encoding, JXL_FALSE);
         JxlDecoderSetPreferredColorProfile(m_decoder, &color_encoding);
+    } else {
+        if (JxlDecoderSubscribeEvents(m_decoder, JXL_DEC_FULL_IMAGE) != JXL_DEC_SUCCESS) {
+            qWarning("ERROR: JxlDecoderSubscribeEvents failed");
+            m_parseState = ParseJpegXLError;
+            return false;
+        }
     }
 
     return true;
