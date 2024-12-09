@@ -62,7 +62,7 @@ set_package_properties(libavif PROPERTIES
     PURPOSE "Required for the QImage plugin for AVIF images"
 )
 
-option(KIMAGEFORMATS_HEIF "Enable plugin for HEIF format" OFF)
+option(KIMAGEFORMATS_HEIF "Enable plugin for HEIF format" ON)
 if(KIMAGEFORMATS_HEIF)
     pkg_check_modules(LibHeif IMPORTED_TARGET libheif>=1.10.0)
 endif()
