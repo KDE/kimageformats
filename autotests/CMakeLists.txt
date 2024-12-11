@@ -76,6 +76,11 @@ kimageformats_read_tests(
     tga
 )
 
+if(KIMAGEFORMATS_DDS)
+    kimageformats_read_tests(dds)
+    kimageformats_write_tests(dds)
+endif()
+
 if (KF6Archive_FOUND)
     kimageformats_read_tests(
         kra

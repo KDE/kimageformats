@@ -62,6 +62,9 @@ set_package_properties(libavif PROPERTIES
     PURPOSE "Required for the QImage plugin for AVIF images"
 )
 
+# DDS plugin disabled by default due to security issues
+option(KIMAGEFORMATS_DDS "Enable plugin for DDS format" OFF)
+
 option(KIMAGEFORMATS_HEIF "Enable plugin for HEIF format" OFF)
 if(KIMAGEFORMATS_HEIF)
     pkg_check_modules(LibHeif IMPORTED_TARGET libheif>=1.10.0)
@@ -82,6 +85,7 @@ set_package_properties(LibRaw PROPERTIES
     PURPOSE "Required for the QImage plugin for RAW images"
 )
 
+# JXR plugin disabled by default due to security issues
 option(KIMAGEFORMATS_JXR "Enable plugin for JPEG XR format" OFF)
 if(KIMAGEFORMATS_JXR)
     find_package(LibJXR)

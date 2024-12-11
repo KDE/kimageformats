@@ -28,6 +28,7 @@ The following image formats have read-only support:
 The following image formats have read and write support:
 
 - AV1 Image File Format (avif)
+- DirectDraw Surface (dds)
 - Encapsulated PostScript (eps)
 - High Efficiency Image File Format (heif)
 - JPEG XL (jxl)
@@ -51,6 +52,8 @@ better to submit the plugin directly to the Qt Project.
 
 ## Duplicated Plugins
 
+### The TGA plugin
+
 The TGA plugin supports more formats than Qt's own TGA plugin;
 specifically, the one provided here supports indexed, greyscale and RLE
 images (types 1-3 and 9-11), while Qt's plugin only supports type 2
@@ -60,6 +63,11 @@ The code for this cannot be contributed upstream directly because of
 licensing.  If anyone were willing to write fresh code to improve Qt's
 TGA plugin, it would allow the TGA plugin in this framework to be
 removed.
+
+### The DDS plugin
+
+The DDS plugin is a fork from Qt 5.6. It will be activated once the 
+security issues are resolved.
 
 ## License
 
@@ -114,6 +122,7 @@ plugin ('n/a' means no limit, i.e. the limit depends on the format encoding).
 
 - ANI: n/a
 - AVIF: 32,768 x 32,768 pixels, in any case no larger than 256 megapixels
+- DDS: n/a
 - EXR: 300,000 x 300,000 pixels
 - HDR: n/a (large image)
 - HEIF: n/a
@@ -161,6 +170,11 @@ without using the ICC profile.
 
 JXR, PSD and SCT plugins natively support 4-channel CMYK images when compiled 
 with Qt 6.8+.
+
+### The DDS plugin
+
+**This plugin is disabled by default. It can be enabled with the 
+`KIMAGEFORMATS_DDS` build option in the cmake file.**
 
 ### The HEIF plugin
 
