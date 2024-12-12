@@ -263,7 +263,7 @@ int main(int argc, char **argv)
         }
         for (const QFileInfo &fi : lstImgDir) {
             TemplateImage timg(fi);
-            if (timg.isTemplate()) {
+            if (timg.isTemplate() || timg.isLicense()) {
                 continue;
             }
 

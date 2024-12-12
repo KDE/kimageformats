@@ -403,6 +403,11 @@ QDataStream &operator<<(QDataStream &s, const DDSHeaderDX10 &header)
     return s;
 }
 
+inline qsizetype ptrDiff(const void *end, const void *start)
+{
+    return qsizetype(reinterpret_cast<const char*>(end) - reinterpret_cast<const char*>(start));
+}
+
 static inline int maskToShift(quint32 mask)
 {
     if (mask == 0)
@@ -1633,9 +1638,16 @@ static QImage readCubeMap(QDataStream &s, const DDSHeader &dds, const int fmt)
 
         // Copy face on the image.
         for (quint32 y = 0; y < dds.height; y++) {
-            const QRgb *src = reinterpret_cast<const QRgb *>(face.scanLine(y));
+            if (y + offset_y >= quint32(image.height())) {
+                return {};
+            }
+            const QRgb *src = reinterpret_cast<const QRgb *>(face.constScanLine(y));
             QRgb *dst = reinterpret_cast<QRgb *>(image.scanLine(y + offset_y)) + offset_x;
-            memcpy(dst, src, sizeof(QRgb) * dds.width);
+            qsizetype sz = sizeof(QRgb) * dds.width;
+            if (ptrDiff(face.bits() + face.sizeInBytes(), src) < sz || ptrDiff(image.bits() + image.sizeInBytes(), dst) < sz) {
+                return {};
+            }
+            memcpy(dst, src, sz);
         }
     }
 
@@ -1777,7 +1789,7 @@ QVariant QDDSHandler::option(QImageIOHandler::ImageOption option) const
 
     switch (option) {
     case QImageIOHandler::Size:
-        return QSize(m_header.width, m_header.height);
+        return isCubeMap(m_header) ? QSize(m_header.width * 4, m_header.height * 3) : QSize(m_header.width, m_header.height);
     case QImageIOHandler::SubType:
         return formatName(m_format);
     case QImageIOHandler::SupportedSubTypes:
