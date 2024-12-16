@@ -1802,18 +1802,26 @@ bool QDDSHandler::write(const QImage &outImage)
 
 QVariant QDDSHandler::option(QImageIOHandler::ImageOption option) const
 {
-    if (!supportsOption(option) || !ensureScanned())
+    if (!supportsOption(option)) {
         return QVariant();
+    }
 
-    switch (option) {
-    case QImageIOHandler::Size:
-        return isCubeMap(m_header) ? QSize(m_header.width * 4, m_header.height * 3) : QSize(m_header.width, m_header.height);
-    case QImageIOHandler::SubType:
-        return formatName(m_format);
-    case QImageIOHandler::SupportedSubTypes:
+    // *** options that do not require a valid stream ***
+    if (option == QImageIOHandler::SupportedSubTypes) {
         return QVariant::fromValue(QList<QByteArray>() << formatName(FormatA8R8G8B8));
-    default:
-        break;
+    }
+
+    // *** options that require a valid stream ***
+    if (!ensureScanned()) {
+        return QVariant();
+    }
+
+    if (option == QImageIOHandler::Size) {
+        return isCubeMap(m_header) ? QSize(m_header.width * 4, m_header.height * 3) : QSize(m_header.width, m_header.height);
+    }
+
+    if (option == QImageIOHandler::SubType) {
+        return formatName(m_format);
     }
 
     return QVariant();
@@ -1868,6 +1876,10 @@ bool QDDSHandler::canRead(QIODevice *device)
 
 bool QDDSHandler::ensureScanned() const
 {
+    if (device() == nullptr) {
+        return false;
+    }
+
     if (m_scanState != ScanNotScanned)
         return m_scanState == ScanSuccess;
 
