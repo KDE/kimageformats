@@ -2,6 +2,7 @@
     This file is part of the KDE project
     SPDX-FileCopyrightText: 2015 The Qt Company Ltd
     SPDX-FileCopyrightText: 2013 Ivan Komissarov
+    SPDX-FileCopyrightText: 2024 Mirco Miranda
 
     SPDX-License-Identifier: LGPL-2.1-only OR LGPL-3.0-only
 */
@@ -35,6 +36,15 @@ struct DDSPixelFormat
     quint32 gBitMask;
     quint32 bBitMask;
     quint32 aBitMask;
+};
+
+struct DDSHeaderDX10
+{
+    quint32 dxgiFormat = 0;
+    quint32 resourceDimension = 0;
+    quint32 miscFlag = 0;
+    quint32 arraySize = 0;
+    quint32 miscFlags2 = 0;
 };
 
 struct DDSHeader
@@ -84,15 +94,7 @@ struct DDSHeader
     quint32 caps3;
     quint32 caps4;
     quint32 reserved2;
-};
-
-struct DDSHeaderDX10
-{
-    quint32 dxgiFormat;
-    quint32 resourceDimension;
-    quint32 miscFlag;
-    quint32 arraySize;
-    quint32 reserved;
+    DDSHeaderDX10 header10;
 };
 
 class QDDSHandler : public QImageIOHandler
@@ -126,7 +128,6 @@ private:
 
     DDSHeader m_header;
     int m_format;
-    DDSHeaderDX10 m_header10;
     int m_currentImage;
     mutable ScanState m_scanState;
 };
@@ -136,8 +137,8 @@ class QDDSPlugin : public QImageIOPlugin
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QImageIOHandlerFactoryInterface" FILE "dds.json")
 public:
-    Capabilities capabilities(QIODevice *device, const QByteArray &format) const;
-    QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const;
+    Capabilities capabilities(QIODevice *device, const QByteArray &format) const override;
+    QImageIOHandler *create(QIODevice *device, const QByteArray &format = QByteArray()) const override;
 };
 
 #endif // QDDSHANDLER_H

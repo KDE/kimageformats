@@ -78,7 +78,7 @@ kimageformats_read_tests(
 
 if(KIMAGEFORMATS_DDS)
     kimageformats_read_tests(dds)
-    kimageformats_write_tests(dds)
+    kimageformats_write_tests(dds-nodatacheck-lossless)
 endif()
 
 if (KF6Archive_FOUND)

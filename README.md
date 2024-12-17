@@ -66,8 +66,8 @@ removed.
 
 ### The DDS plugin
 
-The DDS plugin is a fork from Qt 5.6. It will be activated once the 
-security issues are resolved.
+The DDS plugin is a fork of Qt 5.6 with bug fixes and improvements. It
+will be activated once the security issues are resolved.
 
 ## License
 
@@ -79,22 +79,23 @@ The CMake code in this framework is licensed under the
 
 ## Plugin status
 
-The current implementation of a plugin may not be complete or may have limitations
-of various kinds. Typically the limitations are on maximum size and color depth.
+The current implementation of a plugin may not be complete or may have
+limitations of various kinds. Typically the limitations are on maximum size
+and color depth.
 
-The various plugins are also limited by the formats natively supported by Qt. 
+The various plugins are also limited by the formats natively supported by Qt.
 For example, native support for CMYK images is only available since Qt 6.8.
 
 ### HDR images
 
-HDR images are supported via floating point image formats from EXR, HDR, JXL,
-JXR, PFM and PSD plugins.
-It is important to note that in the past these plugins stripped away HDR 
+HDR images are supported via floating point image formats from DDS, EXR, HDR,
+JXL, JXR, PFM and PSD plugins.
+It is important to note that in the past these plugins stripped away HDR
 information, returning SDR images.
 
 HDR images return R, G and B values ​​outside the range 0.0 - 1.0.
-While Qt painters handles HDR data correctly, some older programs may display 
-strange artifacts if they do not use a tone mapping operator (or at least a 
+While Qt painters handles HDR data correctly, some older programs may display
+strange artifacts if they do not use a tone mapping operator (or at least a
 clamp). This is not a plugin issue.
 
 ### Metadata
@@ -175,6 +176,9 @@ with Qt 6.8+.
 
 **This plugin is disabled by default. It can be enabled with the 
 `KIMAGEFORMATS_DDS` build option in the cmake file.**
+
+The following defines can be defined in cmake to modify the behavior of the plugin:
+- `DDS_DISABLE_STRIDE_ALIGNMENT`: disable the stride aligment based on DDS pitch: it is known that some writers do not set it correctly.
 
 ### The HEIF plugin
 

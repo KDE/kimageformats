@@ -2,6 +2,7 @@
     This file is part of the KDE project
     SPDX-FileCopyrightText: 2015 The Qt Company Ltd
     SPDX-FileCopyrightText: 2013 Ivan Komissarov
+    SPDX-FileCopyrightText: 2024 Mirco Miranda
 
     SPDX-License-Identifier: LGPL-2.1-only OR LGPL-3.0-only
 */
@@ -10,12 +11,18 @@
 
 #include "dds_p.h"
 #include "util_p.h"
+#include "scanlineconverter_p.h"
 
 #include <QColorSpace>
 #include <QDataStream>
 #include <QDebug>
 
 #include <cmath>
+
+#ifndef DDS_DISABLE_STRIDE_ALIGNMENT
+// Disable the stride aligment based on DDS pitch: it is known that some writers do not set it correctly
+// #define DDS_DISABLE_STRIDE_ALIGNMENT
+#endif
 
 enum Format {
     FormatUnknown              = 0,
@@ -106,6 +113,141 @@ enum Format {
     FormatA4P4,
 
     FormatLast                 = 0x7fffffff
+};
+
+enum DXGIFormat {
+    DXGIFormatUNKNOWN = 0,
+    DXGIFormatR32G32B32A32_TYPELESS = 1,
+    DXGIFormatR32G32B32A32_FLOAT = 2,
+    DXGIFormatR32G32B32A32_UINT = 3,
+    DXGIFormatR32G32B32A32_SINT = 4,
+    DXGIFormatR32G32B32_TYPELESS = 5,
+    DXGIFormatR32G32B32_FLOAT = 6,
+    DXGIFormatR32G32B32_UINT = 7,
+    DXGIFormatR32G32B32_SINT = 8,
+    DXGIFormatR16G16B16A16_TYPELESS = 9,
+    DXGIFormatR16G16B16A16_FLOAT = 10,
+    DXGIFormatR16G16B16A16_UNORM = 11,
+    DXGIFormatR16G16B16A16_UINT = 12,
+    DXGIFormatR16G16B16A16_SNORM = 13,
+    DXGIFormatR16G16B16A16_SINT = 14,
+    DXGIFormatR32G32_TYPELESS = 15,
+    DXGIFormatR32G32_FLOAT = 16,
+    DXGIFormatR32G32_UINT = 17,
+    DXGIFormatR32G32_SINT = 18,
+    DXGIFormatR32G8X24_TYPELESS = 19,
+    DXGIFormatD32_FLOAT_S8X24_UINT = 20,
+    DXGIFormatR32_FLOAT_X8X24_TYPELESS = 21,
+    DXGIFormatX32_TYPELESS_G8X24_UINT = 22,
+    DXGIFormatR10G10B10A2_TYPELESS = 23,
+    DXGIFormatR10G10B10A2_UNORM = 24,
+    DXGIFormatR10G10B10A2_UINT = 25,
+    DXGIFormatR11G11B10_FLOAT = 26,
+    DXGIFormatR8G8B8A8_TYPELESS = 27,
+    DXGIFormatR8G8B8A8_UNORM = 28,
+    DXGIFormatR8G8B8A8_UNORM_SRGB = 29,
+    DXGIFormatR8G8B8A8_UINT = 30,
+    DXGIFormatR8G8B8A8_SNORM = 31,
+    DXGIFormatR8G8B8A8_SINT = 32,
+    DXGIFormatR16G16_TYPELESS = 33,
+    DXGIFormatR16G16_FLOAT = 34,
+    DXGIFormatR16G16_UNORM = 35,
+    DXGIFormatR16G16_UINT = 36,
+    DXGIFormatR16G16_SNORM = 37,
+    DXGIFormatR16G16_SINT = 38,
+    DXGIFormatR32_TYPELESS = 39,
+    DXGIFormatD32_FLOAT = 40,
+    DXGIFormatR32_FLOAT = 41,
+    DXGIFormatR32_UINT = 42,
+    DXGIFormatR32_SINT = 43,
+    DXGIFormatR24G8_TYPELESS = 44,
+    DXGIFormatD24_UNORM_S8_UINT = 45,
+    DXGIFormatR24_UNORM_X8_TYPELESS = 46,
+    DXGIFormatX24_TYPELESS_G8_UINT = 47,
+    DXGIFormatR8G8_TYPELESS = 48,
+    DXGIFormatR8G8_UNORM = 49,
+    DXGIFormatR8G8_UINT = 50,
+    DXGIFormatR8G8_SNORM = 51,
+    DXGIFormatR8G8_SINT = 52,
+    DXGIFormatR16_TYPELESS = 53,
+    DXGIFormatR16_FLOAT = 54,
+    DXGIFormatD16_UNORM = 55,
+    DXGIFormatR16_UNORM = 56,
+    DXGIFormatR16_UINT = 57,
+    DXGIFormatR16_SNORM = 58,
+    DXGIFormatR16_SINT = 59,
+    DXGIFormatR8_TYPELESS = 60,
+    DXGIFormatR8_UNORM = 61,
+    DXGIFormatR8_UINT = 62,
+    DXGIFormatR8_SNORM = 63,
+    DXGIFormatR8_SINT = 64,
+    DXGIFormatA8_UNORM = 65,
+    DXGIFormatR1_UNORM = 66,
+    DXGIFormatR9G9B9E5_SHAREDEXP = 67,
+    DXGIFormatR8G8_B8G8_UNORM = 68,
+    DXGIFormatG8R8_G8B8_UNORM = 69,
+    DXGIFormatBC1_TYPELESS = 70,
+    DXGIFormatBC1_UNORM = 71,
+    DXGIFormatBC1_UNORM_SRGB = 72,
+    DXGIFormatBC2_TYPELESS = 73,
+    DXGIFormatBC2_UNORM = 74,
+    DXGIFormatBC2_UNORM_SRGB = 75,
+    DXGIFormatBC3_TYPELESS = 76,
+    DXGIFormatBC3_UNORM = 77,
+    DXGIFormatBC3_UNORM_SRGB = 78,
+    DXGIFormatBC4_TYPELESS = 79,
+    DXGIFormatBC4_UNORM = 80,
+    DXGIFormatBC4_SNORM = 81,
+    DXGIFormatBC5_TYPELESS = 82,
+    DXGIFormatBC5_UNORM = 83,
+    DXGIFormatBC5_SNORM = 84,
+    DXGIFormatB5G6R5_UNORM = 85,
+    DXGIFormatB5G5R5A1_UNORM = 86,
+    DXGIFormatB8G8R8A8_UNORM = 87,
+    DXGIFormatB8G8R8X8_UNORM = 88,
+    DXGIFormatR10G10B10_XR_BIAS_A2_UNORM = 89,
+    DXGIFormatB8G8R8A8_TYPELESS = 90,
+    DXGIFormatB8G8R8A8_UNORM_SRGB = 91,
+    DXGIFormatB8G8R8X8_TYPELESS = 92,
+    DXGIFormatB8G8R8X8_UNORM_SRGB = 93,
+    DXGIFormatBC6H_TYPELESS = 94,
+    DXGIFormatBC6H_UF16 = 95,
+    DXGIFormatBC6H_SF16 = 96,
+    DXGIFormatBC7_TYPELESS = 97,
+    DXGIFormatBC7_UNORM = 98,
+    DXGIFormatBC7_UNORM_SRGB = 99,
+    DXGIFormatAYUV = 100,
+    DXGIFormatY410 = 101,
+    DXGIFormatY416 = 102,
+    DXGIFormatNV12 = 103,
+    DXGIFormatP010 = 104,
+    DXGIFormatP016 = 105,
+    DXGIFormat420_OPAQUE = 106,
+    DXGIFormatYUY2 = 107,
+    DXGIFormatY210 = 108,
+    DXGIFormatY216 = 109,
+    DXGIFormatNV11 = 110,
+    DXGIFormatAI44 = 111,
+    DXGIFormatIA44 = 112,
+    DXGIFormatP8 = 113,
+    DXGIFormatA8P8 = 114,
+    DXGIFormatB4G4R4A4_UNORM = 115,
+    DXGIFormatP208 = 130,
+    DXGIFormatV208 = 131,
+    DXGIFormatV408 = 132,
+    DXGIFormatSAMPLER_FEEDBACK_MIN_MIP_OPAQUE,
+    DXGIFormatSAMPLER_FEEDBACK_MIP_REGION_USED_OPAQUE,
+    DXGIFormatFORCE_UINT = 0xffffffff
+};
+
+enum DXGIMiscFlags2
+{
+    // not really flags...
+    DXGIAlphaModeUnknow = 0,
+    DXGIAlphaModeStraight = 1,
+    DXGIAlphaModePremultiplied = 2,
+    DXGIAlphaModeOpaque = 3,
+    DXGIAlphaModeCustom = 4
 };
 
 enum Colors {
@@ -220,6 +362,22 @@ static const Format knownFourCCs[] = {
     FormatCxV8U8
 };
 static const size_t knownFourCCsSize = sizeof(knownFourCCs)/sizeof(Format);
+
+struct DXGIFormatToFormat
+{
+    DXGIFormat dxgiFormat;
+    Format format;
+};
+
+static const DXGIFormatToFormat knownDXGIFormat[] = {
+    { DXGIFormatR16G16B16A16_FLOAT, FormatA16B16G16R16F },
+    { DXGIFormatR32G32B32A32_FLOAT, FormatA32B32G32R32F },
+    { DXGIFormatR16G16_FLOAT, FormatG16R16F },
+    { DXGIFormatR32G32_FLOAT, FormatG32R32F },
+    { DXGIFormatR16_FLOAT, FormatR16F },
+    { DXGIFormatR32_FLOAT, FormatR32F }
+};
+static const size_t knownDXGIFormatSize = sizeof(knownDXGIFormat)/sizeof(DXGIFormatToFormat);
 
 struct FormatName
 {
@@ -342,6 +500,26 @@ QDataStream &operator<<(QDataStream &s, const DDSPixelFormat &pixelFormat)
     return s;
 }
 
+QDataStream &operator>>(QDataStream &s, DDSHeaderDX10 &header)
+{
+    s >> header.dxgiFormat;
+    s >> header.resourceDimension;
+    s >> header.miscFlag;
+    s >> header.arraySize;
+    s >> header.miscFlags2;
+    return s;
+}
+
+QDataStream &operator<<(QDataStream &s, const DDSHeaderDX10 &header)
+{
+    s << header.dxgiFormat;
+    s << header.resourceDimension;
+    s << header.miscFlag;
+    s << header.arraySize;
+    s << header.miscFlags2;
+    return s;
+}
+
 QDataStream &operator>>(QDataStream &s, DDSHeader &header)
 {
     s >> header.magic;
@@ -360,6 +538,9 @@ QDataStream &operator>>(QDataStream &s, DDSHeader &header)
     s >> header.caps3;
     s >> header.caps4;
     s >> header.reserved2;
+    if (header.pixelFormat.fourCC == dx10Magic)
+        s >> header.header10;
+
     return s;
 }
 
@@ -381,26 +562,9 @@ QDataStream &operator<<(QDataStream &s, const DDSHeader &header)
     s << header.caps3;
     s << header.caps4;
     s << header.reserved2;
-    return s;
-}
+    if (header.pixelFormat.fourCC == dx10Magic)
+        s << header.header10;
 
-QDataStream &operator>>(QDataStream &s, DDSHeaderDX10 &header)
-{
-    s >> header.dxgiFormat;
-    s >> header.resourceDimension;
-    s >> header.miscFlag;
-    s >> header.arraySize;
-    s >> header.reserved;
-    return s;
-}
-
-QDataStream &operator<<(QDataStream &s, const DDSHeaderDX10 &header)
-{
-    s << header.dxgiFormat;
-    s << header.resourceDimension;
-    s << header.miscFlag;
-    s << header.arraySize;
-    s << header.reserved;
     return s;
 }
 
@@ -461,6 +625,24 @@ static inline QRgb yuv2rgb(quint8 Y, quint8 U, quint8 V)
                 quint8(Y + 2.03211 * (U - 128)));
 }
 
+static void strideAlignment(QDataStream &s, const DDSHeader &dds, quint32 width)
+{
+#ifdef DDS_DISABLE_STRIDE_ALIGNMENT
+    Q_UNUSED(s)
+    Q_UNUSED(dds)
+    Q_UNUSED(width)
+#else
+    if (dds.flags & DDSHeader::FlagPitch) {
+        if (auto alignBytes = qint64(dds.pitchOrLinearSize) - (width * dds.pixelFormat.rgbBitCount + 7) / 8) {
+            quint8 tmp;
+            for (; alignBytes > 0 && alignBytes < 4; --alignBytes) {
+                s >> tmp;
+            }
+        }
+    }
+#endif
+}
+
 static Format getFormat(const DDSHeader &dds)
 {
     const DDSPixelFormat &format = dds.pixelFormat;
@@ -469,9 +651,16 @@ static Format getFormat(const DDSHeader &dds)
     } else if (format.flags & DDSPixelFormat::FlagPaletteIndexed8) {
         return FormatP8;
     } else if (format.flags & DDSPixelFormat::FlagFourCC) {
-        for (size_t i = 0; i < knownFourCCsSize; ++i) {
-            if (dds.pixelFormat.fourCC == knownFourCCs[i])
-                return knownFourCCs[i];
+        if (dds.pixelFormat.fourCC == dx10Magic) {
+            for (size_t i = 0; i < knownDXGIFormatSize; ++i) {
+                if (dds.header10.dxgiFormat == knownDXGIFormat[i].dxgiFormat)
+                    return knownDXGIFormat[i].format;
+            }
+        } else {
+            for (size_t i = 0; i < knownFourCCsSize; ++i) {
+                if (dds.pixelFormat.fourCC == knownFourCCs[i])
+                    return knownFourCCs[i];
+            }
         }
     } else {
         for (size_t i = 0; i < formatInfosSize; ++i) {
@@ -784,8 +973,9 @@ static QImage readUnsignedImage(QDataStream &s, const DDSHeader &dds, quint32 wi
             masks[i] = (masks[i] >> shifts[i]) << (8 - bits[i]);
     }
 
-    const QImage::Format format = hasAlpha ? QImage::Format_ARGB32 : QImage::Format_RGB32;
-
+    QImage::Format format = hasAlpha ? QImage::Format_ARGB32 : QImage::Format_RGB32;
+    if (!hasAlpha && (flags & DDSPixelFormat::FlagLuminance))
+        format = QImage::Format_Grayscale8;
     QImage image = imageAlloc(width, height, format);
     if (image.isNull()) {
         return image;
@@ -793,7 +983,8 @@ static QImage readUnsignedImage(QDataStream &s, const DDSHeader &dds, quint32 wi
 
     for (quint32 y = 0; y < height; y++) {
         for (quint32 x = 0; x < width; x++) {
-            QRgb *line = reinterpret_cast<QRgb *>(image.scanLine(y));
+            quint8 *byteLine = reinterpret_cast<quint8 *>(image.scanLine(y));
+            QRgb *line = reinterpret_cast<QRgb *>(byteLine);
 
             quint32 value = readValue(s, dds.pixelFormat.rgbBitCount);
             quint8 colors[ColorCount];
@@ -808,20 +999,27 @@ static QImage readUnsignedImage(QDataStream &s, const DDSHeader &dds, quint32 wi
                     if (masks[c])
                         colors[c] = color * 0xff / masks[c];
                     else
-                        colors[c] = 0;
+                        colors[c] = c == Alpha ? 0xff : 0;
                 }
             }
 
-            if (flags & DDSPixelFormat::FlagLuminance)
-                line[x] = qRgba(colors[Red], colors[Red], colors[Red], colors[Alpha]);
-            else if (flags & DDSPixelFormat::FlagYUV)
+            if (flags & DDSPixelFormat::FlagLuminance) {
+                if (hasAlpha)
+                    line[x] = qRgba(colors[Red], colors[Red], colors[Red], colors[Alpha]);
+                else
+                    byteLine[x] = colors[Red];
+            }
+            else if (flags & DDSPixelFormat::FlagYUV) {
                 line[x] = yuv2rgb(colors[Red], colors[Green], colors[Blue]);
-            else
+            }
+            else {
                 line[x] = qRgba(colors[Red], colors[Green], colors[Blue], colors[Alpha]);
+            }
 
             if (s.status() != QDataStream::Ok)
                 return QImage();
         }
+        strideAlignment(s, dds, width); // some dds seems aligned to 32 bits
     }
 
     return image;
@@ -896,9 +1094,9 @@ static QImage readRG16F(QDataStream &s, const quint32 width, const quint32 heigh
     return image;
 }
 
-static QImage readARGB16F(QDataStream &s, const quint32 width, const quint32 height)
+static QImage readARGB16F(QDataStream &s, const quint32 width, const quint32 height, bool alphaPremul)
 {
-    QImage image = imageAlloc(width, height, QImage::Format_RGBA16FPx4);
+    QImage image = imageAlloc(width, height, alphaPremul ? QImage::Format_RGBA16FPx4_Premultiplied : QImage::Format_RGBA16FPx4);
     if (image.isNull()) {
         return image;
     }
@@ -965,9 +1163,9 @@ static QImage readRG32F(QDataStream &s, const quint32 width, const quint32 heigh
     return image;
 }
 
-static QImage readARGB32F(QDataStream &s, const quint32 width, const quint32 height)
+static QImage readARGB32F(QDataStream &s, const quint32 width, const quint32 height, bool alphaPremul)
 {
-    QImage image = imageAlloc(width, height, QImage::Format_RGBA32FPx4);
+    QImage image = imageAlloc(width, height, alphaPremul ? QImage::Format_RGBA32FPx4_Premultiplied : QImage::Format_RGBA32FPx4);
     if (image.isNull()) {
         return image;
     }
@@ -1040,7 +1238,7 @@ static QImage readCxV8U8(QDataStream &s, const quint32 width, const quint32 heig
     return image;
 }
 
-static QImage readPalette8Image(QDataStream &s, quint32 width, quint32 height)
+static QImage readPalette8Image(QDataStream &s, const DDSHeader &dds, quint32 width, quint32 height)
 {
     QImage image = imageAlloc(width, height, QImage::Format_Indexed8);
     if (image.isNull()) {
@@ -1054,12 +1252,12 @@ static QImage readPalette8Image(QDataStream &s, quint32 width, quint32 height)
     }
 
     for (quint32 y = 0; y < height; y++) {
+        quint8 *scanLine = reinterpret_cast<quint8 *>(image.scanLine(y));
         for (quint32 x = 0; x < width; x++) {
-            quint8 index;
-            s >> index;
-            image.setPixel(x, y, index);
+            quint32 value = readValue(s, dds.pixelFormat.rgbBitCount);
             if (s.status() != QDataStream::Ok)
                 return QImage();
+            scanLine[x] = (value & 0xff); // any alpha channel discarded
         }
     }
 
@@ -1401,6 +1599,8 @@ static QImage readLayer(QDataStream &s, const DDSHeader &dds, const int format, 
     if (width * height == 0)
         return QImage();
 
+    bool alphaPremul = dds.header10.miscFlags2 == DXGIAlphaModePremultiplied;
+
     switch (format) {
     case FormatR8G8B8:
     case FormatX8R8G8B8:
@@ -1427,7 +1627,7 @@ static QImage readLayer(QDataStream &s, const DDSHeader &dds, const int format, 
         return readA2R10G10B10(s, dds, width, height);
     case FormatP8:
     case FormatA8P8:
-        return readPalette8Image(s, width, height);
+        return readPalette8Image(s, dds, width, height);
     case FormatP4:
     case FormatA4P4:
         return readPalette4Image(s, width, height);
@@ -1472,13 +1672,13 @@ static QImage readLayer(QDataStream &s, const DDSHeader &dds, const int format, 
     case FormatG16R16F:
         return readRG16F(s, width, height);
     case FormatA16B16G16R16F:
-        return readARGB16F(s, width, height);
+        return readARGB16F(s, width, height, alphaPremul);
     case FormatR32F:
         return readR32F(s, width, height);
     case FormatG32R32F:
         return readRG32F(s, width, height);
     case FormatA32B32G32R32F:
-        return readARGB32F(s, width, height);
+        return readARGB32F(s, width, height, alphaPremul);
     case FormatD16Lockable:
     case FormatD32:
     case FormatD15S1:
@@ -1692,8 +1892,7 @@ static int formatByName(const QByteArray &name)
 
 QDDSHandler::QDDSHandler() :
     m_header(),
-    m_format(FormatA8R8G8B8),
-    m_header10(),
+    m_format(FormatUnknown),
     m_currentImage(0),
     m_scanState(ScanNotScanned)
 {
@@ -1717,7 +1916,10 @@ bool QDDSHandler::read(QImage *outImage)
     if (!ensureScanned() || device()->isSequential())
         return false;
 
-    qint64 pos = headerSize + mipmapOffset(m_header, m_format, m_currentImage);
+    qint64 pos = headerSize;
+    if (m_header.pixelFormat.fourCC == dx10Magic)
+        pos += 20;
+    pos += mipmapOffset(m_header, m_format, m_currentImage);
     if (!device()->seek(pos))
         return false;
     QDataStream s(device());
@@ -1736,33 +1938,18 @@ bool QDDSHandler::read(QImage *outImage)
     return ok;
 }
 
-bool QDDSHandler::write(const QImage &outImage)
+bool writeA8R8G8B8(const QImage &outImage, QDataStream &s)
 {
-    if (m_format != FormatA8R8G8B8) {
-        qWarning() << "Format" << formatName(m_format) << "is not supported";
-        return false;
-    }
-
-    QImage image = outImage;
-    if(image.colorSpace().isValid())
-        image = image.convertedToColorSpace(QColorSpace(QColorSpace::SRgb));
-    image.convertTo(QImage::Format_ARGB32);
-    if (image.isNull()) {
-        return false;
-    }
-
-    QDataStream s(device());
-    s.setByteOrder(QDataStream::LittleEndian);
-
     DDSHeader dds;
     // Filling header
     dds.magic = ddsMagic;
     dds.size = 124;
     dds.flags = DDSHeader::FlagCaps | DDSHeader::FlagHeight |
-                DDSHeader::FlagWidth | DDSHeader::FlagPixelFormat;
-    dds.height = image.height();
-    dds.width = image.width();
-    dds.pitchOrLinearSize = 128;
+                DDSHeader::FlagWidth | DDSHeader::FlagPixelFormat |
+                DDSHeader::FlagPitch;
+    dds.height = outImage.height();
+    dds.width = outImage.width();
+    dds.pitchOrLinearSize = dds.width * 32 / 8;
     dds.depth = 0;
     dds.mipMapCount = 0;
     for (int i = 0; i < DDSHeader::ReservedCount; i++)
@@ -1784,20 +1971,415 @@ bool QDDSHandler::write(const QImage &outImage)
     dds.pixelFormat.bBitMask = 0x000000ff;
 
     s << dds;
-    for (int height = 0; height < image.height(); height++) {
-        for (int width = 0; width < image.width(); width++) {
-            QRgb pixel = image.pixel(width, height);
-            quint32 color;
-            quint8 alpha = qAlpha(pixel);
-            quint8 red = qRed(pixel);
-            quint8 green = qGreen(pixel);
-            quint8 blue = qBlue(pixel);
-            color = (alpha << 24) + (red << 16) + (green << 8) + blue;
-            s << color;
+    if (s.status() != QDataStream::Ok) {
+        return false;
+    }
+
+    ScanLineConverter slc(QImage::Format_ARGB32);
+    if(outImage.colorSpace().isValid())
+        slc.setTargetColorSpace(QColorSpace(QColorSpace::SRgb));
+
+    for (int y = 0, h = outImage.height(); y < h; ++y) {
+        const QRgb *scanLine = reinterpret_cast<const QRgb*>(slc.convertedScanLine(outImage, y));
+        if (scanLine == nullptr) {
+            return false;
+        }
+        for (int x = 0, w = outImage.width(); x < w; ++x) {
+            s << quint32(scanLine[x]);
+        }
+        if (s.status() != QDataStream::Ok) {
+            return false;
         }
     }
 
     return true;
+}
+
+bool writeR8G8B8(const QImage &outImage, QDataStream &s)
+{
+    DDSHeader dds;
+    // Filling header
+    dds.magic = ddsMagic;
+    dds.size = 124;
+    dds.flags = DDSHeader::FlagCaps | DDSHeader::FlagHeight |
+                DDSHeader::FlagWidth | DDSHeader::FlagPixelFormat |
+                DDSHeader::FlagPitch;
+    dds.height = outImage.height();
+    dds.width = outImage.width();
+    dds.pitchOrLinearSize = dds.width * 24 / 8;
+    dds.depth = 1;
+    dds.mipMapCount = 0;
+    for (int i = 0; i < DDSHeader::ReservedCount; i++)
+        dds.reserved1[i] = 0;
+    dds.caps = DDSHeader::CapsTexture;
+    dds.caps2 = 0;
+    dds.caps3 = 0;
+    dds.caps4 = 0;
+    dds.reserved2 = 0;
+
+    // Filling pixelformat
+    dds.pixelFormat.size = 32;
+    dds.pixelFormat.flags = DDSPixelFormat::FlagRGB;
+    dds.pixelFormat.fourCC = 0;
+    dds.pixelFormat.rgbBitCount = 24;
+    dds.pixelFormat.aBitMask = 0x00000000;
+    dds.pixelFormat.rBitMask = 0x00ff0000;
+    dds.pixelFormat.gBitMask = 0x0000ff00;
+    dds.pixelFormat.bBitMask = 0x000000ff;
+
+    s << dds;
+    if (s.status() != QDataStream::Ok) {
+        return false;
+    }
+
+    ScanLineConverter slc(QImage::Format_RGB888);
+    if(outImage.colorSpace().isValid())
+        slc.setTargetColorSpace(QColorSpace(QColorSpace::SRgb));
+
+    for (int y = 0, h = outImage.height(); y < h; ++y) {
+        const quint8 *scanLine = reinterpret_cast<const quint8*>(slc.convertedScanLine(outImage, y));
+        if (scanLine == nullptr) {
+            return false;
+        }
+        for (int x = 0, w = outImage.width(); x < w; ++x) {
+            size_t x3 = size_t(x) * 3;
+            s << scanLine[x3 + 2];
+            s << scanLine[x3 + 1];
+            s << scanLine[x3];
+        }
+        if (s.status() != QDataStream::Ok) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool writeL8(const QImage &outImage, QDataStream &s)
+{
+    DDSHeader dds;
+    // Filling header
+    dds.magic = ddsMagic;
+    dds.size = 124;
+    dds.flags = DDSHeader::FlagCaps | DDSHeader::FlagHeight |
+                DDSHeader::FlagWidth | DDSHeader::FlagPixelFormat |
+                DDSHeader::FlagPitch;
+    dds.height = outImage.height();
+    dds.width = outImage.width();
+    dds.pitchOrLinearSize = dds.width;
+    dds.depth = 1;
+    dds.mipMapCount = 0;
+    for (int i = 0; i < DDSHeader::ReservedCount; i++)
+        dds.reserved1[i] = 0;
+    dds.caps = DDSHeader::CapsTexture;
+    dds.caps2 = 0;
+    dds.caps3 = 0;
+    dds.caps4 = 0;
+    dds.reserved2 = 0;
+
+    // Filling pixelformat
+    dds.pixelFormat.size = 32;
+    dds.pixelFormat.flags = DDSPixelFormat::FlagLuminance | DDSPixelFormat::FlagRGB;
+    dds.pixelFormat.fourCC = 0;
+    dds.pixelFormat.rgbBitCount = 8;
+    dds.pixelFormat.aBitMask = 0x00000000;
+    dds.pixelFormat.rBitMask = 0x000000ff;
+    dds.pixelFormat.gBitMask = 0x00000000;
+    dds.pixelFormat.bBitMask = 0x00000000;
+
+    s << dds;
+    if (s.status() != QDataStream::Ok) {
+        return false;
+    }
+
+    ScanLineConverter slc(QImage::Format_Grayscale8);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    if(outImage.colorSpace().isValid())
+        slc.setTargetColorSpace(QColorSpace(QPointF(0.3127, 0.3291), QColorSpace::TransferFunction::SRgb));
+#endif
+
+    for (int y = 0, h = outImage.height(); y < h; ++y) {
+        const quint8 *scanLine = reinterpret_cast<const quint8*>(slc.convertedScanLine(outImage, y));
+        if (scanLine == nullptr) {
+            return false;
+        }
+        for (int x = 0, w = outImage.width(); x < w; ++x) {
+            s << scanLine[x];
+        }
+        if (s.status() != QDataStream::Ok) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool writeP8(const QImage &image, QDataStream &s)
+{
+    QImage outImage = image;
+    // indexed not supported by ScanlineConverter class
+    if (image.format() != QImage::Format_Indexed8) {
+        if (image.colorSpace().isValid())
+            outImage.convertToColorSpace(QColorSpace(QColorSpace::SRgb));
+        outImage = outImage.convertToFormat(QImage::Format_Indexed8);
+    }
+
+    DDSHeader dds;
+    // Filling header
+    dds.magic = ddsMagic;
+    dds.size = 124;
+    dds.flags = DDSHeader::FlagCaps | DDSHeader::FlagHeight |
+                DDSHeader::FlagWidth | DDSHeader::FlagPixelFormat |
+                DDSHeader::FlagPitch;
+    dds.height = outImage.height();
+    dds.width = outImage.width();
+    dds.pitchOrLinearSize = dds.width;
+    dds.depth = 1;
+    dds.mipMapCount = 0;
+    for (int i = 0; i < DDSHeader::ReservedCount; i++)
+        dds.reserved1[i] = 0;
+    dds.caps = DDSHeader::CapsTexture;
+    dds.caps2 = 0;
+    dds.caps3 = 0;
+    dds.caps4 = 0;
+    dds.reserved2 = 0;
+
+    // Filling pixelformat
+    dds.pixelFormat.size = 32;
+    dds.pixelFormat.flags = DDSPixelFormat::FlagPaletteIndexed8;
+    dds.pixelFormat.fourCC = 0;
+    dds.pixelFormat.rgbBitCount = 8;
+    dds.pixelFormat.aBitMask = 0x00000000;
+    dds.pixelFormat.rBitMask = 0x00000000;
+    dds.pixelFormat.gBitMask = 0x00000000;
+    dds.pixelFormat.bBitMask = 0x00000000;
+
+    s << dds;
+
+    QList<QRgb> palette = outImage.colorTable();
+    for (int i = 0; i < 256; ++i) {
+        quint8 r = 0, g = 0, b = 0, a = 0xff;
+        if (i < palette.size()) {
+            auto&& rgba = palette.at(i);
+            r = qRed(rgba);
+            g = qGreen(rgba);
+            b = qBlue(rgba);
+            a = qAlpha(rgba);
+        }
+        s << r;
+        s << g;
+        s << b;
+        s << a;
+    }
+
+    if (s.status() != QDataStream::Ok) {
+        return false;
+    }
+
+    for (int y = 0, h = outImage.height(); y < h; ++y) {
+        const quint8 *scanLine = reinterpret_cast<const quint8*>(outImage.constScanLine(y));
+        if (scanLine == nullptr) {
+            return false;
+        }
+        for (int x = 0, w = outImage.width(); x < w; ++x) {
+            s << scanLine[x];
+        }
+        if (s.status() != QDataStream::Ok) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool writeA16B16G16R16F(const QImage &outImage, QDataStream &s)
+{
+    DDSHeader dds;
+    // Filling header
+    dds.magic = ddsMagic;
+    dds.size = 124;
+    dds.flags = DDSHeader::FlagCaps | DDSHeader::FlagHeight |
+                DDSHeader::FlagWidth | DDSHeader::FlagPitch |
+                DDSHeader::FlagPixelFormat;
+    dds.height = outImage.height();
+    dds.width = outImage.width();
+    dds.pitchOrLinearSize = dds.width * 64 / 8;
+    dds.depth = 1;
+    dds.mipMapCount = 0;
+    for (int i = 0; i < DDSHeader::ReservedCount; i++)
+        dds.reserved1[i] = 0;
+    dds.caps = DDSHeader::CapsTexture;
+    dds.caps2 = 0;
+    dds.caps3 = 0;
+    dds.caps4 = 0;
+    dds.reserved2 = 0;
+
+    // Filling pixelformat
+    dds.pixelFormat.size = 32;
+    dds.pixelFormat.flags = DDSPixelFormat::FlagFourCC;
+    dds.pixelFormat.fourCC = 113;
+    dds.pixelFormat.rgbBitCount = 0;
+    dds.pixelFormat.aBitMask = 0;
+    dds.pixelFormat.rBitMask = 0;
+    dds.pixelFormat.gBitMask = 0;
+    dds.pixelFormat.bBitMask = 0;
+
+    s << dds;
+    if (s.status() != QDataStream::Ok) {
+        return false;
+    }
+
+    ScanLineConverter slc(QImage::Format_RGBA16FPx4);
+    if(outImage.colorSpace().isValid())
+        slc.setTargetColorSpace(QColorSpace(QColorSpace::SRgbLinear));
+
+    for (int y = 0, h = outImage.height(); y < h; ++y) {
+        const quint16 *scanLine = reinterpret_cast<const quint16*>(slc.convertedScanLine(outImage, y));
+        if (scanLine == nullptr) {
+            return false;
+        }
+        for (int x = 0, w = outImage.width(); x < w; ++x) {
+            size_t x4 = size_t(x) * 4;
+            s << scanLine[x4];
+            s << scanLine[x4 + 1];
+            s << scanLine[x4 + 2];
+            s << scanLine[x4 + 3];
+        }
+        if (s.status() != QDataStream::Ok) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool writeA32B32G32R32F(const QImage &outImage, QDataStream &s)
+{
+    DDSHeader dds;
+    // Filling header
+    dds.magic = ddsMagic;
+    dds.size = 124;
+    dds.flags = DDSHeader::FlagCaps | DDSHeader::FlagHeight |
+                DDSHeader::FlagWidth | DDSHeader::FlagPitch |
+                DDSHeader::FlagPixelFormat;
+    dds.height = outImage.height();
+    dds.width = outImage.width();
+    dds.pitchOrLinearSize = dds.width * 128 / 8;
+    dds.depth = 1;
+    dds.mipMapCount = 0;
+    for (int i = 0; i < DDSHeader::ReservedCount; i++)
+        dds.reserved1[i] = 0;
+    dds.caps = DDSHeader::CapsTexture;
+    dds.caps2 = 0;
+    dds.caps3 = 0;
+    dds.caps4 = 0;
+    dds.reserved2 = 0;
+
+    // Filling pixelformat
+    dds.pixelFormat.size = 32;
+    dds.pixelFormat.flags = DDSPixelFormat::FlagFourCC;
+    dds.pixelFormat.fourCC = 116;
+    dds.pixelFormat.rgbBitCount = 0;
+    dds.pixelFormat.aBitMask = 0;
+    dds.pixelFormat.rBitMask = 0;
+    dds.pixelFormat.gBitMask = 0;
+    dds.pixelFormat.bBitMask = 0;
+
+    s << dds;
+    if (s.status() != QDataStream::Ok) {
+        return false;
+    }
+
+    ScanLineConverter slc(QImage::Format_RGBA32FPx4);
+    if(outImage.colorSpace().isValid())
+        slc.setTargetColorSpace(QColorSpace(QColorSpace::SRgbLinear));
+
+    for (int y = 0, h = outImage.height(); y < h; ++y) {
+        const quint32 *scanLine = reinterpret_cast<const quint32*>(slc.convertedScanLine(outImage, y));
+        if (scanLine == nullptr) {
+            return false;
+        }
+        for (int x = 0, w = outImage.width(); x < w; ++x) {
+            size_t x4 = size_t(x) * 4;
+            s << scanLine[x4];
+            s << scanLine[x4 + 1];
+            s << scanLine[x4 + 2];
+            s << scanLine[x4 + 3];
+        }
+        if (s.status() != QDataStream::Ok) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool QDDSHandler::write(const QImage &outImage)
+{
+    if (outImage.isNull() || device() == nullptr) {
+        return false;
+    }
+
+    QDataStream s(device());
+    s.setByteOrder(QDataStream::LittleEndian);
+
+    int format = m_format;
+    if (format == FormatUnknown) {
+        switch (outImage.format()) {
+        case QImage::Format_RGBX16FPx4:
+        case QImage::Format_RGBA16FPx4:
+        case QImage::Format_RGBA16FPx4_Premultiplied:
+            format = FormatA16B16G16R16F;
+            break;
+
+        case QImage::Format_RGBX32FPx4:
+        case QImage::Format_RGBA32FPx4:
+        case QImage::Format_RGBA32FPx4_Premultiplied:
+            format = FormatA32B32G32R32F;
+            break;
+
+        case QImage::Format_Grayscale16:
+        case QImage::Format_Grayscale8:
+        case QImage::Format_Mono:
+        case QImage::Format_MonoLSB:
+            format = FormatL8;
+            break;
+
+        case QImage::Format_Indexed8:
+            format = FormatP8;
+            break;
+
+        default:
+            format = outImage.hasAlphaChannel() ? FormatA8R8G8B8 : FormatR8G8B8;
+        }
+    }
+
+    if (format == FormatA8R8G8B8) {
+        return writeA8R8G8B8(outImage, s);
+    }
+
+    if (format == FormatR8G8B8) {
+        return writeR8G8B8(outImage, s);
+    }
+
+    if (format == FormatL8) {
+        return writeL8(outImage, s);
+    }
+
+    if (format == FormatP8) {
+        return writeP8(outImage, s);
+    }
+
+    if (format == FormatA16B16G16R16F) {
+        return writeA16B16G16R16F(outImage, s);
+    }
+
+    if (format == FormatA32B32G32R32F) {
+        return writeA32B32G32R32F(outImage, s);
+    }
+
+    qWarning() << "Format" << formatName(format) << "is not supported";
+    return false;
 }
 
 QVariant QDDSHandler::option(QImageIOHandler::ImageOption option) const
@@ -1808,7 +2390,14 @@ QVariant QDDSHandler::option(QImageIOHandler::ImageOption option) const
 
     // *** options that do not require a valid stream ***
     if (option == QImageIOHandler::SupportedSubTypes) {
-        return QVariant::fromValue(QList<QByteArray>() << formatName(FormatA8R8G8B8));
+        return QVariant::fromValue(QList<QByteArray>()
+                                   << QByteArrayLiteral("Automatic")
+                                   << formatName(FormatA8R8G8B8)
+                                   << formatName(FormatR8G8B8)
+                                   << formatName(FormatL8)
+                                   << formatName(FormatP8)
+                                   << formatName(FormatA16B16G16R16F)
+                                   << formatName(FormatA32B32G32R32F));
     }
 
     // *** options that require a valid stream ***
@@ -1821,7 +2410,7 @@ QVariant QDDSHandler::option(QImageIOHandler::ImageOption option) const
     }
 
     if (option == QImageIOHandler::SubType) {
-        return formatName(m_format);
+        return m_format == FormatUnknown ? QByteArrayLiteral("Automatic") : formatName(m_format);
     }
 
     return QVariant();
@@ -1832,8 +2421,6 @@ void QDDSHandler::setOption(QImageIOHandler::ImageOption option, const QVariant 
     if (option == QImageIOHandler::SubType) {
         const QByteArray subType = value.toByteArray();
         m_format = formatByName(subType.toUpper());
-        if (m_format == FormatUnknown)
-            qWarning() << "unknown format" << subType;
     }
 }
 
@@ -1899,8 +2486,6 @@ bool QDDSHandler::ensureScanned() const
     QDataStream s(device());
     s.setByteOrder(QDataStream::LittleEndian);
     s >> that->m_header;
-    if (m_header.pixelFormat.fourCC == dx10Magic)
-        s >> that->m_header10;
 
     device()->seek(oldPos);
 

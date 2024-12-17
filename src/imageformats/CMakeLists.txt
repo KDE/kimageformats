@@ -32,7 +32,7 @@ endif()
 ##################################
 
 if(KIMAGEFORMATS_DDS)
-    kimageformats_add_plugin(kimg_dds SOURCES dds.cpp)
+    kimageformats_add_plugin(kimg_dds SOURCES dds.cpp scanlineconverter.cpp)
 endif()
 
 ##################################
