@@ -597,9 +597,12 @@ static inline int maskLength(quint32 mask)
 
 static inline quint32 readValue(QDataStream &s, quint32 size)
 {
-    Q_ASSERT(size == 8 || size == 16 || size == 24 || size == 32);
-
     quint32 value = 0;
+    if (size != 8 && size != 16 && size != 24 && size != 32) {
+        s.setStatus(QDataStream::ReadCorruptData);
+        return value;
+    }
+
     quint8 tmp;
     for (unsigned bit = 0; bit < size; bit += 8) {
         s >> tmp;
