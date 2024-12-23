@@ -220,7 +220,8 @@ The following defines can be defined in cmake to modify the behavior of the plug
 
 PSD support has the following limitations:
 - Only images saved by Photoshop using compatibility mode enabled (Photoshop default) can be decoded.
-- Multichannel images are treated as CMY/CMYK and are only loaded if they have 3 or more channels.
+- Multichannel images are treated as CMYK if they have 2 or more channels.
+- Multichannel images are treated as Grayscale if they have 1 channel.
 - Duotone images are treated as grayscale images.
 - Extra channels other than alpha are discarded.
 
