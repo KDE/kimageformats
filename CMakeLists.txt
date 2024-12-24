@@ -62,8 +62,7 @@ set_package_properties(libavif PROPERTIES
     PURPOSE "Required for the QImage plugin for AVIF images"
 )
 
-# DDS plugin disabled by default due to security issues
-option(KIMAGEFORMATS_DDS "Enable plugin for DDS format" OFF)
+option(KIMAGEFORMATS_DDS "Enable plugin for DDS format" ON)
 
 option(KIMAGEFORMATS_HEIF "Enable plugin for HEIF format" OFF)
 if(KIMAGEFORMATS_HEIF)

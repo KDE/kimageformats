@@ -50,6 +50,10 @@ of Qt is the license.  As such, if you write an imageformat plugin and
 you are willing to sign the Qt Project contributor agreement, it may be
 better to submit the plugin directly to the Qt Project.
 
+To be accepted, contributions must:
+- Contain the test images needed to verify that the changes work correctly
+- Pass the tests successfully
+
 ## Duplicated Plugins
 
 ### The TGA plugin
@@ -66,8 +70,7 @@ removed.
 
 ### The DDS plugin
 
-The DDS plugin is a fork of Qt 5.6 with bug fixes and improvements. It
-will be activated once the security issues are resolved.
+The DDS plugin is a fork from Qt 5.6 with bug fixes and improvements.
 
 ## License
 
@@ -174,16 +177,19 @@ with Qt 6.8+.
 
 ### The DDS plugin
 
-**This plugin is disabled by default. It can be enabled with the 
-`KIMAGEFORMATS_DDS` build option in the cmake file.**
+**This plugin can be disabled by setting `KIMAGEFORMATS_DDS` to `OFF` 
+in your cmake options.**
 
 The following defines can be defined in cmake to modify the behavior of the plugin:
 - `DDS_DISABLE_STRIDE_ALIGNMENT`: disable the stride aligment based on DDS pitch: it is known that some writers do not set it correctly.
 
 ### The HEIF plugin
 
-**This plugin is disabled by default. It can be enabled with the 
-`KIMAGEFORMATS_HEIF` build option in the cmake file.**
+**This plugin is disabled by default. It can be enabled by settings
+`KIMAGEFORMATS_HEIF` to `ON` in your cmake options.**
+
+The plugin is disabled due to issues with the heif library on certain 
+distributions. If enabled, tests may fail.
 
 ### The EXR plugin
 
@@ -207,8 +213,8 @@ The following defines can be defined in cmake to modify the behavior of the plug
 
 ### The JXR plugin
 
-**This plugin is disabled by default. It can be enabled with the 
-`KIMAGEFORMATS_JXR` build option in the cmake file.**
+**This plugin is disabled by default. It can be enabled by settings
+`KIMAGEFORMATS_JXR` to `ON` in your cmake options.**
 
 The following defines can be defined in cmake to modify the behavior of the plugin:
 - `JXR_DENY_FLOAT_IMAGE`: disables the use of float images and consequently any HDR data will be lost.
