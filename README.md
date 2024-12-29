@@ -1,6 +1,7 @@
 # KImageFormats
 
-Plugins to allow `QImage` to support extra file formats.
+Plugins to allow [`QImage`](https://doc.qt.io/qt-6/qimage.html) to support
+extra file formats.
 
 ## Introduction
 
@@ -42,13 +43,13 @@ The following image formats have read and write support:
 
 ## Contributing
 
-See the [`QImageIOPlugin`](https://doc.qt.io/qt-6/qimageioplugin.html) documentation for information on how to write a
-new plugin.
+See the [`QImageIOPlugin`](https://doc.qt.io/qt-6/qimageioplugin.html)
+documentation for information on how to write a new plugin.
 
-The main difference between this framework and the qimageformats module
-of Qt is the license.  As such, if you write an imageformat plugin and
-you are willing to sign the Qt Project contributor agreement, it may be
-better to submit the plugin directly to the Qt Project.
+The main difference between this framework and the image formats of Qt is
+the license. As such, if you write an image format plugin and you are
+willing to sign the Qt Project contributor agreement, it may be better to
+submit the plugin directly to the Qt Project.
 
 To be accepted, contributions must:
 - Contain the test images needed to verify that the changes work correctly
@@ -71,6 +72,8 @@ removed.
 ### The DDS plugin
 
 The DDS plugin is a fork from Qt 5.6 with bug fixes and improvements.
+
+The plugin was forked because Qt Project no longer supports its DDS plugin.
 
 ## License
 
@@ -128,10 +131,13 @@ plugin ('n/a' means no limit, i.e. the limit depends on the format encoding).
 - AVIF: 32,768 x 32,768 pixels, in any case no larger than 256 megapixels
 - DDS: n/a
 - EXR: 300,000 x 300,000 pixels
+- EPS: n/a
 - HDR: n/a (large image)
 - HEIF: n/a
 - JXL: 262,144 x 262,144 pixels, in any case no larger than 256 megapixels
 - JXR: n/a, in any case no larger than 4 GB
+- KRA: same size as Qt's PNG plugin
+- ORA: same size as Qt's PNG plugin
 - PCX: 65,535 x 65,535 pixels
 - PFM: n/a (large image)
 - PIC: 65,535 x 65,535 pixels
@@ -188,14 +194,24 @@ The following defines can be defined in cmake to modify the behavior of the plug
 **This plugin is disabled by default. It can be enabled by settings
 `KIMAGEFORMATS_HEIF` to `ON` in your cmake options.**
 
-The plugin is disabled due to issues with the heif library on certain 
-distributions. If enabled, tests may fail.
+The plugin is disabled due to issues with the heif library on certain
+distributions. In particular, it is necessary that the HEIF library has
+support for HEVC codec. If HEVC codec is not available the plugin
+will compile but will fail the tests.
 
 ### The EXR plugin
 
 The following defines can be defined in cmake to modify the behavior of the plugin:
 - `EXR_CONVERT_TO_SRGB`: the linear data is converted to sRGB on read to accommodate programs that do not support color profiles.
 - `EXR_DISABLE_XMP_ATTRIBUTE`: disables the stores XMP values in a non-standard attribute named "xmp". Note that Gimp reads the "xmp" attribute and Darktable writes it as well.
+
+### The EPS plugin
+
+The plugin uses `Ghostscript` to convert the raster image. When reading it
+converts the EPS to PPM and uses the Qt PPM plugin to read the image.
+When writing it uses [`QPrinter`](https://doc.qt.io/qt-6/qprinter.html) to
+create a temporary PDF file which is then converted to EPS. Therefore, if
+`Ghostscript` is not installed, the plugin will not work.
 
 ### The HDR plugin
 
@@ -221,6 +237,18 @@ The following defines can be defined in cmake to modify the behavior of the plug
 - `JXR_DISABLE_DEPTH_CONVERSION`: remove the neeeds of additional memory by disabling the conversion between different color depths (e.g. RGBA64bpp to RGBA32bpp) at the cost of reduced compatibility.
 - `JXR_DISABLE_BGRA_HACK`: Windows displays and opens JXR files correctly out of the box. Unfortunately it doesn't seem to open (P)RGBA @32bpp files as it only wants (P)BGRA32bpp files (a format not supported by Qt). Only for this format an hack is activated to guarantee total compatibility of the plugin with Windows.
 - `JXR_ENABLE_ADVANCED_METADATA`: enable metadata support (e.g. XMP). Some distributions use an incomplete JXR library that does not allow reading metadata, causing compilation errors.
+
+### The KRA plugin
+
+The KRA format is a ZIP archive containing image data. In particular, the
+rendered image in PNG format is saved in the root: the plugin reads this 
+image.
+
+### The ORA plugin
+
+The ORA format is a ZIP archive containing image data. In particular, the
+rendered image in PNG format is saved in the root: the plugin reads this 
+image.
 
 ### The PSD plugin
 
