@@ -111,6 +111,12 @@ if (LibHeif_FOUND)
             hej2
         )
     endif()
+
+    if (LibHeif_VERSION VERSION_GREATER_EQUAL "1.19.0")
+        kimageformats_read_tests(FUZZ 4
+            avci
+        )
+    endif()
 endif()
 
 if (LibJXL_FOUND AND LibJXLThreads_FOUND)
