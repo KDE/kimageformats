@@ -43,7 +43,7 @@ int basicTest(const QString &suffix, bool lossless, bool ignoreDataCheck, uint f
     int failed = 0;
 
     QTextStream(stdout) << "********* "
-                        << "Starting basic write tests for " << suffix << " images *********\n";
+                        << "Starting BASIC write tests for " << suffix << " images *********\n";
     const QFileInfoList lstImgDir = imgdir.entryInfoList();
     for (const QFileInfo &fi : lstImgDir) {
         QString pngfile;
@@ -148,7 +148,7 @@ int basicTest(const QString &suffix, bool lossless, bool ignoreDataCheck, uint f
 
     QTextStream(stdout) << "Totals: " << passed << " passed, " << failed << " failed\n";
     QTextStream(stdout) << "********* "
-                        << "Finished basic write tests for " << suffix << " images *********\n";
+                        << "Finished BASIC write tests for " << suffix << " images *********\n";
 
     return failed == 0 ? 0 : 1;
 }
@@ -238,7 +238,7 @@ int formatTest(const QString &suffix, bool createTemplates)
     int skipped = 0;
 
     QTextStream(stdout) << "********* "
-                        << "Starting format write tests for " << suffix << " images *********\n";
+                        << "Starting FORMAT write tests for " << suffix << " images *********\n";
 
     for (int i = QImage::Format_Invalid + 1; i < QImage::NImageFormats; ++i) {
         auto format = QImage::Format(i);
@@ -324,7 +324,97 @@ int formatTest(const QString &suffix, bool createTemplates)
 
     QTextStream(stdout) << "Totals: " << passed << " passed, " << failed << " failed, " << skipped << " skipped\n";
     QTextStream(stdout) << "********* "
-                        << "Finished format write tests for " << suffix << " images *********\n";
+                        << "Finished FORMAT write tests for " << suffix << " images *********\n";
+
+    return failed == 0 ? 0 : 1;
+}
+
+int sizeTest(const QString &suffix)
+{
+    auto formatFolder = QStringLiteral("%1/format/%2").arg(IMAGEDIR, suffix);
+
+    int passed = 0;
+    int failed = 0;
+    int skipped = 0;
+
+    QTextStream(stdout) << "********* "
+                        << "Starting SIZE write tests for " << suffix << " images *********\n";
+
+    for (int i = QImage::Format_Invalid + 1; i < QImage::NImageFormats; ++i) {
+        auto format = QImage::Format(i);
+        auto formatName = QString(QMetaEnum::fromType<QImage::Format>().valueToKey(format));
+
+        // read template image
+        auto templateImage = QImageReader(QStringLiteral("%1/%2.%3").arg(formatFolder, formatName, suffix)).read();
+        if (templateImage.isNull()) {
+            ++skipped;
+            QTextStream(stdout) << "SKIP : no source image found for " << formatName << "\n";
+            continue;
+        }
+
+        // clang-format off
+        auto sizeList = QList<QSize>()
+            // check for byte alignment
+            << (templateImage.size() + QSize(1, 1))
+            << (templateImage.size() + QSize(2, 2))
+            << (templateImage.size() + QSize(3, 3))
+            << (templateImage.size() + QSize(4, 4))
+            << (templateImage.size() + QSize(5, 5))
+            << (templateImage.size() + QSize(6, 6))
+            << (templateImage.size() + QSize(7, 7))
+            // Check for dividers (using prime numbers)
+            << QSize(113, 157)
+            << QSize(163, 109);
+        // clang-format on
+
+        for (auto &&sz : sizeList) {
+            auto debugInfo = QStringLiteral("%1 @%2x%3").arg(formatName).arg(sz.width()).arg(sz.height());
+
+            // resize the template image
+            auto resizeImage = templateImage.scaled(sz);
+            // make sure the format is not changed by resize (paranoia)
+            resizeImage.convertTo(templateImage.format());
+
+            // save test
+            QByteArray ba;
+            { // writing the image
+                QBuffer buffer(&ba);
+                QImageWriter writer(&buffer, suffix.toLatin1());
+                writer.setQuality(100); // always lossless
+                if (!writer.write(resizeImage)) {
+                    ++failed;
+                    QTextStream(stdout) << "FAIL : failed to write image " << debugInfo << "\n";
+                    continue;
+                }
+            }
+
+            // read test
+            QBuffer buffer(&ba);
+            auto writtenImage = QImageReader(&buffer, suffix.toLatin1()).read();
+            if (writtenImage.isNull()) {
+                ++failed;
+                QTextStream(stdout) << "FAIL : error while reading the image " << debugInfo << "\n";
+                continue;
+            }
+
+            // This comparison is only to understand if the plugin has written a completely wrong image. I therefore have no
+            // qualms about converting them to a more convenient format or to tolerate slightly different pixels.
+            auto compareFormat = writtenImage.hasAlphaChannel() ? QImage::Format_ARGB32 : QImage::Format_RGB32;
+            if (!fuzzyeq(writtenImage.convertToFormat(compareFormat), resizeImage.convertToFormat(compareFormat), 5)) {
+                ++failed;
+                QTextStream(stdout) << "FAIL : re-reading the data resulted in a different image " << debugInfo << "\n";
+                continue;
+            }
+
+            // test passed!
+            QTextStream(stdout) << "PASS : " << debugInfo << "\n";
+            ++passed;
+        }
+    }
+
+    QTextStream(stdout) << "Totals: " << passed << " passed, " << failed << " failed, " << skipped << " skipped\n";
+    QTextStream(stdout) << "********* "
+                        << "Finished SIZE write tests for " << suffix << " images *********\n";
 
     return failed == 0 ? 0 : 1;
 }
@@ -427,6 +517,9 @@ int main(int argc, char **argv)
     auto ret = basicTest(suffix, parser.isSet(lossless), parser.isSet(ignoreDataCheck), fuzzarg);
     if (ret == 0) {
         ret = formatTest(suffix, parser.isSet(createFormatTempates));
+    }
+    if (ret == 0) {
+        ret = sizeTest(suffix);
     }
     if (ret == 0) {
         ret = nullDeviceTest(suffix);
