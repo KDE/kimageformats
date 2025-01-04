@@ -382,6 +382,11 @@ bool QJpegXLHandler::countALLFrames()
                 case JXL_DEC_NEED_MORE_INPUT:
                     qWarning("ERROR: JXL data incomplete");
                     break;
+                case JXL_DEC_BOX:
+                    if (!decodeBox(status)) {
+                        qWarning("ERROR: JXL BOX decoding failed");
+                    }
+                    continue;
                 default:
                     qWarning("Unexpected event %d instead of JXL_DEC_FRAME", status);
                     break;
@@ -1214,16 +1219,8 @@ bool QJpegXLHandler::decodeBoxes(JxlDecoderStatus &status)
 {
     do { // decode metadata
         status = JxlDecoderProcessInput(m_decoder);
-        if (status == JXL_DEC_BOX) {
-            JxlBoxType type;
-            JxlDecoderGetBoxType(m_decoder, type, JXL_FALSE);
-            if (memcmp(type, "xml ", 4) == 0) {
-                uint64_t size;
-                if (JxlDecoderGetBoxSizeRaw(m_decoder, &size) == JXL_DEC_SUCCESS && size < uint64_t(kMaxQVectorSize)) {
-                    m_xmp = QByteArray(size, '\0');
-                    JxlDecoderSetBoxBuffer(m_decoder, reinterpret_cast<uint8_t *>(m_xmp.data()), m_xmp.size());
-                }
-            }
+        if (!decodeBox(status)) {
+            qWarning("ERROR: JXL BOX decoding failed");
         }
     } while (status == JXL_DEC_BOX);
 
@@ -1237,6 +1234,27 @@ bool QJpegXLHandler::decodeBoxes(JxlDecoderStatus &status)
         m_parseState = ParseJpegXLError;
         return false;
     }
+    return true;
+}
+
+bool QJpegXLHandler::decodeBox(const JxlDecoderStatus &status)
+{
+    if (status != JXL_DEC_BOX) {
+        return true;
+    }
+
+    JxlBoxType type;
+    JxlDecoderGetBoxType(m_decoder, type, JXL_FALSE);
+    if (memcmp(type, "xml ", 4) == 0) {
+        uint64_t size;
+        if (JxlDecoderGetBoxSizeRaw(m_decoder, &size) == JXL_DEC_SUCCESS && size < uint64_t(kMaxQVectorSize)) {
+            m_xmp = QByteArray(size, '\0');
+            JxlDecoderSetBoxBuffer(m_decoder, reinterpret_cast<uint8_t *>(m_xmp.data()), m_xmp.size());
+            return true;
+        }
+        return false;
+    }
+
     return true;
 }
 

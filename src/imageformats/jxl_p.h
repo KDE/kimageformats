@@ -52,6 +52,7 @@ private:
     bool decode_one_frame();
     bool rewind();
     bool decodeBoxes(JxlDecoderStatus &status);
+    bool decodeBox(const JxlDecoderStatus &status);
 
     enum ParseJpegXLState {
         ParseJpegXLError = -1,
