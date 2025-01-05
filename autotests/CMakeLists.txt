@@ -119,6 +119,18 @@ if (LibHeif_FOUND)
     endif()
 endif()
 
+if (OpenJPEG_FOUND)
+    kimageformats_read_tests(
+        jp2
+    )
+    # CMYK writing is incorrect in versions before 2.5.3
+    if ("${OPENJPEG_MAJOR_VERSION}.${OPENJPEG_MINOR_VERSION}.${OPENJPEG_BUILD_VERSION}" VERSION_GREATER_EQUAL "2.5.3")
+        kimageformats_write_tests(
+            jp2-nodatacheck-lossless
+        )
+    endif()
+endif()
+
 if (LibJXL_FOUND AND LibJXLThreads_FOUND)
     kimageformats_read_tests(
         jxl

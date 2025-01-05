@@ -86,6 +86,12 @@ if (LibJXL_FOUND AND LibJXLThreads_FOUND)
     endif()
 endif()
 
+if (OpenJPEG_FOUND)
+    kimageformats_add_plugin(kimg_jp2 SOURCES jp2.cpp scanlineconverter.cpp)
+    target_include_directories(kimg_jp2 PRIVATE ${OPENJPEG_INCLUDE_DIRS})
+    target_link_libraries(kimg_jp2 PRIVATE ${OPENJPEG_LIBRARIES})
+endif()
+
 ##################################
 
 kimageformats_add_plugin(kimg_pcx SOURCES pcx.cpp)

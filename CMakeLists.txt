@@ -78,6 +78,13 @@ if(KIMAGEFORMATS_JXL)
 endif()
 add_feature_info(LibJXL LibJXL_FOUND "required for the QImage plugin for JPEG XL images")
 
+option(KIMAGEFORMATS_JP2 "Enable plugin for JPEG 2000 format" ON)
+if(KIMAGEFORMATS_JP2)
+    find_package(OpenJPEG CONFIG)
+endif()
+add_feature_info(OpenJPEG OpenJPEG_FOUND "required for the QImage plugin for JPEG 2000 images")
+
+
 find_package(LibRaw 0.20.2)
 set_package_properties(LibRaw PROPERTIES
     TYPE OPTIONAL

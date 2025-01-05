@@ -32,6 +32,7 @@ The following image formats have read and write support:
 - DirectDraw Surface (dds)
 - Encapsulated PostScript (eps)
 - High Efficiency Image File Format (heif)
+- JPEG 2000 (jp2, j2k, jpf)
 - JPEG XL (jxl)
 - JPEG XR (jxr)
 - OpenEXR (exr)
@@ -74,6 +75,12 @@ removed.
 The DDS plugin is a fork from Qt 5.6 with bug fixes and improvements.
 
 The plugin was forked because Qt Project no longer supports its DDS plugin.
+
+### The JP2 plugin
+
+The JP2 plugin is based on the popular and wide used OpenJPEG library.
+
+The Qt project has a no longer supported JPEG 2000 plugin based on Jasper.
 
 ## License
 
@@ -134,6 +141,7 @@ plugin ('n/a' means no limit, i.e. the limit depends on the format encoding).
 - EPS: n/a
 - HDR: n/a (large image)
 - HEIF: n/a
+- JP2: 300,000 x 300,000 pixels
 - JXL: 262,144 x 262,144 pixels, in any case no larger than 256 megapixels
 - JXR: n/a, in any case no larger than 4 GB
 - KRA: same size as Qt's PNG plugin
@@ -178,8 +186,8 @@ been used or the maximum size of the image that can be saved has been limited.
 PSD plugin loads CMYK, Lab and Multichannel images and converts them to RGB 
 without using the ICC profile.
 
-JXR, PSD and SCT plugins natively support 4-channel CMYK images when compiled 
-with Qt 6.8+.
+JP2, JXR, PSD and SCT plugins natively support 4-channel CMYK images when
+compiled with Qt 6.8+.
 
 ### The DDS plugin
 
@@ -217,6 +225,15 @@ create a temporary PDF file which is then converted to EPS. Therefore, if
 
 The following defines can be defined in cmake to modify the behavior of the plugin:
 - `HDR_HALF_QUALITY`: on read, a 16-bit float image is returned instead of a 32-bit float one.
+
+### The JP2 plugin
+
+**This plugin can be disabled by setting `KIMAGEFORMATS_JP2` to `OFF` 
+in your cmake options.**
+
+JP2 plugin has the following limitations due to the lack of support by OpenJPEG:
+- Metadata are not supported
+- Image resolution is not supported
 
 ### The JXL plugin
 
