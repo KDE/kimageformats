@@ -197,18 +197,23 @@ bool QJpegXLHandler::ensureDecoder()
     }
 
     JxlDecoderCloseInput(m_decoder);
-#ifndef JXL_DECODE_BOXES_DISABLED
-    JxlDecoderStatus status = JxlDecoderSubscribeEvents(m_decoder, JXL_DEC_BASIC_INFO | JXL_DEC_COLOR_ENCODING | JXL_DEC_FRAME | JXL_DEC_BOX);
-#else
+
     JxlDecoderStatus status = JxlDecoderSubscribeEvents(m_decoder, JXL_DEC_BASIC_INFO | JXL_DEC_COLOR_ENCODING | JXL_DEC_FRAME);
-#endif
     if (status == JXL_DEC_ERROR) {
         qWarning("ERROR: JxlDecoderSubscribeEvents failed");
         m_parseState = ParseJpegXLError;
         return false;
     }
 
-    if (!decodeBoxes(status)) {
+    status = JxlDecoderProcessInput(m_decoder);
+    if (status == JXL_DEC_ERROR) {
+        qWarning("ERROR: JXL decoding failed");
+        m_parseState = ParseJpegXLError;
+        return false;
+    }
+    if (status == JXL_DEC_NEED_MORE_INPUT) {
+        qWarning("ERROR: JXL data incomplete");
+        m_parseState = ParseJpegXLError;
         return false;
     }
 
@@ -241,11 +246,7 @@ bool QJpegXLHandler::countALLFrames()
         return false;
     }
 
-    JxlDecoderStatus status;
-    if (!decodeBoxes(status)) {
-        return false;
-    }
-
+    JxlDecoderStatus status = JxlDecoderProcessInput(m_decoder);
     if (status != JXL_DEC_COLOR_ENCODING) {
         qWarning("Unexpected event %d instead of JXL_DEC_COLOR_ENCODING", status);
         m_parseState = ParseJpegXLError;
@@ -382,11 +383,6 @@ bool QJpegXLHandler::countALLFrames()
                 case JXL_DEC_NEED_MORE_INPUT:
                     qWarning("ERROR: JXL data incomplete");
                     break;
-                case JXL_DEC_BOX:
-                    if (!decodeBox(status)) {
-                        qWarning("ERROR: JXL BOX decoding failed");
-                    }
-                    continue;
                 default:
                     qWarning("Unexpected event %d instead of JXL_DEC_FRAME", status);
                     break;
@@ -408,6 +404,10 @@ bool QJpegXLHandler::countALLFrames()
             }
 
             m_framedelays.append(delay);
+
+            if (frame_header.is_last == JXL_TRUE) {
+                break;
+            }
         }
 
         if (m_framedelays.isEmpty()) {
@@ -426,7 +426,7 @@ bool QJpegXLHandler::countALLFrames()
     }
 
 #ifndef JXL_DECODE_BOXES_DISABLED
-    if (!decodeBoxes(status)) {
+    if (!decodeContainer()) {
         return false;
     }
 #endif
@@ -1215,46 +1215,182 @@ bool QJpegXLHandler::rewind()
     return true;
 }
 
-bool QJpegXLHandler::decodeBoxes(JxlDecoderStatus &status)
+bool QJpegXLHandler::decodeContainer()
 {
-    do { // decode metadata
-        status = JxlDecoderProcessInput(m_decoder);
-        if (!decodeBox(status)) {
-            qWarning("ERROR: JXL BOX decoding failed");
-        }
-    } while (status == JXL_DEC_BOX);
-
-    if (status == JXL_DEC_ERROR) {
-        qWarning("ERROR: JXL decoding failed");
-        m_parseState = ParseJpegXLError;
-        return false;
-    }
-    if (status == JXL_DEC_NEED_MORE_INPUT) {
-        qWarning("ERROR: JXL data incomplete");
-        m_parseState = ParseJpegXLError;
-        return false;
-    }
-    return true;
-}
-
-bool QJpegXLHandler::decodeBox(const JxlDecoderStatus &status)
-{
-    if (status != JXL_DEC_BOX) {
+#if JPEGXL_NUMERIC_VERSION >= JPEGXL_COMPUTE_NUMERIC_VERSION(0, 11, 0)
+    if (m_basicinfo.have_container == JXL_FALSE) {
         return true;
     }
 
-    JxlBoxType type;
-    JxlDecoderGetBoxType(m_decoder, type, JXL_FALSE);
-    if (memcmp(type, "xml ", 4) == 0) {
-        uint64_t size;
-        if (JxlDecoderGetBoxSizeRaw(m_decoder, &size) == JXL_DEC_SUCCESS && size < uint64_t(kMaxQVectorSize)) {
-            m_xmp = QByteArray(size, '\0');
-            JxlDecoderSetBoxBuffer(m_decoder, reinterpret_cast<uint8_t *>(m_xmp.data()), m_xmp.size());
-            return true;
-        }
+    const size_t len = m_rawData.size();
+    if (len == 0) {
+        m_parseState = ParseJpegXLError;
         return false;
     }
 
+    const uint8_t *buf = reinterpret_cast<const uint8_t *>(m_rawData.constData());
+    if (JxlSignatureCheck(buf, len) != JXL_SIG_CONTAINER) {
+        return true;
+    }
+
+    JxlDecoderReleaseInput(m_decoder);
+    JxlDecoderRewind(m_decoder);
+
+    if (JxlDecoderSetInput(m_decoder, buf, len) != JXL_DEC_SUCCESS) {
+        qWarning("ERROR: JxlDecoderSetInput failed");
+        m_parseState = ParseJpegXLError;
+        return false;
+    }
+
+    JxlDecoderCloseInput(m_decoder);
+
+    if (JxlDecoderSetDecompressBoxes(m_decoder, JXL_TRUE) != JXL_DEC_SUCCESS) {
+        qWarning("WARNING: JxlDecoderSetDecompressBoxes failed");
+    }
+
+    if (JxlDecoderSubscribeEvents(m_decoder, JXL_DEC_BOX | JXL_DEC_BOX_COMPLETE) != JXL_DEC_SUCCESS) {
+        qWarning("ERROR: JxlDecoderSubscribeEvents failed");
+        m_parseState = ParseJpegXLError;
+        return false;
+    }
+
+    bool search_exif = true;
+    bool search_xmp = true;
+    JxlBoxType box_type;
+
+    QByteArray exifBox;
+    QByteArray xmpBox;
+
+    while (search_exif || search_xmp) {
+        JxlDecoderStatus status = JxlDecoderProcessInput(m_decoder);
+        switch (status) {
+        case JXL_DEC_SUCCESS:
+            search_exif = false;
+            search_xmp = false;
+            break;
+        case JXL_DEC_BOX:
+            status = JxlDecoderGetBoxType(m_decoder, box_type, JXL_TRUE);
+            if (status != JXL_DEC_SUCCESS) {
+                qWarning("Error in JxlDecoderGetBoxType");
+                m_parseState = ParseJpegXLError;
+                return false;
+            }
+
+            if (box_type[0] == 'E' && box_type[1] == 'x' && box_type[2] == 'i' && box_type[3] == 'f' && search_exif) {
+                search_exif = false;
+                if (!extractBox(exifBox, len)) {
+                    return false;
+                }
+            } else if (box_type[0] == 'x' && box_type[1] == 'm' && box_type[2] == 'l' && box_type[3] == ' ' && search_xmp) {
+                search_xmp = false;
+                if (!extractBox(xmpBox, len)) {
+                    return false;
+                }
+            }
+            break;
+        case JXL_DEC_ERROR:
+            qWarning("JXL Metadata decoding error");
+            m_parseState = ParseJpegXLError;
+            return false;
+            break;
+        case JXL_DEC_NEED_MORE_INPUT:
+            qWarning("JXL metadata are probably incomplete");
+            m_parseState = ParseJpegXLError;
+            return false;
+            break;
+        default:
+            qWarning("Unexpected event %d instead of JXL_DEC_BOX", status);
+            m_parseState = ParseJpegXLError;
+            return false;
+            break;
+        }
+    }
+
+    if (xmpBox.size() > 0) {
+        m_xmp = xmpBox;
+    }
+
+    if (exifBox.size() > 4) {
+        const char tiffHeaderBE[4] = {'M', 'M', 0, 42};
+        const char tiffHeaderLE[4] = {'I', 'I', 42, 0};
+        const QByteArray tiffBE = QByteArray::fromRawData(tiffHeaderBE, 4);
+        const QByteArray tiffLE = QByteArray::fromRawData(tiffHeaderLE, 4);
+        auto headerindexBE = exifBox.indexOf(tiffBE);
+        auto headerindexLE = exifBox.indexOf(tiffLE);
+
+        if (headerindexLE != -1) {
+            if (headerindexBE == -1) {
+                m_exif = exifBox.mid(headerindexLE);
+            } else {
+                m_exif = exifBox.mid((headerindexLE <= headerindexBE) ? headerindexLE : headerindexBE);
+            }
+        } else if (headerindexBE != -1) {
+            m_exif = exifBox.mid(headerindexBE);
+        } else {
+            qWarning("Exif box in JXL file doesn't have TIFF header");
+        }
+    }
+#endif
+    return true;
+}
+
+bool QJpegXLHandler::extractBox(QByteArray &output, size_t container_size)
+{
+#if JPEGXL_NUMERIC_VERSION >= JPEGXL_COMPUTE_NUMERIC_VERSION(0, 11, 0)
+    uint64_t rawboxsize = 0;
+    JxlDecoderStatus status = JxlDecoderGetBoxSizeRaw(m_decoder, &rawboxsize);
+    if (status != JXL_DEC_SUCCESS) {
+        qWarning("ERROR: JxlDecoderGetBoxSizeRaw failed");
+        m_parseState = ParseJpegXLError;
+        return false;
+    }
+
+    if (rawboxsize > container_size) {
+        qWarning("JXL metadata box is incomplete");
+        m_parseState = ParseJpegXLError;
+        return false;
+    }
+
+    output.resize(rawboxsize);
+    status = JxlDecoderSetBoxBuffer(m_decoder, reinterpret_cast<uint8_t *>(output.data()), output.size());
+    if (status != JXL_DEC_SUCCESS) {
+        qWarning("ERROR: JxlDecoderSetBoxBuffer failed");
+        m_parseState = ParseJpegXLError;
+        return false;
+    }
+
+    do {
+        status = JxlDecoderProcessInput(m_decoder);
+        if (status == JXL_DEC_BOX_NEED_MORE_OUTPUT) {
+            size_t bytes_remains = JxlDecoderReleaseBoxBuffer(m_decoder);
+
+            if (output.size() > 4194304) { // approx. 4MB limit for decompressed metadata box
+                qWarning("JXL metadata box is too large");
+                m_parseState = ParseJpegXLError;
+                return false;
+            }
+
+            output.append(16384, '\0');
+            size_t extension_size = 16384 + bytes_remains;
+            uint8_t *extension_buffer = reinterpret_cast<uint8_t *>(output.data()) + (output.size() - extension_size);
+
+            if (JxlDecoderSetBoxBuffer(m_decoder, extension_buffer, extension_size) != JXL_DEC_SUCCESS) {
+                qWarning("ERROR: JxlDecoderSetBoxBuffer failed after JXL_DEC_BOX_NEED_MORE_OUTPUT");
+                m_parseState = ParseJpegXLError;
+                return false;
+            }
+        }
+    } while (status == JXL_DEC_BOX_NEED_MORE_OUTPUT);
+
+    if (status != JXL_DEC_BOX_COMPLETE) {
+        qWarning("Unexpected event %d instead of JXL_DEC_BOX_COMPLETE", status);
+        m_parseState = ParseJpegXLError;
+        return false;
+    }
+
+    size_t unused_bytes = JxlDecoderReleaseBoxBuffer(m_decoder);
+    output.chop(unused_bytes);
+#endif
     return true;
 }
 
