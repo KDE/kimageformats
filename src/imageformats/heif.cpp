@@ -345,31 +345,31 @@ bool HEIFHandler::isSupportedBMFFType(const QByteArray &header)
     }
 
     const char *buffer = header.constData();
-    if (qstrncmp(buffer + 4, "ftyp", 4) == 0) {
-        if (qstrncmp(buffer + 8, "heic", 4) == 0) {
+    if (memcmp(buffer + 4, "ftyp", 4) == 0) {
+        if (memcmp(buffer + 8, "heic", 4) == 0) {
             return true;
         }
-        if (qstrncmp(buffer + 8, "heis", 4) == 0) {
+        if (memcmp(buffer + 8, "heis", 4) == 0) {
             return true;
         }
-        if (qstrncmp(buffer + 8, "heix", 4) == 0) {
+        if (memcmp(buffer + 8, "heix", 4) == 0) {
             return true;
         }
 
         /* we want to avoid loading AVIF files via this plugin */
-        if (qstrncmp(buffer + 8, "mif1", 4) == 0) {
+        if (memcmp(buffer + 8, "mif1", 4) == 0) {
             for (int offset = 16; offset <= 24; offset += 4) {
-                if (qstrncmp(buffer + offset, "avif", 4) == 0) {
+                if (memcmp(buffer + offset, "avif", 4) == 0) {
                     return false;
                 }
             }
             return true;
         }
 
-        if (qstrncmp(buffer + 8, "mif2", 4) == 0) {
+        if (memcmp(buffer + 8, "mif2", 4) == 0) {
             return true;
         }
-        if (qstrncmp(buffer + 8, "msf1", 4) == 0) {
+        if (memcmp(buffer + 8, "msf1", 4) == 0) {
             return true;
         }
     }
@@ -384,10 +384,8 @@ bool HEIFHandler::isSupportedHEJ2(const QByteArray &header)
     }
 
     const char *buffer = header.constData();
-    if (qstrncmp(buffer + 4, "ftyp", 4) == 0) {
-        if (qstrncmp(buffer + 8, "j2ki", 4) == 0) {
-            return true;
-        }
+    if (memcmp(buffer + 4, "ftypj2ki", 8) == 0) {
+        return true;
     }
 
     return false;
@@ -400,10 +398,8 @@ bool HEIFHandler::isSupportedAVCI(const QByteArray &header)
     }
 
     const char *buffer = header.constData();
-    if (qstrncmp(buffer + 4, "ftyp", 4) == 0) {
-        if (qstrncmp(buffer + 8, "avci", 4) == 0) {
-            return true;
-        }
+    if (memcmp(buffer + 4, "ftypavci", 8) == 0) {
+        return true;
     }
 
     return false;
