@@ -376,16 +376,18 @@ bool ANIHandler::ensureScanned() const
             mutableThis->m_imageCount = aniHeader->nSteps;
             mutableThis->m_displayRate = aniHeader->iDispRate;
         } else if (chunkId == "rate" || chunkId == "seq ") {
-            const QByteArray data = device()->read(chunkSize);
-            if (static_cast<quint32_le>(data.size()) != chunkSize || data.size() % sizeof(quint32_le) != 0) {
+            if (chunkSize % sizeof(quint32_le) != 0) {
                 return false;
             }
 
             // TODO should we check that the number of rate entries matches nSteps?
-            auto *dataPtr = data.data();
             QList<int> list;
-            for (int i = 0; i < data.size(); i += sizeof(quint32_le)) {
-                const auto entry = *(reinterpret_cast<const quint32_le *>(dataPtr + i));
+            for (unsigned int i = 0; i < chunkSize; i += sizeof(quint32_le)) {
+                const QByteArray data = device()->read(sizeof(quint32_le));
+                if (data.size() != sizeof(quint32_le)) {
+                    return false;
+                }
+                const auto entry = *(reinterpret_cast<const quint32_le *>(data.data()));
                 list.append(entry);
             }
 
