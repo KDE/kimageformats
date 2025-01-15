@@ -74,16 +74,9 @@ endif()
 
 ##################################
 
-if (LibJXL_FOUND AND LibJXLThreads_FOUND)
+if (LibJXL_FOUND AND LibJXLThreads_FOUND AND LibJXLCMS_FOUND)
     kimageformats_add_plugin(kimg_jxl SOURCES jxl.cpp microexif.cpp)
-    target_link_libraries(kimg_jxl PRIVATE PkgConfig::LibJXL PkgConfig::LibJXLThreads)
-    if(LibJXL_VERSION VERSION_GREATER_EQUAL "0.9.0")
-        if(LibJXLCMS_FOUND)
-            target_link_libraries(kimg_jxl PRIVATE PkgConfig::LibJXLCMS)
-        else()
-            message(SEND_ERROR "libjxl_cms was not found!")
-        endif()
-    endif()
+    target_link_libraries(kimg_jxl PRIVATE PkgConfig::LibJXL PkgConfig::LibJXLThreads PkgConfig::LibJXLCMS)
 endif()
 
 if (OpenJPEG_FOUND)
