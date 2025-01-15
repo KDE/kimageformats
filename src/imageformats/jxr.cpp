@@ -73,6 +73,13 @@ Q_LOGGING_CATEGORY(LOG_JXRPLUGIN, "kf.imageformats.plugins.jxr", QtWarningMsg)
 
 // #define JXR_ENABLE_ADVANCED_METADATA
 
+#ifndef JXR_MAX_METADATA_SIZE
+/*!
+ * XMP and EXIF maximum size.
+ */
+#define JXR_MAX_METADATA_SIZE (4 * 1024 * 1024)
+#endif
+
 class JXRHandlerPrivate : public QSharedData
 {
 private:
@@ -300,7 +307,7 @@ public:
         }
 #ifdef JXR_ENABLE_ADVANCED_METADATA
         quint32 size;
-        if (!PKImageDecode_GetXMPMetadata_WMP(pDecoder, nullptr, &size) && size) {
+        if (!PKImageDecode_GetXMPMetadata_WMP(pDecoder, nullptr, &size) && size > 0 && size < JXR_MAX_METADATA_SIZE) {
             QByteArray ba(size, 0);
             if (!PKImageDecode_GetXMPMetadata_WMP(pDecoder, reinterpret_cast<quint8 *>(ba.data()), &size)) {
                 xmp = QString::fromUtf8(ba);
