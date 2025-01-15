@@ -198,7 +198,7 @@ int main(int argc, char **argv)
     QCoreApplication::removeLibraryPath(QStringLiteral(PLUGIN_DIR));
     QCoreApplication::addLibraryPath(QStringLiteral(PLUGIN_DIR));
     QCoreApplication::setApplicationName(QStringLiteral("readtest"));
-    QCoreApplication::setApplicationVersion(QStringLiteral("1.2.0"));
+    QCoreApplication::setApplicationVersion(QStringLiteral("1.3.0"));
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("Performs basic image conversion checking."));
@@ -208,8 +208,11 @@ int main(int argc, char **argv)
     QCommandLineOption fuzz(QStringList() << QStringLiteral("f") << QStringLiteral("fuzz"),
                             QStringLiteral("Allow for some deviation in ARGB data."),
                             QStringLiteral("max"));
-    parser.addOption(fuzz);
+    QCommandLineOption skipOptTest({QStringLiteral("skip-optional-tests")},
+                                   QStringLiteral("Skip optional data tests (metadata, resolution, etc.)."));
 
+    parser.addOption(fuzz);
+    parser.addOption(skipOptTest);
     parser.process(app);
 
     const QStringList args = parser.positionalArguments();
@@ -314,6 +317,7 @@ int main(int argc, char **argv)
                 continue;
             }
 
+            // option test
             OptionTest optionTest;
             if (!optionTest.store(&inputReader)) {
                 QTextStream(stdout) << "FAIL : " << fi.fileName() << ": error while reading options\n";
@@ -339,6 +343,17 @@ int main(int argc, char **argv)
                 continue;
             }
 
+            // metadata checks
+            if (!parser.isSet(skipOptTest)) {
+                QString optError;
+                if (!timg.checkOptionaInfo(inputImage, optError)) {
+                    QTextStream(stdout) << "FAIL : " << fi.fileName() << " : " << optError << "\n";
+                    ++failed;
+                    continue;
+                }
+            }
+
+            // image compare
             if (expImage.width() != inputImage.width()) {
                 QTextStream(stdout) << "FAIL : " << fi.fileName() << ": width was " << inputImage.width() << " but " << expfilename << " width was "
                                     << expImage.width() << "\n";

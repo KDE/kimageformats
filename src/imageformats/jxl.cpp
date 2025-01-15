@@ -10,6 +10,7 @@
 #include <QtGlobal>
 
 #include "jxl_p.h"
+#include "microexif_p.h"
 #include "util_p.h"
 
 #include <jxl/encode.h>
@@ -461,6 +462,17 @@ bool QJpegXLHandler::decode_one_frame()
         m_current_image.setText(QStringLiteral(META_KEY_XMP_ADOBE), QString::fromUtf8(m_xmp));
     }
 
+    if (!m_exif.isEmpty()) {
+        auto exif = MicroExif::fromByteArray(m_exif);
+        // set image resolution
+        if (exif.horizontalResolution() > 0)
+            m_current_image.setDotsPerMeterX(qRound(exif.horizontalResolution() / 25.4 * 1000));
+        if (exif.verticalResolution() > 0)
+            m_current_image.setDotsPerMeterY(qRound(exif.verticalResolution() / 25.4 * 1000));
+        // set image metadata
+        exif.toImageMetadata(m_current_image);
+    }
+
     if (JxlDecoderSetImageOutBuffer(m_decoder, &m_input_pixel_format, m_current_image.bits(), m_buffer_size) != JXL_DEC_SUCCESS) {
         qWarning("ERROR: JxlDecoderSetImageOutBuffer failed");
         m_parseState = ParseJpegXLError;
@@ -639,7 +651,6 @@ bool QJpegXLHandler::write(const QImage &image)
         qWarning("Failed to create Jxl encoder");
         return false;
     }
-    JxlEncoderUseBoxes(encoder);
 
     if (m_quality > 100) {
         m_quality = 100;
@@ -647,8 +658,12 @@ bool QJpegXLHandler::write(const QImage &image)
         m_quality = 90;
     }
 
+    JxlEncoderUseContainer(encoder, JXL_TRUE);
+    JxlEncoderUseBoxes(encoder);
+
     JxlBasicInfo output_info;
     JxlEncoderInitBasicInfo(&output_info);
+    output_info.have_container = JXL_TRUE;
 
     QByteArray iccprofile;
     QColorSpace tmpcs = image.colorSpace();
@@ -668,8 +683,6 @@ bool QJpegXLHandler::write(const QImage &image)
         || (pixel_count > FEATURE_LEVEL_5_PIXELS)
         || (image.width() > FEATURE_LEVEL_5_WIDTH)
         || (image.height() > FEATURE_LEVEL_5_HEIGHT)) {
-        output_info.have_container = JXL_TRUE;
-        JxlEncoderUseContainer(encoder, JXL_TRUE);
         JxlEncoderSetCodestreamLevel(encoder, 10);
     }
     // clang-format on
@@ -788,6 +801,7 @@ bool QJpegXLHandler::write(const QImage &image)
     auto cs = image.colorSpace();
     if (cs.isValid() && cs.colorModel() == QColorSpace::ColorModel::Cmyk && image.format() == QImage::Format_CMYK8888) {
         tmpimage = image.convertedToColorSpace(QColorSpace(QColorSpace::SRgb), tmpformat);
+        iccprofile.clear();
     } else {
         tmpimage = image.convertToFormat(tmpformat);
     }
@@ -820,6 +834,20 @@ bool QJpegXLHandler::write(const QImage &image)
         return false;
     }
 
+    auto exif_data = MicroExif::fromImage(image).toByteArray();
+    if (!exif_data.isEmpty()) {
+        exif_data = QByteArray::fromHex("00000000") + exif_data;
+        const char *box_type = "Exif";
+        status = JxlEncoderAddBox(encoder, box_type, reinterpret_cast<const uint8_t *>(exif_data.constData()), exif_data.size(), JXL_FALSE);
+        if (status != JXL_ENC_SUCCESS) {
+            qWarning("JxlEncoderAddBox failed!");
+            if (runner) {
+                JxlThreadParallelRunnerDestroy(runner);
+            }
+            JxlEncoderDestroy(encoder);
+            return false;
+        }
+    }
     auto xmp_data = image.text(QStringLiteral(META_KEY_XMP_ADOBE)).toUtf8();
     if (!xmp_data.isEmpty()) {
         const char *box_type = "xml ";

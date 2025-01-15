@@ -19,9 +19,15 @@ macro(kimageformats_read_tests)
     endif()
 
     foreach(_testname ${KIF_RT_UNPARSED_ARGUMENTS})
+        string(REGEX MATCH "-skipoptional" _is_skip_optional "${_testname}")
+        unset(skip_optional_arg)
+        if (_is_skip_optional)
+            set(skip_optional_arg "--skip-optional-tests")
+            string(REGEX REPLACE "-skipoptional$" "" _testname "${_testname}")
+        endif()
         add_test(
             NAME kimageformats-read-${_testname}
-            COMMAND readtest ${_fuzzarg} ${_testname}
+            COMMAND readtest ${skip_optional_arg} ${_fuzzarg} ${_testname}
         )
     endforeach(_testname)
 endmacro()
@@ -132,9 +138,15 @@ if (OpenJPEG_FOUND)
 endif()
 
 if (LibJXL_FOUND AND LibJXLThreads_FOUND)
-    kimageformats_read_tests(
-        jxl
-    )
+    if(LibJXL_VERSION VERSION_GREATER_EQUAL "0.11.0")
+        kimageformats_read_tests(
+            jxl
+        )
+    else()
+        kimageformats_read_tests(
+            jxl-skipoptional
+        )
+    endif()
     kimageformats_write_tests(
         jxl-nodatacheck-lossless
     )

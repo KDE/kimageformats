@@ -8,6 +8,7 @@
 #define TEMPLATEIMAGE_H
 
 #include <QFileInfo>
+#include <QImage>
 
 /*!
  * \brief The TemplateImage class
@@ -59,6 +60,15 @@ public:
      * \return The template image to use for the comparison.
      */
     QFileInfo compareImage(TestFlags &flags, QString& comment) const;
+
+    /*!
+     * \brief checkOptionaInfo
+     * Verify the optional information (resolution, metadata, etc.) of the image with that in the template if present.
+     * \param image The image to check optional information on.
+     * \param error The error message when returns false.
+     * \return True on success, otherwise false.
+     */
+    bool checkOptionaInfo(const QImage& image, QString& error) const;
 
     /*!
      * \brief suffixes

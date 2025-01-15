@@ -8,3 +8,4 @@ Options:
   test-before-installing: True
   require-passing-tests-on: [ 'Linux', 'FreeBSD', 'Windows' ]
   cmake-options: "-DKIMAGEFORMATS_DDS=ON -DKIMAGEFORMATS_JXR=ON"
+  per-test-timeout: 90
