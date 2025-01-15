@@ -126,6 +126,15 @@ bool TemplateImage::checkOptionaInfo(const QImage& image, QString& error) const
     return true;
 }
 
+quint8 TemplateImage::fuzziness() const
+{
+    auto obj = searchObject(m_fi);
+    if (obj.isEmpty()) {
+        return quint8(0);
+    }
+    return quint8(obj.value("fuzziness").toInt());
+}
+
 QStringList TemplateImage::suffixes()
 {
     return QStringList({"png", "tif", "tiff", "json"});

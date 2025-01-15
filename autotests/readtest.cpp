@@ -377,7 +377,12 @@ int main(int argc, char **argv)
                                         << " to " << formatToString(cmpFormat) << '\n';
                     expImage = expImage.convertToFormat(cmpFormat);
                 }
-                if (fuzzyeq(inputImage, expImage, fuzziness)) {
+                auto tmpFuzziness = fuzziness;
+                if (tmpFuzziness == 0) {
+                    // If the fuzziness value is not explicitly set I use the one set for the current image.
+                    tmpFuzziness = timg.fuzziness();
+                }
+                if (fuzzyeq(inputImage, expImage, tmpFuzziness)) {
                     QTextStream(stdout) << "PASS : " << fi.fileName() << "\n";
                     ++passed;
                 } else {

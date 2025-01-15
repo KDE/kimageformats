@@ -161,9 +161,7 @@ if (LibJXR_FOUND)
     )
 endif()
 
-# Allow some fuzziness when reading this formats, to allow for
-# rounding errors (eg: in alpha blending).
-kimageformats_read_tests(FUZZ 1
+kimageformats_read_tests(
     xcf
 )
 
