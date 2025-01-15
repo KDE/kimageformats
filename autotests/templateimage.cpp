@@ -114,8 +114,8 @@ bool TemplateImage::checkOptionaInfo(const QImage& image, QString& error) const
     auto meta = obj.value("metadata").toArray();
     for (auto jv : meta) {
         auto obj = jv.toObject();
-        auto key = obj.value("Key").toString();
-        auto val = obj.value("Value").toString();
+        auto key = obj.value("key").toString();
+        auto val = obj.value("value").toString();
         auto cur = image.text(key);
         if (cur != val) {
             error = QStringLiteral("Metadata '%1' mismatch (current: '%2', expected:'%3')!").arg(key, cur, val);

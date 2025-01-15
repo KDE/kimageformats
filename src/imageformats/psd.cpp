@@ -3,7 +3,7 @@
 
     SPDX-FileCopyrightText: 2003 Ignacio Castaño <castano@ludicon.com>
     SPDX-FileCopyrightText: 2015 Alex Merry <alex.merry@kde.org>
-    SPDX-FileCopyrightText: 2022-2024 Mirco Miranda <mircomir@outlook.com>
+    SPDX-FileCopyrightText: 2022-2025 Mirco Miranda <mircomir@outlook.com>
 
     SPDX-License-Identifier: LGPL-2.0-or-later
 */
@@ -27,6 +27,7 @@
  */
 
 #include "fastmath_p.h"
+#include "microexif_p.h"
 #include "psd_p.h"
 #include "scanlineconverter_p.h"
 #include "util_p.h"
@@ -96,6 +97,8 @@ enum ImageResourceId : quint16 {
     IRI_ICCPROFILE = 0x040F,
     IRI_TRANSPARENCYINDEX = 0x0417,
     IRI_VERSIONINFO = 0x0421,
+    IRI_EXIFDATA1 = 0x0422,
+    IRI_EXIFDATA3 = 0x0423, // never seen
     IRI_XMPMETADATA = 0x0424
 };
 
@@ -519,6 +522,25 @@ static bool setXmpData(QImage& img, const PSDImageResourceSection& irs)
     //       XMP packet is found (e.g. when reading a PNG saved by Photoshop).
     //       I'm reusing the same key because a programs could search for it.
     img.setText(QStringLiteral(META_KEY_XMP_ADOBE), xmp);
+    return true;
+}
+
+/*!
+ * \brief setExifData
+ * Adds EXIF metadata to QImage.
+ * \param img The image.
+ * \param irs The image resource section.
+ * \return True on success, otherwise false.
+ */
+static bool setExifData(QImage& img, const PSDImageResourceSection& irs)
+{
+    if (!irs.contains(IRI_EXIFDATA1))
+        return false;
+    auto irb = irs.value(IRI_EXIFDATA1);
+    auto exif = MicroExif::fromByteArray(irb.data);
+    if (exif.isEmpty())
+        return false;
+    exif.toImageMetadata(img);
     return true;
 }
 
@@ -1354,6 +1376,11 @@ static bool LoadPSD(QDataStream &stream, const PSDHeader &header, QImage &img)
     // XMP data
     if (!setXmpData(img, irs)) {
         // qDebug() << "No XMP data found!";
+    }
+
+    // EXIF data
+    if (!setExifData(img, irs)) {
+        // qDebug() << "No EXIF data found!";
     }
 
     // Duotone images: color data contains the duotone specification (not documented).
