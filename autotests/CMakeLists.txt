@@ -49,6 +49,8 @@ macro(kimageformats_write_tests)
     foreach(_testname ${KIF_RT_UNPARSED_ARGUMENTS})
         string(REGEX MATCH "-lossless$" _is_lossless "${_testname}")
         string(REGEX MATCH "-nodatacheck" _is_no_data_check "${_testname}")
+        string(REGEX MATCH "-skipoptional" _is_skip_optional "${_testname}")
+        unset(skip_optional_arg)
         unset(lossless_arg)
         unset(no_data_check_arg)
         if (_is_lossless)
@@ -59,9 +61,13 @@ macro(kimageformats_write_tests)
             set(no_data_check_arg "--no-data-check")
             string(REGEX REPLACE "-nodatacheck$" "" _testname "${_testname}")
         endif()
+        if (_is_skip_optional)
+            set(skip_optional_arg "--skip-optional-tests")
+            string(REGEX REPLACE "-skipoptional$" "" _testname "${_testname}")
+        endif()
         add_test(
             NAME kimageformats-write-${_testname}
-            COMMAND writetest ${lossless_arg} ${no_data_check_arg} ${_fuzzarg} ${_testname}
+            COMMAND writetest ${lossless_arg} ${no_data_check_arg} ${skip_optional_arg} ${_fuzzarg} ${_testname}
         )
     endforeach(_testname)
 endmacro()
@@ -142,14 +148,17 @@ if (LibJXL_FOUND AND LibJXLThreads_FOUND)
         kimageformats_read_tests(
             jxl
         )
+        kimageformats_write_tests(
+            jxl-nodatacheck-lossless
+        )
     else()
         kimageformats_read_tests(
             jxl-skipoptional
         )
+        kimageformats_write_tests(
+            jxl-skipoptional-nodatacheck-lossless
+        )
     endif()
-    kimageformats_write_tests(
-        jxl-nodatacheck-lossless
-    )
 endif()
 
 if (LibJXR_FOUND)
@@ -172,7 +181,7 @@ kimageformats_read_tests(
 # You can append -lossless to the format to indicate that
 # reading back the image data will result in an identical image.
 kimageformats_write_tests(
-    pcx-lossless
+    pcx-nodatacheck
     pic-lossless
     qoi-lossless
     rgb-lossless

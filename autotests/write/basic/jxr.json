@@ -1,0 +1,33 @@
+{
+    "format" : "jxr",
+    "metadata" : [
+        {
+            "key" : "CreationDate",
+            "value" : "2025-01-14T13:53:32+01:00"
+        },
+        {
+            "key" : "Author",
+            "value" : "KDE Project"
+        },
+        {
+            "key" : "Copyright",
+            "value" : "@2025 KDE Project"
+        },
+        {
+            "key" : "Description",
+            "value" : "TV broadcast test image."
+        },
+        {
+            "key" : "Manufacturer",
+            "value" : "KFramework"
+        },
+        {
+            "key" : "Model",
+            "value" : "KImageFormats"
+        }
+    ],
+    "resolution" : {
+        "dotsPerMeterX" : 10000,
+        "dotsPerMeterY" : 11000
+    }
+}

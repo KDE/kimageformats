@@ -16,16 +16,106 @@
 #include <QImage>
 #include <QImageReader>
 #include <QImageWriter>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
 #include <QMetaEnum>
 #include <QTextStream>
 
 #include "fuzzyeq.cpp"
 
+QJsonObject readOptionalInfo(const QString &suffix)
+{
+    auto fi = QFileInfo(QStringLiteral("%1/basic/%2.json").arg(IMAGEDIR, suffix));
+    if (!fi.exists()) {
+        return {};
+    }
+
+    QFile f(fi.filePath());
+    if (!f.open(QFile::ReadOnly)) {
+        return {};
+    }
+
+    QJsonParseError err;
+    auto doc = QJsonDocument::fromJson(f.readAll(), &err);
+    if (err.error != QJsonParseError::NoError || !doc.isObject()) {
+        return {};
+    }
+
+    return doc.object();
+}
+
+void setOptionalInfo(QImage& image, const QString &suffix)
+{
+    auto obj = readOptionalInfo(suffix);
+    if (obj.isEmpty()) {
+        return ;
+    }
+
+    // Set resolution
+    auto res = obj.value("resolution").toObject();
+    if (!res.isEmpty()) {
+        image.setDotsPerMeterX(res.value("dotsPerMeterX").toInt());
+        image.setDotsPerMeterY(res.value("dotsPerMeterY").toInt());
+    }
+
+    // Set metadata
+    auto meta = obj.value("metadata").toArray();
+    for (auto jv : meta) {
+        auto obj = jv.toObject();
+        auto key = obj.value("key").toString();
+        auto val = obj.value("value").toString();
+        image.setText(key, val);
+    }
+}
+
+bool checkOptionalInfo(QImage& image, const QString &suffix)
+{
+    auto obj = readOptionalInfo(suffix);
+    if (obj.isEmpty()) {
+        return true;
+    }
+
+    // Check if the format match
+    if (suffix.compare(obj.value("format").toString(), Qt::CaseInsensitive)) {
+        return false;
+    }
+
+    // Test resolution
+    auto res = obj.value("resolution").toObject();
+    if (!res.isEmpty()) {
+        auto resx = res.value("dotsPerMeterX").toInt();
+        auto resy = res.value("dotsPerMeterY").toInt();
+        if (resx != image.dotsPerMeterX()) {
+            return false;
+        }
+        if (resy != image.dotsPerMeterY()) {
+            return false;
+        }
+    }
+
+    // Test metadata
+    auto meta = obj.value("metadata").toArray();
+    for (auto jv : meta) {
+        auto obj = jv.toObject();
+        auto key = obj.value("key").toString();
+        auto val = obj.value("value").toString();
+        auto cur = image.text(key);
+        if (cur != val) {
+            qDebug() << key;
+            return false;
+        }
+    }
+
+    return true;
+}
+
 /*!
  * \brief basicTest
  * Run a basic test on some common images.
  */
-int basicTest(const QString &suffix, bool lossless, bool ignoreDataCheck, uint fuzzarg)
+int basicTest(const QString &suffix, bool lossless, bool ignoreDataCheck, bool skipOptional, uint fuzzarg)
 {
     uchar fuzziness = uchar(fuzzarg);
 
@@ -70,6 +160,9 @@ int basicTest(const QString &suffix, bool lossless, bool ignoreDataCheck, uint f
             if (lossless) {
                 imgWriter.setQuality(100);
             }
+            if (!skipOptional) {
+                setOptionalInfo(pngImage, suffix);
+            }
             if (!imgWriter.write(pngImage)) {
                 QTextStream(stdout) << "FAIL : " << fi.fileName() << ": failed to write image data\n";
                 ++failed;
@@ -96,7 +189,6 @@ int basicTest(const QString &suffix, bool lossless, bool ignoreDataCheck, uint f
                     continue;
                 }
             }
-
             if (expData != writtenData) {
                 QTextStream(stdout) << "FAIL : " << fi.fileName() << ": written data differs from " << fi.fileName() << "\n";
                 ++failed;
@@ -112,6 +204,13 @@ int basicTest(const QString &suffix, bool lossless, bool ignoreDataCheck, uint f
                 QTextStream(stdout) << "FAIL : " << fi.fileName() << ": could not read back the written data\n";
                 ++failed;
                 continue;
+            }
+            if (!skipOptional) {
+                if (!checkOptionalInfo(reReadImage, suffix)) {
+                    QTextStream(stdout) << "FAIL : " << fi.fileName() << ": optional information does not match\n";
+                    ++failed;
+                    continue;
+                }
             }
             if (reReadImage.colorSpace().isValid()) {
                 QColorSpace toColorSpace;
@@ -486,10 +585,14 @@ int main(int argc, char **argv)
                             QStringLiteral("max"));
     QCommandLineOption createFormatTempates({QStringLiteral("create-format-templates")},
                                             QStringLiteral("Create template images for all formats supported by QImage."));
+    QCommandLineOption skipOptTest({QStringLiteral("skip-optional-tests")},
+                                   QStringLiteral("Skip optional data tests (metadata, resolution, etc.)."));
+
     parser.addOption(lossless);
     parser.addOption(ignoreDataCheck);
     parser.addOption(fuzz);
     parser.addOption(createFormatTempates);
+    parser.addOption(skipOptTest);
 
     parser.process(app);
 
@@ -514,7 +617,7 @@ int main(int argc, char **argv)
 
     // run test
     auto suffix = args.at(0);
-    auto ret = basicTest(suffix, parser.isSet(lossless), parser.isSet(ignoreDataCheck), fuzzarg);
+    auto ret = basicTest(suffix, parser.isSet(lossless), parser.isSet(ignoreDataCheck), parser.isSet(skipOptTest), fuzzarg);
     if (ret == 0) {
         ret = formatTest(suffix, parser.isSet(createFormatTempates));
     }
