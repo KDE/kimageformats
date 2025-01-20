@@ -56,12 +56,20 @@ typedef quint8 uchar;
  */
 // #define PSD_FAST_LAB_CONVERSION
 
-/*
- * Since Qt version 6.8, the 8-bit CMYK format is natively supported.
+/* Since Qt version 6.8, the 8-bit CMYK format is natively supported.
  * If you encounter problems with native CMYK support you can continue to force the plugin to convert
  * to RGB as in previous versions by defining PSD_NATIVE_CMYK_SUPPORT_DISABLED.
  */
 // #define PSD_NATIVE_CMYK_SUPPORT_DISABLED
+
+/* The detection of the nature of the extra channel (alpha or not) passes through the reading of
+ * the PSD sections.
+ * By default, any extra channel is assumed to be non-alpha. If enabled, for RGB images only,
+ * any extra channel is assumed as alpha unless refuted by the data in the various sections.
+ *
+ * Note: this parameter is for debugging only and should not be enabled in releases.
+ */
+// #define PSD_FORCE_RGBA
 
 namespace // Private.
 {
@@ -96,6 +104,7 @@ enum ImageResourceId : quint16 {
     IRI_RESOLUTIONINFO = 0x03ED,
     IRI_ICCPROFILE = 0x040F,
     IRI_TRANSPARENCYINDEX = 0x0417,
+    IRI_ALPHAIDENTIFIERS = 0x041D,
     IRI_VERSIONINFO = 0x0421,
     IRI_EXIFDATA1 = 0x0422,
     IRI_EXIFDATA3 = 0x0423, // never seen
@@ -1134,9 +1143,23 @@ public:
     {
         // Try to identify the nature of spots: note that this is just one of many ways to identify the presence
         // of alpha channels: should work in most cases where colorspaces != RGB/Gray
+#ifdef PSD_FORCE_RGBA
         auto alpha = m_header.color_mode == CM_RGB;
-        if (!m_lms.isNull())
+#else
+        auto alpha = false;
+#endif
+        if (m_irs.contains(IRI_ALPHAIDENTIFIERS)) {
+            auto irb = m_irs.value(IRI_ALPHAIDENTIFIERS);
+            if (irb.data.size() >= 4) {
+                QDataStream s(irb.data);
+                s.setByteOrder(QDataStream::BigEndian);
+                qint32 v;
+                s >> v;
+                alpha = v == 0;
+            }
+        } else if (!m_lms.isNull()) {
             alpha = m_lms.hasAlpha();
+        }
         return alpha;
     }
 
@@ -1164,7 +1187,6 @@ public:
 
     bool readInfo(QDataStream &stream)
     {
-        // Checking for PSB
         auto ok = false;
 
         // Header
