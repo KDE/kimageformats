@@ -10,3 +10,11 @@ include:
       - /gitlab-templates/android-qt6.yml
       - /gitlab-templates/freebsd-qt6.yml
       - /gitlab-templates/windows-qt6.yml
+
+image_json_validate:
+  stage: validate
+  image: invent-registry.kde.org/sysadmin/ci-images/suse-qt68:latest
+  tags:
+    - Linux
+  script:
+    - find src/imageformats/ -name *.json | xargs -I file bash -c "echo file && jq -e '(.Keys | type == \"array\") and (.MimeTypes | type == \"array\") and (.MimeTypes | length) == (.Keys | length)' file"
