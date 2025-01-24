@@ -83,6 +83,16 @@ public:
     quint8 fuzziness() const;
 
     /*!
+     * \brief perceptiveFuzziness
+     * The perceptual mode of fuzziness control scales the value according to
+     * the alpha value: the lower the alpha value (transparent), the more the
+     * fuzziness value increases according to the following formula:
+     * - fuzz = fuzz * 255 / alpha
+     * \return True if the perceptive mode is active, otherwise false.
+     */
+    bool perceptiveFuzziness() const;
+
+    /*!
      * \brief suffixes
      * \return The list of suffixes considered templates.
      */

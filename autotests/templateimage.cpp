@@ -135,6 +135,15 @@ quint8 TemplateImage::fuzziness() const
     return quint8(obj.value("fuzziness").toInt());
 }
 
+bool TemplateImage::perceptiveFuzziness() const
+{
+    auto obj = searchObject(m_fi);
+    if (obj.isEmpty()) {
+        return false;
+    }
+    return quint8(obj.value("perceptiveFuzziness").toBool());
+}
+
 QStringList TemplateImage::suffixes()
 {
     return QStringList({"png", "tif", "tiff", "json"});

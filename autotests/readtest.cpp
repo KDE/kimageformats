@@ -210,9 +210,11 @@ int main(int argc, char **argv)
                             QStringLiteral("max"));
     QCommandLineOption skipOptTest({QStringLiteral("skip-optional-tests")},
                                    QStringLiteral("Skip optional data tests (metadata, resolution, etc.)."));
+    QCommandLineOption perceptiveFuzz({QStringLiteral("perceptive-fuzz")}, QStringLiteral("The fuzziness value is scaled based on the alpha channel value."));
 
     parser.addOption(fuzz);
     parser.addOption(skipOptTest);
+    parser.addOption(perceptiveFuzz);
     parser.process(app);
 
     const QStringList args = parser.positionalArguments();
@@ -378,11 +380,16 @@ int main(int argc, char **argv)
                     expImage = expImage.convertToFormat(cmpFormat);
                 }
                 auto tmpFuzziness = fuzziness;
+                auto isFuzzPerceptive = parser.isSet(perceptiveFuzz);
                 if (tmpFuzziness == 0) {
                     // If the fuzziness value is not explicitly set I use the one set for the current image.
                     tmpFuzziness = timg.fuzziness();
                 }
-                if (fuzzyeq(inputImage, expImage, tmpFuzziness)) {
+                if (!isFuzzPerceptive) {
+                    // If the perceptiveFuzziness value is not explicitly set I use the one set for the current image.
+                    isFuzzPerceptive = timg.perceptiveFuzziness();
+                }
+                if (fuzzyeq(inputImage, expImage, tmpFuzziness, isFuzzPerceptive)) {
                     QTextStream(stdout) << "PASS : " << fi.fileName() << "\n";
                     ++passed;
                 } else {

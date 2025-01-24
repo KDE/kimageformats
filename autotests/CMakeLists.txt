@@ -200,7 +200,7 @@ if (OpenEXR_FOUND)
     )
     # Color space conversions from sRGB to linear on saving and
     # from linear to sRGB on loading result in some rounding errors.
-    kimageformats_write_tests(FUZZ 5
+    kimageformats_write_tests(FUZZ 6
         exr-nodatacheck-lossless
     )
 endif()
