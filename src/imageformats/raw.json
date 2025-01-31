@@ -33,7 +33,7 @@
         "image/x-obm", "image/x-olympus-orf", "image/x-ori",
         "image/x-pentax-pef", "image/x-ptx", "image/x-pxn",
         "image/x-qtk",
-        "image/x-r3d", "image/x-fuji-raf", "image/x-raw", "image/x-rdc", "image/x-rwl", "image/x-panasonic-rw2", "image/x-rwz",
+        "image/x-r3d", "image/x-fuji-raf", "image/x-panasonic-raw", "image/x-rdc", "image/x-rwl", "image/x-panasonic-rw2", "image/x-rwz",
         "image/x-sony-sr2", "image/x-sony-srf", "image/x-samsung-srw", "image/x-sti",
         "image/x-sigma-x3f"
     ]
