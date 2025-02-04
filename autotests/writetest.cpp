@@ -403,7 +403,8 @@ int formatTest(const QString &suffix, bool createTemplates)
         // checking the format: must be the same
         if (writtenImage.format() != tmplImage.format()) {
             ++failed;
-            QTextStream(stdout) << "FAIL : format mismatch " << formatName << "\n";
+            auto tmplformatName = QString(QMetaEnum::fromType<QImage::Format>().valueToKey(tmplImage.format()));
+            QTextStream(stdout) << "FAIL : format mismatch " << formatName << " != " << tmplformatName << "\n";
             continue;
         }
 
