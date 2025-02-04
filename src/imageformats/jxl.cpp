@@ -443,7 +443,7 @@ bool QJpegXLHandler::countALLFrames()
                             }
 
                             if (!alpha_found) {
-                                qWarning("JXL BasicInfo indate Alpha channel but it was not found");
+                                qWarning("JXL BasicInfo indicate Alpha channel but it was not found");
                                 m_parseState = ParseJpegXLError;
                                 return false;
                             }
@@ -453,7 +453,7 @@ bool QJpegXLHandler::countALLFrames()
                     qWarning("JXL has BLACK channel but colorspace is not CMYK!");
                 }
                 break;
-            } else if (channel_info.type == JXL_CHANNEL_ALPHA) {
+            } else if ((channel_info.type == JXL_CHANNEL_ALPHA) && !alpha_found) {
                 alpha_found = true;
                 m_alpha_channel_id = index;
             }
@@ -843,30 +843,6 @@ bool QJpegXLHandler::read(QImage *image)
     }
 }
 
-template<class T>
-void packRGBPixels(QImage &img)
-{
-    // pack pixel data
-    auto dest_pixels = reinterpret_cast<T *>(img.bits());
-    for (qint32 y = 0; y < img.height(); y++) {
-        auto src_pixels = reinterpret_cast<const T *>(img.constScanLine(y));
-        for (qint32 x = 0; x < img.width(); x++) {
-            // R
-            *dest_pixels = *src_pixels;
-            dest_pixels++;
-            src_pixels++;
-            // G
-            *dest_pixels = *src_pixels;
-            dest_pixels++;
-            src_pixels++;
-            // B
-            *dest_pixels = *src_pixels;
-            dest_pixels++;
-            src_pixels += 2; // skipalpha
-        }
-    }
-}
-
 bool QJpegXLHandler::write(const QImage &image)
 {
     if (image.format() == QImage::Format_Invalid) {
@@ -890,112 +866,11 @@ bool QJpegXLHandler::write(const QImage &image)
         return false;
     }
 
-    int save_depth = 8; // 8 / 16 / 32
-    bool save_fp = false;
-    bool is_gray = false;
-    // depth detection
-    switch (image.format()) {
-    case QImage::Format_RGBX32FPx4:
-    case QImage::Format_RGBA32FPx4:
-    case QImage::Format_RGBA32FPx4_Premultiplied:
-#ifndef JXL_HDR_PRESERVATION_DISABLED
-        save_depth = 32;
-        save_fp = true;
-        break;
-#endif
-    case QImage::Format_RGBX16FPx4:
-    case QImage::Format_RGBA16FPx4:
-    case QImage::Format_RGBA16FPx4_Premultiplied:
-#ifndef JXL_HDR_PRESERVATION_DISABLED
-        save_depth = 16;
-        save_fp = true;
-        break;
-#endif
-    case QImage::Format_BGR30:
-    case QImage::Format_A2BGR30_Premultiplied:
-    case QImage::Format_RGB30:
-    case QImage::Format_A2RGB30_Premultiplied:
-    case QImage::Format_RGBX64:
-    case QImage::Format_RGBA64:
-    case QImage::Format_RGBA64_Premultiplied:
-        save_depth = 16;
-        break;
-    case QImage::Format_RGB32:
-    case QImage::Format_ARGB32:
-    case QImage::Format_ARGB32_Premultiplied:
-    case QImage::Format_RGB888:
-    case QImage::Format_RGBX8888:
-    case QImage::Format_RGBA8888:
-    case QImage::Format_RGBA8888_Premultiplied:
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
-    case QImage::Format_CMYK8888:
-#endif
-        save_depth = 8;
-        break;
-    case QImage::Format_Grayscale16:
-        save_depth = 16;
-        is_gray = true;
-        break;
-    case QImage::Format_Grayscale8:
-    case QImage::Format_Alpha8:
-    case QImage::Format_Mono:
-    case QImage::Format_MonoLSB:
-        save_depth = 8;
-        is_gray = true;
-        break;
-    case QImage::Format_Indexed8:
-        save_depth = 8;
-        is_gray = image.isGrayscale();
-        break;
-    default:
-        if (image.depth() > 32) {
-            save_depth = 16;
-        } else {
-            save_depth = 8;
-        }
-        break;
-    }
-
     JxlEncoder *encoder = JxlEncoderCreate(nullptr);
     if (!encoder) {
         qWarning("Failed to create Jxl encoder");
         return false;
     }
-
-    if (m_quality > 100) {
-        m_quality = 100;
-    } else if (m_quality < 0) {
-        m_quality = 90;
-    }
-
-    JxlEncoderUseContainer(encoder, JXL_TRUE);
-    JxlEncoderUseBoxes(encoder);
-
-    JxlBasicInfo output_info;
-    JxlEncoderInitBasicInfo(&output_info);
-    output_info.have_container = JXL_TRUE;
-
-    QByteArray iccprofile;
-    QColorSpace tmpcs = image.colorSpace();
-    if (!tmpcs.isValid() || tmpcs.primaries() != QColorSpace::Primaries::SRgb || tmpcs.transferFunction() != QColorSpace::TransferFunction::SRgb
-        || m_quality == 100) {
-        // no profile or Qt-unsupported ICC profile
-        iccprofile = tmpcs.iccProfile();
-        // note: lossless encoding requires uses_original_profile = JXL_TRUE
-        if (iccprofile.size() > 0 || m_quality == 100 || is_gray) {
-            output_info.uses_original_profile = JXL_TRUE;
-        }
-    }
-
-    // clang-format off
-    if (   (save_depth > 8 && (image.hasAlphaChannel() || output_info.uses_original_profile))
-        || (save_depth > 16)
-        || (pixel_count > FEATURE_LEVEL_5_PIXELS)
-        || (image.width() > FEATURE_LEVEL_5_WIDTH)
-        || (image.height() > FEATURE_LEVEL_5_HEIGHT)) {
-        JxlEncoderSetCodestreamLevel(encoder, 10);
-    }
-    // clang-format on
 
     void *runner = nullptr;
     int num_worker_threads = qBound(1, QThread::idealThreadCount(), 64);
@@ -1010,12 +885,18 @@ bool QJpegXLHandler::write(const QImage &image)
         }
     }
 
-    JxlPixelFormat pixel_format;
-    QImage::Format tmpformat;
-    JxlEncoderStatus status;
+    if (m_quality > 100) {
+        m_quality = 100;
+    } else if (m_quality < 0) {
+        m_quality = 90;
+    }
 
-    pixel_format.endianness = JXL_NATIVE_ENDIAN;
-    pixel_format.align = 0;
+    JxlEncoderUseContainer(encoder, JXL_TRUE);
+    JxlEncoderUseBoxes(encoder);
+
+    JxlBasicInfo output_info;
+    JxlEncoderInitBasicInfo(&output_info);
+    output_info.have_container = JXL_TRUE;
 
     output_info.animation.tps_numerator = 10;
     output_info.animation.tps_denominator = 1;
@@ -1036,160 +917,656 @@ bool QJpegXLHandler::write(const QImage &image)
         output_info.orientation = JXL_ORIENT_ROTATE_90_CCW;
     }
 
-    if (save_depth > 8 && is_gray) { // 16bit depth gray
-        pixel_format.data_type = JXL_TYPE_UINT16;
-        pixel_format.align = 4;
-        output_info.num_color_channels = 1;
-        output_info.bits_per_sample = 16;
-        tmpformat = QImage::Format_Grayscale16;
-        pixel_format.num_channels = 1;
-    } else if (is_gray) { // 8bit depth gray
-        pixel_format.data_type = JXL_TYPE_UINT8;
-        pixel_format.align = 4;
-        output_info.num_color_channels = 1;
-        output_info.bits_per_sample = 8;
-        tmpformat = QImage::Format_Grayscale8;
-        pixel_format.num_channels = 1;
-    } else if (save_depth > 16) { // 32bit depth rgb
-        pixel_format.data_type = JXL_TYPE_FLOAT;
-        output_info.exponent_bits_per_sample = 8;
-        output_info.num_color_channels = 3;
-        output_info.bits_per_sample = 32;
-
-        if (image.hasAlphaChannel()) {
-            tmpformat = QImage::Format_RGBA32FPx4;
-            pixel_format.num_channels = 4;
-            output_info.alpha_bits = 32;
-            output_info.alpha_exponent_bits = 8;
-            output_info.num_extra_channels = 1;
-        } else {
-            tmpformat = QImage::Format_RGBX32FPx4;
-            pixel_format.num_channels = 3;
-            output_info.alpha_bits = 0;
-            output_info.num_extra_channels = 0;
-        }
-    } else if (save_depth > 8) { // 16bit depth rgb
-        pixel_format.data_type = save_fp ? JXL_TYPE_FLOAT16 : JXL_TYPE_UINT16;
-        output_info.exponent_bits_per_sample = save_fp ? 5 : 0;
-        output_info.num_color_channels = 3;
-        output_info.bits_per_sample = 16;
-
-        if (image.hasAlphaChannel()) {
-            tmpformat = save_fp ? QImage::Format_RGBA16FPx4 : QImage::Format_RGBA64;
-            pixel_format.num_channels = 4;
-            output_info.alpha_bits = 16;
-            output_info.alpha_exponent_bits = save_fp ? 5 : 0;
-            output_info.num_extra_channels = 1;
-        } else {
-            tmpformat = save_fp ? QImage::Format_RGBX16FPx4 : QImage::Format_RGBX64;
-            pixel_format.num_channels = 3;
-            output_info.alpha_bits = 0;
-            output_info.num_extra_channels = 0;
-        }
-    } else { // 8bit depth rgb
-        pixel_format.data_type = JXL_TYPE_UINT8;
-        pixel_format.align = 4;
-        output_info.num_color_channels = 3;
-        output_info.bits_per_sample = 8;
-
-        if (image.hasAlphaChannel()) {
-            tmpformat = QImage::Format_RGBA8888;
-            pixel_format.num_channels = 4;
-            output_info.alpha_bits = 8;
-            output_info.num_extra_channels = 1;
-        } else {
-            tmpformat = QImage::Format_RGB888;
-            pixel_format.num_channels = 3;
-            output_info.alpha_bits = 0;
-            output_info.num_extra_channels = 0;
-        }
-    }
-
+    bool save_cmyk = false;
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
-    // TODO: add native CMYK support (libjxl supports CMYK images)
-    QImage tmpimage;
-    auto cs = image.colorSpace();
-    if (cs.isValid() && cs.colorModel() == QColorSpace::ColorModel::Cmyk && image.format() == QImage::Format_CMYK8888) {
-        tmpimage = image.convertedToColorSpace(QColorSpace(QColorSpace::SRgb), tmpformat);
-        iccprofile.clear();
-    } else {
-        tmpimage = image.convertToFormat(tmpformat);
+    if (image.format() == QImage::Format_CMYK8888 && image.colorSpace().isValid() && image.colorSpace().colorModel() == QColorSpace::ColorModel::Cmyk) {
+        save_cmyk = true;
     }
-#else
-    QImage tmpimage = image.convertToFormat(tmpformat);
 #endif
 
-    const size_t xsize = tmpimage.width();
-    const size_t ysize = tmpimage.height();
-
-    if (xsize == 0 || ysize == 0 || tmpimage.isNull()) {
-        qWarning("Unable to allocate memory for output image");
-        if (runner) {
-            JxlThreadParallelRunnerDestroy(runner);
-        }
-        JxlEncoderDestroy(encoder);
-        return false;
-    }
-
-    output_info.xsize = tmpimage.width();
-    output_info.ysize = tmpimage.height();
-
-    status = JxlEncoderSetBasicInfo(encoder, &output_info);
-    if (status != JXL_ENC_SUCCESS) {
-        qWarning("JxlEncoderSetBasicInfo failed!");
-        if (runner) {
-            JxlThreadParallelRunnerDestroy(runner);
-        }
-        JxlEncoderDestroy(encoder);
-        return false;
-    }
+    JxlEncoderStatus status;
+    JxlPixelFormat pixel_format;
+    pixel_format.endianness = JXL_NATIVE_ENDIAN;
+    pixel_format.align = 0;
 
     auto exif_data = MicroExif::fromImage(image).toByteArray();
-    if (!exif_data.isEmpty()) {
-        exif_data = QByteArray::fromHex("00000000") + exif_data;
-        const char *box_type = "Exif";
-        status = JxlEncoderAddBox(encoder, box_type, reinterpret_cast<const uint8_t *>(exif_data.constData()), exif_data.size(), JXL_FALSE);
-        if (status != JXL_ENC_SUCCESS) {
-            qWarning("JxlEncoderAddBox failed!");
-            if (runner) {
-                JxlThreadParallelRunnerDestroy(runner);
-            }
-            JxlEncoderDestroy(encoder);
-            return false;
-        }
-    }
     auto xmp_data = image.text(QStringLiteral(META_KEY_XMP_ADOBE)).toUtf8();
-    if (!xmp_data.isEmpty()) {
-        const char *box_type = "xml ";
-        status = JxlEncoderAddBox(encoder, box_type, reinterpret_cast<const uint8_t *>(xmp_data.constData()), xmp_data.size(), JXL_FALSE);
-        if (status != JXL_ENC_SUCCESS) {
-            qWarning("JxlEncoderAddBox failed!");
-            if (runner) {
-                JxlThreadParallelRunnerDestroy(runner);
-            }
-            JxlEncoderDestroy(encoder);
-            return false;
-        }
-    }
-    JxlEncoderCloseBoxes(encoder); // no more metadata
 
-    if (iccprofile.size() > 0) {
-        status = JxlEncoderSetICCProfile(encoder, reinterpret_cast<const uint8_t *>(iccprofile.constData()), iccprofile.size());
-        if (status != JXL_ENC_SUCCESS) {
-            qWarning("JxlEncoderSetICCProfile failed!");
+    if (save_cmyk) { // CMYK is always lossless
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+        output_info.uses_original_profile = JXL_TRUE;
+        output_info.xsize = image.width();
+        output_info.ysize = image.height();
+        output_info.num_color_channels = 3;
+        output_info.bits_per_sample = 8;
+        output_info.alpha_bits = 0;
+        output_info.num_extra_channels = 1;
+
+        pixel_format.num_channels = 3;
+        pixel_format.data_type = JXL_TYPE_UINT8;
+
+        JxlPixelFormat format_extra;
+        format_extra.num_channels = 1;
+        format_extra.data_type = JXL_TYPE_UINT8;
+        format_extra.endianness = JXL_NATIVE_ENDIAN;
+        format_extra.align = 0;
+
+        JxlExtraChannelInfo extra_black_channel;
+        JxlEncoderInitExtraChannelInfo(JXL_CHANNEL_BLACK, &extra_black_channel);
+        extra_black_channel.bits_per_sample = output_info.bits_per_sample;
+        extra_black_channel.exponent_bits_per_sample = output_info.exponent_bits_per_sample;
+
+        const QByteArray cmyk_profile = image.colorSpace().iccProfile();
+        if (cmyk_profile.isEmpty()) {
+            qWarning("ERROR saving CMYK JXL: empty ICC profile");
             if (runner) {
                 JxlThreadParallelRunnerDestroy(runner);
             }
             JxlEncoderDestroy(encoder);
             return false;
         }
-    } else {
+
+        status = JxlEncoderSetBasicInfo(encoder, &output_info);
+        if (status != JXL_ENC_SUCCESS) {
+            qWarning("JxlEncoderSetBasicInfo for CMYK image failed!");
+            if (runner) {
+                JxlThreadParallelRunnerDestroy(runner);
+            }
+            JxlEncoderDestroy(encoder);
+            return false;
+        }
+
+        status = JxlEncoderSetExtraChannelInfo(encoder, 0, &extra_black_channel);
+        if (status != JXL_ENC_SUCCESS) {
+            qWarning("JxlEncoderSetExtraChannelInfo for CMYK image failed!");
+            if (runner) {
+                JxlThreadParallelRunnerDestroy(runner);
+            }
+            JxlEncoderDestroy(encoder);
+            return false;
+        }
+
+        status = JxlEncoderSetICCProfile(encoder, reinterpret_cast<const uint8_t *>(cmyk_profile.constData()), cmyk_profile.size());
+        if (status != JXL_ENC_SUCCESS) {
+            qWarning("JxlEncoderSetICCProfile for CMYK image failed!");
+            if (runner) {
+                JxlThreadParallelRunnerDestroy(runner);
+            }
+            JxlEncoderDestroy(encoder);
+            return false;
+        }
+
+        if (!exif_data.isEmpty()) {
+            exif_data = QByteArray::fromHex("00000000") + exif_data;
+            const char *box_type = "Exif";
+            status = JxlEncoderAddBox(encoder, box_type, reinterpret_cast<const uint8_t *>(exif_data.constData()), exif_data.size(), JXL_FALSE);
+            if (status != JXL_ENC_SUCCESS) {
+                qWarning("JxlEncoderAddBox failed!");
+                if (runner) {
+                    JxlThreadParallelRunnerDestroy(runner);
+                }
+                JxlEncoderDestroy(encoder);
+                return false;
+            }
+        }
+
+        if (!xmp_data.isEmpty()) {
+            const char *box_type = "xml ";
+            status = JxlEncoderAddBox(encoder, box_type, reinterpret_cast<const uint8_t *>(xmp_data.constData()), xmp_data.size(), JXL_FALSE);
+            if (status != JXL_ENC_SUCCESS) {
+                qWarning("JxlEncoderAddBox failed!");
+                if (runner) {
+                    JxlThreadParallelRunnerDestroy(runner);
+                }
+                JxlEncoderDestroy(encoder);
+                return false;
+            }
+        }
+        JxlEncoderCloseBoxes(encoder); // no more metadata
+
+        const size_t extra_buffer_size = size_t(image.width()) * size_t(image.height());
+        const size_t cmy_buffer_size = extra_buffer_size * 3;
+
+        uchar *pixels_cmy = nullptr;
+        uchar *pixels_black = nullptr;
+
+        pixels_cmy = reinterpret_cast<uchar *>(malloc(cmy_buffer_size));
+        if (!pixels_cmy) {
+            qWarning("Memory cannot be allocated for CMY buffer");
+            if (runner) {
+                JxlThreadParallelRunnerDestroy(runner);
+            }
+            JxlEncoderDestroy(encoder);
+            return false;
+        }
+
+        pixels_black = reinterpret_cast<uchar *>(malloc(extra_buffer_size));
+        if (!pixels_black) {
+            qWarning("Memory cannot be allocated for BLACK buffer");
+            free(pixels_cmy);
+            pixels_cmy = nullptr;
+
+            if (runner) {
+                JxlThreadParallelRunnerDestroy(runner);
+            }
+            JxlEncoderDestroy(encoder);
+            return false;
+        }
+
+        uchar *dest_CMY = pixels_cmy;
+        uchar *dest_K = pixels_black;
+        for (int y = 0; y < image.height(); y++) {
+            const uchar *src_CMYK = image.constScanLine(y);
+            for (int x = 0; x < image.width(); x++) {
+                *dest_CMY = 255 - *src_CMYK; // C
+                dest_CMY++;
+                src_CMYK++;
+                *dest_CMY = 255 - *src_CMYK; // M
+                dest_CMY++;
+                src_CMYK++;
+                *dest_CMY = 255 - *src_CMYK; // Y
+                dest_CMY++;
+                src_CMYK++;
+                *dest_K = 255 - *src_CMYK; // K
+                dest_K++;
+                src_CMYK++;
+            }
+        }
+
+        JxlEncoderFrameSettings *frame_settings_lossless = JxlEncoderFrameSettingsCreate(encoder, nullptr);
+        JxlEncoderSetFrameDistance(frame_settings_lossless, 0);
+        JxlEncoderSetFrameLossless(frame_settings_lossless, JXL_TRUE);
+
+        status = JxlEncoderAddImageFrame(frame_settings_lossless, &pixel_format, pixels_cmy, cmy_buffer_size);
+        if (status == JXL_ENC_ERROR) {
+            qWarning("JxlEncoderAddImageFrame failed!");
+            free(pixels_black);
+            pixels_black = nullptr;
+            free(pixels_cmy);
+            pixels_cmy = nullptr;
+            if (runner) {
+                JxlThreadParallelRunnerDestroy(runner);
+            }
+            JxlEncoderDestroy(encoder);
+            return false;
+        }
+
+        status = JxlEncoderSetExtraChannelBuffer(frame_settings_lossless, &format_extra, pixels_black, extra_buffer_size, 0);
+
+        free(pixels_black);
+        pixels_black = nullptr;
+        free(pixels_cmy);
+        pixels_cmy = nullptr;
+
+        if (status == JXL_ENC_ERROR) {
+            qWarning("JxlEncoderSetExtraChannelBuffer failed!");
+            if (runner) {
+                JxlThreadParallelRunnerDestroy(runner);
+            }
+            JxlEncoderDestroy(encoder);
+            return false;
+        }
+#else
+        if (runner) {
+            JxlThreadParallelRunnerDestroy(runner);
+        }
+        JxlEncoderDestroy(encoder);
+        return false;
+#endif
+    } else { // RGB or GRAY saving
+        int save_depth = 8; // 8 / 16 / 32
+        bool save_fp = false;
+        bool is_gray = false;
+        // depth detection
+        switch (image.format()) {
+        case QImage::Format_RGBX32FPx4:
+        case QImage::Format_RGBA32FPx4:
+        case QImage::Format_RGBA32FPx4_Premultiplied:
+#ifndef JXL_HDR_PRESERVATION_DISABLED
+            save_depth = 32;
+            save_fp = true;
+            break;
+#endif
+        case QImage::Format_RGBX16FPx4:
+        case QImage::Format_RGBA16FPx4:
+        case QImage::Format_RGBA16FPx4_Premultiplied:
+#ifndef JXL_HDR_PRESERVATION_DISABLED
+            save_depth = 16;
+            save_fp = true;
+            break;
+#endif
+        case QImage::Format_BGR30:
+        case QImage::Format_A2BGR30_Premultiplied:
+        case QImage::Format_RGB30:
+        case QImage::Format_A2RGB30_Premultiplied:
+        case QImage::Format_RGBX64:
+        case QImage::Format_RGBA64:
+        case QImage::Format_RGBA64_Premultiplied:
+            save_depth = 16;
+            break;
+        case QImage::Format_RGB32:
+        case QImage::Format_ARGB32:
+        case QImage::Format_ARGB32_Premultiplied:
+        case QImage::Format_RGB888:
+        case QImage::Format_RGBX8888:
+        case QImage::Format_RGBA8888:
+        case QImage::Format_RGBA8888_Premultiplied:
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+        case QImage::Format_CMYK8888:
+#endif
+            save_depth = 8;
+            break;
+        case QImage::Format_Grayscale16:
+            save_depth = 16;
+            is_gray = true;
+            break;
+        case QImage::Format_Grayscale8:
+        case QImage::Format_Alpha8:
+        case QImage::Format_Mono:
+        case QImage::Format_MonoLSB:
+            save_depth = 8;
+            is_gray = true;
+            break;
+        case QImage::Format_Indexed8:
+            save_depth = 8;
+            is_gray = image.isGrayscale();
+            break;
+        default:
+            if (image.depth() > 32) {
+                save_depth = 16;
+            } else {
+                save_depth = 8;
+            }
+            break;
+        }
+
+        QImage::Format tmpformat;
+
+        if (save_depth > 8 && is_gray) { // 16bit depth gray
+            pixel_format.data_type = JXL_TYPE_UINT16;
+            output_info.num_color_channels = 1;
+            output_info.bits_per_sample = 16;
+            tmpformat = QImage::Format_Grayscale16;
+            pixel_format.num_channels = 1;
+        } else if (is_gray) { // 8bit depth gray
+            pixel_format.data_type = JXL_TYPE_UINT8;
+            output_info.num_color_channels = 1;
+            output_info.bits_per_sample = 8;
+            tmpformat = QImage::Format_Grayscale8;
+            pixel_format.num_channels = 1;
+        } else if (save_depth > 16) { // 32bit depth rgb
+            pixel_format.data_type = JXL_TYPE_FLOAT;
+            output_info.exponent_bits_per_sample = 8;
+            output_info.num_color_channels = 3;
+            output_info.bits_per_sample = 32;
+
+            if (image.hasAlphaChannel()) {
+                tmpformat = QImage::Format_RGBA32FPx4;
+                pixel_format.num_channels = 4;
+                output_info.alpha_bits = 32;
+                output_info.alpha_exponent_bits = 8;
+                output_info.num_extra_channels = 1;
+            } else {
+                tmpformat = QImage::Format_RGBX32FPx4;
+                pixel_format.num_channels = 3;
+                output_info.alpha_bits = 0;
+                output_info.num_extra_channels = 0;
+            }
+        } else if (save_depth > 8) { // 16bit depth rgb
+            pixel_format.data_type = save_fp ? JXL_TYPE_FLOAT16 : JXL_TYPE_UINT16;
+            output_info.exponent_bits_per_sample = save_fp ? 5 : 0;
+            output_info.num_color_channels = 3;
+            output_info.bits_per_sample = 16;
+
+            if (image.hasAlphaChannel()) {
+                tmpformat = save_fp ? QImage::Format_RGBA16FPx4 : QImage::Format_RGBA64;
+                pixel_format.num_channels = 4;
+                output_info.alpha_bits = 16;
+                output_info.alpha_exponent_bits = save_fp ? 5 : 0;
+                output_info.num_extra_channels = 1;
+            } else {
+                tmpformat = save_fp ? QImage::Format_RGBX16FPx4 : QImage::Format_RGBX64;
+                pixel_format.num_channels = 3;
+                output_info.alpha_bits = 0;
+                output_info.num_extra_channels = 0;
+            }
+        } else { // 8bit depth rgb
+            pixel_format.data_type = JXL_TYPE_UINT8;
+            output_info.num_color_channels = 3;
+            output_info.bits_per_sample = 8;
+
+            if (image.hasAlphaChannel()) {
+                tmpformat = QImage::Format_RGBA8888;
+                pixel_format.num_channels = 4;
+                output_info.alpha_bits = 8;
+                output_info.num_extra_channels = 1;
+            } else {
+                tmpformat = QImage::Format_RGB888;
+                pixel_format.num_channels = 3;
+                output_info.alpha_bits = 0;
+                output_info.num_extra_channels = 0;
+            }
+        }
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+        QImage tmpimage;
+        if (image.colorSpace().isValid()) {
+            if (is_gray && image.colorSpace().colorModel() != QColorSpace::ColorModel::Gray) {
+                // convert to Gray profile
+                QPointF gray_whitePoint = image.colorSpace().whitePoint();
+                if (gray_whitePoint.isNull()) {
+                    gray_whitePoint = QPointF(0.3127f, 0.329f);
+                }
+
+                QColorSpace::TransferFunction gray_trc = image.colorSpace().transferFunction();
+                float gamma_gray = image.colorSpace().gamma();
+                if (gray_trc == QColorSpace::TransferFunction::Custom) {
+                    gray_trc = QColorSpace::TransferFunction::SRgb;
+                }
+
+                const QColorSpace gray_profile(gray_whitePoint, gray_trc, gamma_gray);
+                if (gray_profile.isValid()) {
+                    tmpimage = image.convertedToColorSpace(gray_profile, tmpformat);
+                } else {
+                    qWarning("JXL plugin created invalid grayscale QColorSpace!");
+                    tmpimage = image.convertToFormat(tmpformat);
+                }
+            } else if (!is_gray && image.colorSpace().colorModel() != QColorSpace::ColorModel::Rgb) {
+                // convert to RGB profile
+                QPointF whitePoint = image.colorSpace().whitePoint();
+                if (whitePoint.isNull()) {
+                    whitePoint = QPointF(0.3127f, 0.329f);
+                }
+
+                const QPointF redP(0.64f, 0.33f);
+                const QPointF greenP(0.3f, 0.6f);
+                const QPointF blueP(0.15f, 0.06f);
+
+                QColorSpace::TransferFunction trc_rgb = image.colorSpace().transferFunction();
+                float gamma_rgb = image.colorSpace().gamma();
+                if (trc_rgb == QColorSpace::TransferFunction::Custom) {
+                    trc_rgb = QColorSpace::TransferFunction::SRgb;
+                }
+
+                const QColorSpace rgb_profile(whitePoint, redP, greenP, blueP, trc_rgb, gamma_rgb);
+                if (rgb_profile.isValid()) {
+                    tmpimage = image.convertedToColorSpace(rgb_profile, tmpformat);
+                } else {
+                    qWarning("JXL plugin created invalid RGB QColorSpace!");
+                    tmpimage = image.convertToFormat(tmpformat);
+                }
+            } else { // ColorSpace matches the format
+                tmpimage = image.convertToFormat(tmpformat);
+            }
+        } else { // no ColorSpace or invalid
+            tmpimage = image.convertToFormat(tmpformat);
+        }
+#else
+        QImage tmpimage = image.convertToFormat(tmpformat);
+#endif
+
+        output_info.xsize = tmpimage.width();
+        output_info.ysize = tmpimage.height();
+
+        if (output_info.xsize == 0 || output_info.ysize == 0 || tmpimage.isNull()) {
+            qWarning("Unable to allocate memory for output image");
+            if (runner) {
+                JxlThreadParallelRunnerDestroy(runner);
+            }
+            JxlEncoderDestroy(encoder);
+            return false;
+        }
+
         JxlColorEncoding color_profile;
         JxlColorEncodingSetToSRGB(&color_profile, is_gray ? JXL_TRUE : JXL_FALSE);
 
-        status = JxlEncoderSetColorEncoding(encoder, &color_profile);
+        QByteArray iccprofile;
+
+        if (m_quality == 100) { // try to use ICC for lossless
+            output_info.uses_original_profile = JXL_TRUE;
+            iccprofile = tmpimage.colorSpace().iccProfile();
+        } else { // try to detect encoded profile (smaller than ICC)
+            output_info.uses_original_profile = JXL_FALSE;
+
+            if (tmpimage.colorSpace().isValid()) {
+                const QPointF whiteP = image.colorSpace().whitePoint();
+
+                switch (tmpimage.colorSpace().primaries()) {
+                case QColorSpace::Primaries::SRgb:
+                    color_profile.white_point = JXL_WHITE_POINT_D65;
+                    color_profile.primaries = JXL_PRIMARIES_SRGB;
+                    break;
+                case QColorSpace::Primaries::AdobeRgb:
+                    color_profile.white_point = JXL_WHITE_POINT_D65;
+                    color_profile.primaries = JXL_PRIMARIES_CUSTOM;
+                    color_profile.primaries_red_xy[0] = 0.640;
+                    color_profile.primaries_red_xy[1] = 0.330;
+                    color_profile.primaries_green_xy[0] = 0.210;
+                    color_profile.primaries_green_xy[1] = 0.710;
+                    color_profile.primaries_blue_xy[0] = 0.150;
+                    color_profile.primaries_blue_xy[1] = 0.060;
+                    break;
+                case QColorSpace::Primaries::DciP3D65:
+                    color_profile.white_point = JXL_WHITE_POINT_D65;
+                    color_profile.primaries = JXL_PRIMARIES_P3;
+                    color_profile.primaries_red_xy[0] = 0.680;
+                    color_profile.primaries_red_xy[1] = 0.320;
+                    color_profile.primaries_green_xy[0] = 0.265;
+                    color_profile.primaries_green_xy[1] = 0.690;
+                    color_profile.primaries_blue_xy[0] = 0.150;
+                    color_profile.primaries_blue_xy[1] = 0.060;
+                    break;
+                case QColorSpace::Primaries::ProPhotoRgb:
+                    color_profile.white_point = JXL_WHITE_POINT_CUSTOM;
+                    color_profile.white_point_xy[0] = whiteP.x();
+                    color_profile.white_point_xy[1] = whiteP.y();
+                    color_profile.primaries = JXL_PRIMARIES_CUSTOM;
+                    color_profile.primaries_red_xy[0] = 0.7347;
+                    color_profile.primaries_red_xy[1] = 0.2653;
+                    color_profile.primaries_green_xy[0] = 0.1596;
+                    color_profile.primaries_green_xy[1] = 0.8404;
+                    color_profile.primaries_blue_xy[0] = 0.0366;
+                    color_profile.primaries_blue_xy[1] = 0.0001;
+                    break;
+                case QColorSpace::Primaries::Bt2020:
+                    color_profile.white_point = JXL_WHITE_POINT_D65;
+                    color_profile.primaries = JXL_PRIMARIES_2100;
+                    color_profile.primaries_red_xy[0] = 0.708;
+                    color_profile.primaries_red_xy[1] = 0.292;
+                    color_profile.primaries_green_xy[0] = 0.170;
+                    color_profile.primaries_green_xy[1] = 0.797;
+                    color_profile.primaries_blue_xy[0] = 0.131;
+                    color_profile.primaries_blue_xy[1] = 0.046;
+                    break;
+                default:
+                    if (is_gray && !whiteP.isNull()) {
+                        color_profile.white_point = JXL_WHITE_POINT_CUSTOM;
+                        color_profile.white_point_xy[0] = whiteP.x();
+                        color_profile.white_point_xy[1] = whiteP.y();
+                    } else {
+                        iccprofile = tmpimage.colorSpace().iccProfile();
+                    }
+                    break;
+                }
+
+                if (iccprofile.isEmpty()) {
+                    const double gamma_profile = tmpimage.colorSpace().gamma();
+
+                    switch (tmpimage.colorSpace().transferFunction()) {
+                    case QColorSpace::TransferFunction::Linear:
+                        color_profile.transfer_function = JXL_TRANSFER_FUNCTION_LINEAR;
+                        break;
+                    case QColorSpace::TransferFunction::Gamma:
+                        if (gamma_profile > 0) {
+                            color_profile.transfer_function = JXL_TRANSFER_FUNCTION_GAMMA;
+                            color_profile.gamma = 1.0 / gamma_profile;
+                        } else {
+                            iccprofile = tmpimage.colorSpace().iccProfile();
+                        }
+                        break;
+                    case QColorSpace::TransferFunction::SRgb:
+                        color_profile.transfer_function = JXL_TRANSFER_FUNCTION_SRGB;
+                        break;
+                    default:
+                        iccprofile = tmpimage.colorSpace().iccProfile();
+                        break;
+                    }
+                }
+            }
+        }
+
+        status = JxlEncoderSetBasicInfo(encoder, &output_info);
         if (status != JXL_ENC_SUCCESS) {
-            qWarning("JxlEncoderSetColorEncoding failed!");
+            qWarning("JxlEncoderSetBasicInfo failed!");
+            if (runner) {
+                JxlThreadParallelRunnerDestroy(runner);
+            }
+            JxlEncoderDestroy(encoder);
+            return false;
+        }
+
+        if (iccprofile.size() > 0) {
+            status = JxlEncoderSetICCProfile(encoder, reinterpret_cast<const uint8_t *>(iccprofile.constData()), iccprofile.size());
+            if (status != JXL_ENC_SUCCESS) {
+                qWarning("JxlEncoderSetICCProfile failed!");
+                if (runner) {
+                    JxlThreadParallelRunnerDestroy(runner);
+                }
+                JxlEncoderDestroy(encoder);
+                return false;
+            }
+        } else {
+            status = JxlEncoderSetColorEncoding(encoder, &color_profile);
+            if (status != JXL_ENC_SUCCESS) {
+                qWarning("JxlEncoderSetColorEncoding failed!");
+                if (runner) {
+                    JxlThreadParallelRunnerDestroy(runner);
+                }
+                JxlEncoderDestroy(encoder);
+                return false;
+            }
+        }
+
+        if (!exif_data.isEmpty()) {
+            exif_data = QByteArray::fromHex("00000000") + exif_data;
+            const char *box_type = "Exif";
+            status = JxlEncoderAddBox(encoder, box_type, reinterpret_cast<const uint8_t *>(exif_data.constData()), exif_data.size(), JXL_FALSE);
+            if (status != JXL_ENC_SUCCESS) {
+                qWarning("JxlEncoderAddBox failed!");
+                if (runner) {
+                    JxlThreadParallelRunnerDestroy(runner);
+                }
+                JxlEncoderDestroy(encoder);
+                return false;
+            }
+        }
+
+        if (!xmp_data.isEmpty()) {
+            const char *box_type = "xml ";
+            status = JxlEncoderAddBox(encoder, box_type, reinterpret_cast<const uint8_t *>(xmp_data.constData()), xmp_data.size(), JXL_FALSE);
+            if (status != JXL_ENC_SUCCESS) {
+                qWarning("JxlEncoderAddBox failed!");
+                if (runner) {
+                    JxlThreadParallelRunnerDestroy(runner);
+                }
+                JxlEncoderDestroy(encoder);
+                return false;
+            }
+        }
+        JxlEncoderCloseBoxes(encoder); // no more metadata
+
+        JxlEncoderFrameSettings *encoder_options = JxlEncoderFrameSettingsCreate(encoder, nullptr);
+
+        if (m_quality == 100) { // lossless
+            JxlEncoderSetFrameDistance(encoder_options, 0.0f);
+            JxlEncoderSetFrameLossless(encoder_options, JXL_TRUE);
+        } else {
+            JxlEncoderSetFrameDistance(encoder_options, JxlEncoderDistanceFromQuality(m_quality));
+            JxlEncoderSetFrameLossless(encoder_options, JXL_FALSE);
+        }
+
+        size_t buffer_size;
+        if (tmpimage.format() == QImage::Format_RGBX32FPx4) { // pack 32-bit depth RGBX -> RGB
+            buffer_size = 12 * size_t(tmpimage.width()) * size_t(tmpimage.height());
+
+            float *packed_pixels32 = reinterpret_cast<float *>(malloc(buffer_size));
+            if (!packed_pixels32) {
+                qWarning("ERROR: JXL plug-in failed to allocate memory");
+                return false;
+            }
+
+            float *dest_pixels32 = packed_pixels32;
+            for (int y = 0; y < tmpimage.height(); y++) {
+                const float *src_pixels32 = reinterpret_cast<const float *>(tmpimage.constScanLine(y));
+                for (int x = 0; x < tmpimage.width(); x++) {
+                    *dest_pixels32 = *src_pixels32; // R
+                    dest_pixels32++;
+                    src_pixels32++;
+                    *dest_pixels32 = *src_pixels32; // G
+                    dest_pixels32++;
+                    src_pixels32++;
+                    *dest_pixels32 = *src_pixels32; // B
+                    dest_pixels32++;
+                    src_pixels32 += 2; // skip X
+                }
+            }
+
+            status = JxlEncoderAddImageFrame(encoder_options, &pixel_format, packed_pixels32, buffer_size);
+            free(packed_pixels32);
+        } else if (tmpimage.format() == QImage::Format_RGBX16FPx4 || tmpimage.format() == QImage::Format_RGBX64) {
+            // pack 16-bit depth RGBX -> RGB
+            buffer_size = 6 * size_t(tmpimage.width()) * size_t(tmpimage.height());
+
+            quint16 *packed_pixels16 = reinterpret_cast<quint16 *>(malloc(buffer_size));
+            if (!packed_pixels16) {
+                qWarning("ERROR: JXL plug-in failed to allocate memory");
+                return false;
+            }
+
+            quint16 *dest_pixels16 = packed_pixels16;
+            for (int y = 0; y < tmpimage.height(); y++) {
+                const quint16 *src_pixels16 = reinterpret_cast<const quint16 *>(tmpimage.constScanLine(y));
+                for (int x = 0; x < tmpimage.width(); x++) {
+                    *dest_pixels16 = *src_pixels16; // R
+                    dest_pixels16++;
+                    src_pixels16++;
+                    *dest_pixels16 = *src_pixels16; // G
+                    dest_pixels16++;
+                    src_pixels16++;
+                    *dest_pixels16 = *src_pixels16; // B
+                    dest_pixels16++;
+                    src_pixels16 += 2; // skip X
+                }
+            }
+
+            status = JxlEncoderAddImageFrame(encoder_options, &pixel_format, packed_pixels16, buffer_size);
+            free(packed_pixels16);
+        } else { // use QImage's data directly
+            pixel_format.align = tmpimage.bytesPerLine();
+
+            buffer_size = size_t(tmpimage.height() - 1) * size_t(tmpimage.bytesPerLine());
+            switch (pixel_format.data_type) {
+            case JXL_TYPE_FLOAT:
+                buffer_size += 4 * size_t(pixel_format.num_channels) * size_t(tmpimage.width());
+                break;
+            case JXL_TYPE_UINT8:
+                buffer_size += size_t(pixel_format.num_channels) * size_t(tmpimage.width());
+                break;
+            case JXL_TYPE_UINT16:
+            case JXL_TYPE_FLOAT16:
+                buffer_size += 2 * size_t(pixel_format.num_channels) * size_t(tmpimage.width());
+                break;
+            default:
+                qWarning("ERROR: unsupported data type");
+                return false;
+                break;
+            }
+
+            status = JxlEncoderAddImageFrame(encoder_options, &pixel_format, tmpimage.constBits(), buffer_size);
+        }
+
+        if (status == JXL_ENC_ERROR) {
+            qWarning("JxlEncoderAddImageFrame failed!");
             if (runner) {
                 JxlThreadParallelRunnerDestroy(runner);
             }
@@ -1198,47 +1575,7 @@ bool QJpegXLHandler::write(const QImage &image)
         }
     }
 
-    JxlEncoderFrameSettings *encoder_options = JxlEncoderFrameSettingsCreate(encoder, nullptr);
-
-    JxlEncoderSetFrameDistance(encoder_options, (100.0f - m_quality) / 10.0f);
-
-    JxlEncoderSetFrameLossless(encoder_options, (m_quality == 100) ? JXL_TRUE : JXL_FALSE);
-
-    size_t buffer_size = size_t(tmpimage.bytesPerLine()) * tmpimage.height();
-    if (!image.hasAlphaChannel() && save_depth > 8 && !is_gray) { // pack pixel on tmpimage
-        buffer_size = (size_t(save_depth / 8) * pixel_format.num_channels * xsize * ysize);
-
-        // detaching image
-        tmpimage.detach();
-        if (tmpimage.isNull()) {
-            qWarning("Memory allocation error");
-            if (runner) {
-                JxlThreadParallelRunnerDestroy(runner);
-            }
-            JxlEncoderDestroy(encoder);
-            return false;
-        }
-
-        // pack pixel data
-        if (save_depth > 16 && save_fp)
-            packRGBPixels<float>(tmpimage);
-        else if (save_fp)
-            packRGBPixels<qfloat16>(tmpimage);
-        else
-            packRGBPixels<quint16>(tmpimage);
-    }
-    status = JxlEncoderAddImageFrame(encoder_options, &pixel_format, static_cast<const void *>(tmpimage.constBits()), buffer_size);
-
-    if (status == JXL_ENC_ERROR) {
-        qWarning("JxlEncoderAddImageFrame failed!");
-        if (runner) {
-            JxlThreadParallelRunnerDestroy(runner);
-        }
-        JxlEncoderDestroy(encoder);
-        return false;
-    }
-
-    JxlEncoderCloseInput(encoder);
+    JxlEncoderCloseFrames(encoder);
 
     std::vector<uint8_t> compressed;
     compressed.resize(4096);
