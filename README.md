@@ -258,7 +258,7 @@ been used or the maximum size of the image that can be saved has been limited.
 PSD plugin loads CMYK, Lab and Multichannel images and converts them to RGB 
 without using the ICC profile.
 
-JP2, JXR, PSD and SCT plugins natively support 4-channel CMYK images when
+JP2, JXL, JXR, PSD and SCT plugins natively support 4-channel CMYK images when
 compiled with Qt 6.8+.
 
 ### The DDS plugin
