@@ -794,10 +794,40 @@ bool HEIFHandler::ensureDecoder()
             if (err.code) {
                 qWarning() << "icc profile loading failed";
             } else {
-                m_current_image.setColorSpace(QColorSpace::fromIccProfile(ba));
-                if (!m_current_image.colorSpace().isValid()) {
+                QColorSpace colorspace = QColorSpace::fromIccProfile(ba);
+                if (!colorspace.isValid()) {
                     qWarning() << "HEIC image has Qt-unsupported or invalid ICC profile!";
                 }
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 8, 0))
+                else if (colorspace.colorModel() == QColorSpace::ColorModel::Cmyk) {
+                    qWarning("CMYK ICC profile is not expected for HEIF, discarding the ICCprofile!");
+                    colorspace = QColorSpace();
+                } else if (colorspace.colorModel() == QColorSpace::ColorModel::Gray) {
+                    if (hasAlphaChannel) {
+                        QPointF gray_whitePoint = colorspace.whitePoint();
+                        if (gray_whitePoint.isNull()) {
+                            gray_whitePoint = QPointF(0.3127f, 0.329f);
+                        }
+
+                        const QPointF redP(0.64f, 0.33f);
+                        const QPointF greenP(0.3f, 0.6f);
+                        const QPointF blueP(0.15f, 0.06f);
+
+                        QColorSpace::TransferFunction trc_new = colorspace.transferFunction();
+                        float gamma_new = colorspace.gamma();
+                        if (trc_new == QColorSpace::TransferFunction::Custom) {
+                            trc_new = QColorSpace::TransferFunction::SRgb;
+                        }
+                        colorspace = QColorSpace(gray_whitePoint, redP, greenP, blueP, trc_new, gamma_new);
+                        if (!colorspace.isValid()) {
+                            qWarning("HEIF plugin created invalid QColorSpace!");
+                        }
+                    } else { // no alpha channel
+                        m_current_image.convertTo(bit_depth > 8 ? QImage::Format_Grayscale16 : QImage::Format_Grayscale8);
+                    }
+                }
+#endif
+                m_current_image.setColorSpace(colorspace);
             }
         } else {
             qWarning() << "icc profile is empty or above limits";
