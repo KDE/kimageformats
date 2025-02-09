@@ -46,11 +46,11 @@ QJsonObject readOptionalInfo(const QString &suffix)
     return doc.object();
 }
 
-void setOptionalInfo(QImage& image, const QString &suffix)
+void setOptionalInfo(QImage &image, const QString &suffix)
 {
     auto obj = readOptionalInfo(suffix);
     if (obj.isEmpty()) {
-        return ;
+        return;
     }
 
     // Set resolution
@@ -70,7 +70,7 @@ void setOptionalInfo(QImage& image, const QString &suffix)
     }
 }
 
-bool checkOptionalInfo(QImage& image, const QString &suffix)
+bool checkOptionalInfo(QImage &image, const QString &suffix)
 {
     auto obj = readOptionalInfo(suffix);
     if (obj.isEmpty()) {
@@ -258,7 +258,6 @@ QImage formatSourceImage(const QImage::Format &format)
     auto folder = QStringLiteral("%1/format/_images").arg(IMAGEDIR);
 
     switch (format) {
-
     case QImage::Format_MonoLSB:
     case QImage::Format_Mono:
         image = QImage(QStringLiteral("%1/mono.png").arg(folder));
@@ -403,8 +402,16 @@ int formatTest(const QString &suffix, bool createTemplates)
         // checking the format: must be the same
         if (writtenImage.format() != tmplImage.format()) {
             ++failed;
+            auto writtenformatName = QString(QMetaEnum::fromType<QImage::Format>().valueToKey(writtenImage.format()));
             auto tmplformatName = QString(QMetaEnum::fromType<QImage::Format>().valueToKey(tmplImage.format()));
-            QTextStream(stdout) << "FAIL : format mismatch " << formatName << " != " << tmplformatName << "\n";
+            QTextStream(stdout) << "FAIL : format mismatch " << formatName << " (";
+            if (format == writtenImage.format()) {
+                QTextStream(stdout) << "template image: " << tmplformatName << ")\n";
+            } else if (format == tmplImage.format()) {
+                QTextStream(stdout) << "written image: " << writtenformatName << ")\n";
+            } else {
+                QTextStream(stdout) << writtenformatName << " != " << tmplformatName << ")\n";
+            }
             continue;
         }
 
@@ -554,7 +561,7 @@ int nullDeviceTest(const QString &suffix)
     writer.optimizedWrite();
     writer.progressiveScanWrite();
 
-    if (failed == 0) {// success
+    if (failed == 0) { // success
         ++passed;
     }
 
@@ -586,8 +593,7 @@ int main(int argc, char **argv)
                             QStringLiteral("max"));
     QCommandLineOption createFormatTempates({QStringLiteral("create-format-templates")},
                                             QStringLiteral("Create template images for all formats supported by QImage."));
-    QCommandLineOption skipOptTest({QStringLiteral("skip-optional-tests")},
-                                   QStringLiteral("Skip optional data tests (metadata, resolution, etc.)."));
+    QCommandLineOption skipOptTest({QStringLiteral("skip-optional-tests")}, QStringLiteral("Skip optional data tests (metadata, resolution, etc.)."));
 
     parser.addOption(lossless);
     parser.addOption(ignoreDataCheck);
