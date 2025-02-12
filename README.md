@@ -314,6 +314,7 @@ in your cmake options.**
 JP2 plugin has the following limitations due to the lack of support by OpenJPEG:
 - Metadata are not supported.
 - Image resolution is not supported.
+- To write ICC profiles you need OpenJPEG V2.5.4 or higher
 
 ### The JXL plugin
 

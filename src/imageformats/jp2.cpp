@@ -101,11 +101,20 @@ public:
     JP2HandlerPrivate()
         : m_jp2_stream(nullptr)
         , m_jp2_image(nullptr)
+        , m_jp2_version(0)
         , m_jp2_codec(nullptr)
         , m_quality(-1)
         , m_subtype(JP2_SUBTYPE)
     {
-
+        auto sver = QString::fromLatin1(QByteArray(opj_version())).split(QChar(u'.'));
+        if (sver.size() == 3) {
+            bool ok1, ok2, ok3;
+            auto v1 = sver.at(0).toInt(&ok1);
+            auto v2 = sver.at(1).toInt(&ok2);
+            auto v3 = sver.at(2).toInt(&ok3);
+            if (ok1 && ok2 && ok3)
+                m_jp2_version = QT_VERSION_CHECK(v1, v2, v3);
+        }
     }
     ~JP2HandlerPrivate()
     {
@@ -363,6 +372,17 @@ public:
                     prec = 0;
             }
             auto jp2cs = m_jp2_image->color_space;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+            if (jp2cs == OPJ_CLRSPC_UNKNOWN || jp2cs == OPJ_CLRSPC_UNSPECIFIED) {
+                auto cs = colorSpace();
+                if (cs.colorModel() == QColorSpace::ColorModel::Cmyk)
+                    jp2cs = OPJ_CLRSPC_CMYK;
+                else if (cs.colorModel() == QColorSpace::ColorModel::Rgb)
+                    jp2cs = OPJ_CLRSPC_SRGB;
+                else if (cs.colorModel() == QColorSpace::ColorModel::Gray)
+                    jp2cs = OPJ_CLRSPC_GRAY;
+            }
+#endif
             if (jp2cs == OPJ_CLRSPC_UNKNOWN || jp2cs == OPJ_CLRSPC_UNSPECIFIED) {
                 if (m_jp2_image->numcomps == 1)
                     jp2cs = OPJ_CLRSPC_GRAY;
@@ -453,13 +473,28 @@ public:
         return subType() == J2K_SUBTYPE ? OPJ_CODEC_J2K : OPJ_CODEC_JP2;
     }
 
+    /*!
+     * \brief opjVersion
+     * \return The runtime library version.
+     */
+    qint32 opjVersion() const
+    {
+        return m_jp2_version;
+    }
+
     bool imageToJp2(const QImage &image)
     {
         auto ncomp = image.hasAlphaChannel() ? 4 : 3;
         auto prec = 8;
-        auto cs = OPJ_CLRSPC_SRGB;
         auto convFormat = image.format();
         auto isFloat = false;
+        auto cs = OPJ_CLRSPC_SRGB;
+        if (opjVersion() >= QT_VERSION_CHECK(2, 5, 4)) {
+            auto ics = image.colorSpace();
+            if (!(ics.isValid() && ics.primaries() == QColorSpace::Primaries::SRgb && ics.transferFunction() == QColorSpace::TransferFunction::SRgb)) {
+                cs = OPJ_CLRSPC_UNKNOWN;
+            }
+        }
 
         switch (image.format()) {
         case QImage::Format_Mono:
@@ -527,7 +562,7 @@ public:
             break;
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         case QImage::Format_CMYK8888: // requires OpenJPEG 2.5.3+
-            if (strcmp(opj_version(), "2.5.3") >= 0) {
+            if (opjVersion() >= QT_VERSION_CHECK(2, 5, 3)) {
                 ncomp = 4;
                 cs = OPJ_CLRSPC_CMYK;
                 break;
@@ -613,8 +648,7 @@ public:
             }
         }
 
-        // With SRGB, Gray and CMYK, writing the colorspace gives an assert
-        if (cs == OPJ_CLRSPC_UNKNOWN || cs == OPJ_CLRSPC_UNSPECIFIED) {
+        if (opjVersion() >= QT_VERSION_CHECK(2, 5, 4)) {
             auto colorSpace = scl.targetColorSpace().iccProfile();
             if (!colorSpace.isEmpty()) {
                 m_jp2_image->icc_profile_buf = reinterpret_cast<OPJ_BYTE *>(malloc(colorSpace.size()));
@@ -673,6 +707,8 @@ private:
     opj_stream_t *m_jp2_stream;
 
     opj_image_t *m_jp2_image;
+
+    qint32 m_jp2_version;
 
     // read
     opj_codec_t *m_jp2_codec;
