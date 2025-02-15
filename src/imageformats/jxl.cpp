@@ -1329,7 +1329,10 @@ bool QJpegXLHandler::write(const QImage &image)
             output_info.uses_original_profile = JXL_FALSE;
 
             if (tmpimage.colorSpace().isValid()) {
-                const QPointF whiteP = image.colorSpace().whitePoint();
+                QPointF whiteP(0.3127f, 0.329f);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+                whiteP = image.colorSpace().whitePoint();
+#endif
 
                 switch (tmpimage.colorSpace().primaries()) {
                 case QColorSpace::Primaries::SRgb:
@@ -1358,6 +1361,9 @@ bool QJpegXLHandler::write(const QImage &image)
                     break;
                 case QColorSpace::Primaries::ProPhotoRgb:
                     color_profile.white_point = JXL_WHITE_POINT_CUSTOM;
+#if QT_VERSION < QT_VERSION_CHECK(6, 8, 0)
+                    whiteP = QPointF(0.3457f, 0.3585f);
+#endif
                     color_profile.white_point_xy[0] = whiteP.x();
                     color_profile.white_point_xy[1] = whiteP.y();
                     color_profile.primaries = JXL_PRIMARIES_CUSTOM;
@@ -1368,6 +1374,7 @@ bool QJpegXLHandler::write(const QImage &image)
                     color_profile.primaries_blue_xy[0] = 0.0366;
                     color_profile.primaries_blue_xy[1] = 0.0001;
                     break;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
                 case QColorSpace::Primaries::Bt2020:
                     color_profile.white_point = JXL_WHITE_POINT_D65;
                     color_profile.primaries = JXL_PRIMARIES_2100;
@@ -1378,6 +1385,7 @@ bool QJpegXLHandler::write(const QImage &image)
                     color_profile.primaries_blue_xy[0] = 0.131;
                     color_profile.primaries_blue_xy[1] = 0.046;
                     break;
+#endif
                 default:
                     if (is_gray && !whiteP.isNull()) {
                         color_profile.white_point = JXL_WHITE_POINT_CUSTOM;
