@@ -27,6 +27,13 @@
 #define JP2_MAX_IMAGE_HEIGHT JP2_MAX_IMAGE_WIDTH
 #endif
 
+/* *** JP2_MAX_IMAGE_PIXELS ***
+ * OpenJPEG seems limited to an image of 2 gigapixel size.
+ */
+#ifndef JP2_MAX_IMAGE_PIXELS
+#define JP2_MAX_IMAGE_PIXELS std::numeric_limits<qint32>::max()
+#endif
+
 /* *** JP2_ENABLE_HDR ***
  * Enable float image formats. Disabled by default
  * due to lack of test images.
@@ -329,6 +336,11 @@ public:
     {
         if (width > JP2_MAX_IMAGE_WIDTH || height > JP2_MAX_IMAGE_HEIGHT || width < 1 || height < 1) {
             qCritical() << "Maximum image size is limited to" << JP2_MAX_IMAGE_WIDTH << "x" << JP2_MAX_IMAGE_HEIGHT << "pixels";
+            return false;
+        }
+
+        if (qint64(width) * qint64(height) > JP2_MAX_IMAGE_PIXELS) {
+            qCritical() << "Maximum image size is limited to" << JP2_MAX_IMAGE_PIXELS << "pixels";
             return false;
         }
 
