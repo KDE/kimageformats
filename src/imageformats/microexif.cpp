@@ -1024,6 +1024,13 @@ MicroExif MicroExif::fromByteArray(const QByteArray &ba)
     return fromDevice(&buf);
 }
 
+MicroExif MicroExif::fromRawData(const char *data, size_t size)
+{
+    if (data == nullptr || size == 0)
+        return {};
+    return fromByteArray(QByteArray::fromRawData(data, size));
+}
+
 MicroExif MicroExif::fromDevice(QIODevice *device)
 {
     if (device == nullptr || device->isSequential())

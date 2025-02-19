@@ -25,7 +25,7 @@ kimageformats_add_plugin(kimg_ani SOURCES ani.cpp)
 ##################################
 
 if (TARGET avif)
-    kimageformats_add_plugin(kimg_avif SOURCES "avif.cpp")
+    kimageformats_add_plugin(kimg_avif SOURCES avif.cpp microexif.cpp)
     target_link_libraries(kimg_avif PRIVATE "avif")
 endif()
 

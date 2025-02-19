@@ -270,6 +270,14 @@ public:
     static MicroExif fromByteArray(const QByteArray &ba);
 
     /*!
+     * \brief fromRawData
+     * Creates the class from RAW EXIF data.
+     * \return The created class (empty on error).
+     * \sa isEmpty
+     */
+    static MicroExif fromRawData(const char *data, size_t size);
+
+    /*!
      * \brief fromDevice
      * Creates the class from a device.
      * \param device A random access device.

@@ -12,6 +12,7 @@
 #include <QColorSpace>
 
 #include "avif_p.h"
+#include "microexif_p.h"
 #include "util_p.h"
 
 #include <cfloat>
@@ -150,9 +151,6 @@ bool QAVIFHandler::ensureDecoder()
     }
 
     m_decoder = avifDecoderCreate();
-
-    m_decoder->ignoreExif = AVIF_TRUE;
-    m_decoder->ignoreXMP = AVIF_TRUE;
 
 #if AVIF_VERSION >= 80400
     m_decoder->maxThreads = qBound(1, QThread::idealThreadCount(), 64);
@@ -534,10 +532,52 @@ bool QAVIFHandler::decode_one_frame()
 
     m_current_image.setColorSpace(colorspace);
 
+    if (m_decoder->image->exif.size) {
+        auto exif = MicroExif::fromRawData(reinterpret_cast<const char *>(m_decoder->image->exif.data), m_decoder->image->exif.size);
+        // set image resolution
+        if (exif.horizontalResolution() > 0)
+            m_current_image.setDotsPerMeterX(qRound(exif.horizontalResolution() / 25.4 * 1000));
+        if (exif.verticalResolution() > 0)
+            m_current_image.setDotsPerMeterY(qRound(exif.verticalResolution() / 25.4 * 1000));
+        // set image metadata
+        exif.toImageMetadata(m_current_image);
+    }
+
+    if (m_decoder->image->xmp.size) {
+        auto ba = QByteArray::fromRawData(reinterpret_cast<const char *>(m_decoder->image->xmp.data), m_decoder->image->xmp.size);
+        m_current_image.setText(QStringLiteral(META_KEY_XMP_ADOBE), QString::fromUtf8(ba));
+    }
+
     m_estimated_dimensions = m_current_image.size();
 
     m_must_jump_to_next_image = false;
     return true;
+}
+
+static void setMetadata(avifImage *avif, const QImage& image)
+{
+    auto xmp = image.text(QStringLiteral(META_KEY_XMP_ADOBE)).toUtf8();
+    if (!xmp.isEmpty()) {
+#if AVIF_VERSION >= 1000000
+        auto res = avifImageSetMetadataXMP(avif, reinterpret_cast<const uint8_t *>(xmp.constData()), xmp.size());
+        if (res != AVIF_RESULT_OK) {
+            qWarning("ERROR in avifImageSetMetadataXMP: %s", avifResultToString(res));
+        }
+#else
+        avifImageSetMetadataXMP(avif, reinterpret_cast<const uint8_t *>(xmp.constData()), xmp.size());
+#endif
+    }
+    auto exif = MicroExif::fromImage(image).toByteArray();
+    if (!exif.isEmpty()) {
+#if AVIF_VERSION >= 1000000
+        auto res = avifImageSetMetadataExif(avif, reinterpret_cast<const uint8_t *>(exif.constData()), exif.size());
+        if (res != AVIF_RESULT_OK) {
+            qWarning("ERROR in avifImageSetMetadataExif: %s", avifResultToString(res));
+        }
+#else
+        avifImageSetMetadataExif(avif, reinterpret_cast<const uint8_t *>(exif.constData()), exif.size());
+#endif
+    }
 }
 
 bool QAVIFHandler::read(QImage *image)
@@ -689,6 +729,8 @@ bool QAVIFHandler::write(const QImage &image)
 #else
         avifImageAllocatePlanes(avif, AVIF_PLANES_YUV);
 #endif
+        // set EXIF and XMP metadata
+        setMetadata(avif, tmpgrayimage);
 
         if (tmpgrayimage.colorSpace().isValid()) {
             avif->colorPrimaries = (avifColorPrimaries)1;
@@ -914,6 +956,9 @@ bool QAVIFHandler::write(const QImage &image)
 
         avif->colorPrimaries = primaries_to_save;
         avif->transferCharacteristics = transfer_to_save;
+
+        // set EXIF and XMP metadata
+        setMetadata(avif, tmpcolorimage);
 
         if (iccprofile.size() > 0) {
 #if AVIF_VERSION >= 1000000
