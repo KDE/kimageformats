@@ -3,12 +3,12 @@
         "fileName" : "metadata.png",
         "metadata" : [
             {
-                "key" : "ModificationDate",
-                "value" : "2025-01-14T13:53:32+01:00"
+                "key" : "CreationDate",
+                "value" : "2025-01-14T10:34:51Z"
             },
             {
                 "key" : "Software" ,
-                "value" : "Adobe Photoshop 26.2 (Windows)"
+                "value" : "LIFE Pro 2.18.10"
             },
             {
                 "key" : "Altitude",
@@ -53,7 +53,7 @@
         ],
         "resolution" : {
             "dotsPerMeterX" : 11811,
-            "dotsPerMeterY" : 11811
+            "dotsPerMeterY" : 5906
         }
     }
 ]

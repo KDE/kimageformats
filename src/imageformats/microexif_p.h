@@ -202,6 +202,20 @@ public:
     void setDateTime(const QDateTime& dt);
 
     /*!
+     * \brief dateTimeOriginal
+     * \return The date and time when the original image data was generated.
+     */
+    QDateTime dateTimeOriginal() const;
+    void setDateTimeOriginal(const QDateTime& dt);
+
+    /*!
+     * \brief dateTimeDigitized
+     * \return The date and time when the image was stored as digital data.
+     */
+    QDateTime dateTimeDigitized() const;
+    void setDateTimeDigitized(const QDateTime& dt);
+
+    /*!
      * \brief title
      * \return The title of the image.
      */
@@ -239,17 +253,58 @@ public:
 
     /*!
      * \brief toByteArray
+     * Converts the class to RAW data. The raw data contains:
+     * - TIFF header
+     * - MAIN IFD
+     * - EXIF IFD
+     * - GPS IFD
      * \param byteOrder Sets the serialization byte order for EXIF data.
      * \return A byte array containing the serialized data.
+     * \sa write
      */
     QByteArray toByteArray(const QDataStream::ByteOrder &byteOrder = EXIF_DEFAULT_BYTEORDER) const;
 
     /*!
+     * \brief exifIfdByteArray
+     * Convert the EXIF IFD only to RAW data. Useful when you want to add EXIF data to an existing TIFF container.
+     * \param byteOrder Sets the serialization byte order for the data.
+     * \return A byte array containing the serialized data.
+     */
+    QByteArray exifIfdByteArray(const QDataStream::ByteOrder &byteOrder = EXIF_DEFAULT_BYTEORDER) const;
+    /*!
+     * \brief setExifIfdByteArray
+     * \param ba The RAW data of EXIF IFD.
+     * \param byteOrder Sets the serialization byte order of the data.
+     * \return True on success, otherwise false.
+     */
+    bool setExifIfdByteArray(const QByteArray& ba, const QDataStream::ByteOrder &byteOrder = EXIF_DEFAULT_BYTEORDER);
+
+    /*!
+     * \brief gpsIfdByteArray
+     * Convert the GPS IFD only to RAW data. Useful when you want to add GPS data to an existing TIFF container.
+     * \param byteOrder Sets the serialization byte order for the data.
+     * \return A byte array containing the serialized data.
+     */
+    QByteArray gpsIfdByteArray(const QDataStream::ByteOrder &byteOrder = EXIF_DEFAULT_BYTEORDER) const;
+    /*!
+     * \brief setGpsIfdByteArray
+     * \param ba The RAW data of GPS IFD.
+     * \param byteOrder Sets the serialization byte order of the data.
+     * \return True on success, otherwise false.
+     */
+    bool setGpsIfdByteArray(const QByteArray& ba, const QDataStream::ByteOrder &byteOrder = EXIF_DEFAULT_BYTEORDER);
+
+    /*!
      * \brief write
-     * Serialize the class on a device.
+     * Serialize the class on a device. The serialized data contains:
+     * - TIFF header
+     * - MAIN IFD
+     * - EXIF IFD
+     * - GPS IFD
      * \param device A random access device.
      * \param byteOrder Sets the serialization byte order for EXIF data.
      * \return True on success, otherwise false.
+     * \sa toByteArray
      */
     bool write(QIODevice *device, const QDataStream::ByteOrder &byteOrder = EXIF_DEFAULT_BYTEORDER) const;
 

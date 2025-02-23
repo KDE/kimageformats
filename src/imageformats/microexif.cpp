@@ -37,7 +37,12 @@
 // EXIF 3 specs
 #define EXIF_EXIFIFD 0x8769
 #define EXIF_GPSIFD 0x8825
+#define EXIF_EXIFVERSION 0x9000
+#define EXIF_DATETIMEORIGINAL 0x9003
+#define EXIF_DATETIMEDIGITIZED 0x9004
 #define EXIF_OFFSETTIME 0x9010
+#define EXIF_OFFSETTIMEORIGINAL 0x9011
+#define EXIF_OFFSETTIMEDIGITIZED 0x9012
 #define EXIF_COLORSPACE 0xA001
 #define EXIF_PIXELXDIM 0xA002
 #define EXIF_PIXELYDIM 0xA003
@@ -47,7 +52,6 @@
 #define EXIF_LENSMODEL 0xA434
 #define EXIF_LENSSERIALNUMBER 0xA435
 #define EXIF_IMAGETITLE 0xA436
-#define EXIF_EXIFVERSION 0x9000
 
 #define EXIF_VAL_COLORSPACE_SRGB 1
 #define EXIF_VAL_COLORSPACE_UNCAL 0xFFFF
@@ -119,7 +123,11 @@ static const KnownTags staticTagTypes = {
     TagInfo(TIFF_COPYRIGHT, ExifTagType::Ascii),
     TagInfo(EXIF_EXIFIFD, ExifTagType::Long),
     TagInfo(EXIF_GPSIFD, ExifTagType::Long),
+    TagInfo(EXIF_DATETIMEORIGINAL, ExifTagType::Ascii),
+    TagInfo(EXIF_OFFSETTIMEDIGITIZED, ExifTagType::Ascii),
     TagInfo(EXIF_OFFSETTIME, ExifTagType::Ascii),
+    TagInfo(EXIF_OFFSETTIMEORIGINAL, ExifTagType::Ascii),
+    TagInfo(EXIF_OFFSETTIMEDIGITIZED, ExifTagType::Ascii),
     TagInfo(EXIF_COLORSPACE, ExifTagType::Short),
     TagInfo(EXIF_PIXELXDIM, ExifTagType::Long),
     TagInfo(EXIF_PIXELYDIM, ExifTagType::Long),
@@ -230,8 +238,8 @@ static bool checkHeader(QDataStream &ds)
 
     quint16 version;
     ds >> version;
-    if (version != 0x2A)
-        return false;
+    if (version != 0x002A && version != 0x01BC)
+        return false; // not TIFF or JXR
 
     quint32 offset;
     ds >> offset;
@@ -852,6 +860,46 @@ void MicroExif::setDateTime(const QDateTime &dt)
     setExifString(EXIF_OFFSETTIME, timeOffset(dt.offsetFromUtc() / 60));
 }
 
+QDateTime MicroExif::dateTimeOriginal() const
+{
+    auto dt = QDateTime::fromString(exifString(EXIF_DATETIMEORIGINAL), QStringLiteral("yyyy:MM:dd HH:mm:ss"));
+    auto ofTag = exifString(EXIF_OFFSETTIMEORIGINAL);
+    if (dt.isValid() && !ofTag.isEmpty())
+        dt.setTimeZone(QTimeZone::fromSecondsAheadOfUtc(timeOffset(ofTag) * 60));
+    return(dt);
+}
+
+void MicroExif::setDateTimeOriginal(const QDateTime &dt)
+{
+    if (!dt.isValid()) {
+        m_exifTags.remove(EXIF_DATETIMEORIGINAL);
+        m_exifTags.remove(EXIF_OFFSETTIMEORIGINAL);
+        return;
+    }
+    setExifString(EXIF_DATETIMEORIGINAL, dt.toString(QStringLiteral("yyyy:MM:dd HH:mm:ss")));
+    setExifString(EXIF_OFFSETTIMEORIGINAL, timeOffset(dt.offsetFromUtc() / 60));
+}
+
+QDateTime MicroExif::dateTimeDigitized() const
+{
+    auto dt = QDateTime::fromString(exifString(EXIF_DATETIMEDIGITIZED), QStringLiteral("yyyy:MM:dd HH:mm:ss"));
+    auto ofTag = exifString(EXIF_OFFSETTIMEDIGITIZED);
+    if (dt.isValid() && !ofTag.isEmpty())
+        dt.setTimeZone(QTimeZone::fromSecondsAheadOfUtc(timeOffset(ofTag) * 60));
+    return(dt);
+}
+
+void MicroExif::setDateTimeDigitized(const QDateTime &dt)
+{
+    if (!dt.isValid()) {
+        m_exifTags.remove(EXIF_DATETIMEDIGITIZED);
+        m_exifTags.remove(EXIF_OFFSETTIMEDIGITIZED);
+        return;
+    }
+    setExifString(EXIF_DATETIMEDIGITIZED, dt.toString(QStringLiteral("yyyy:MM:dd HH:mm:ss")));
+    setExifString(EXIF_OFFSETTIMEDIGITIZED, timeOffset(dt.offsetFromUtc() / 60));
+}
+
 QString MicroExif::title() const
 {
     return exifString(EXIF_IMAGETITLE);
@@ -956,6 +1004,50 @@ QByteArray MicroExif::toByteArray(const QDataStream::ByteOrder &byteOrder) const
     return ba;
 }
 
+QByteArray MicroExif::exifIfdByteArray(const QDataStream::ByteOrder &byteOrder) const
+{
+    QByteArray ba;
+    {
+        QDataStream ds(&ba, QIODevice::WriteOnly);
+        ds.setByteOrder(byteOrder);
+        auto exifTags = m_exifTags;
+        exifTags.insert(EXIF_EXIFVERSION, QByteArray("0300"));
+        TagPos positions;
+        if (!writeIfd(ds, exifTags, positions))
+            return {};
+    }
+    return ba;
+}
+
+bool MicroExif::setExifIfdByteArray(const QByteArray &ba, const QDataStream::ByteOrder &byteOrder)
+{
+    QDataStream ds(ba);
+    ds.setByteOrder(byteOrder);
+    return readIfd(ds, m_exifTags, 0, staticTagTypes);
+}
+
+QByteArray MicroExif::gpsIfdByteArray(const QDataStream::ByteOrder &byteOrder) const
+{
+    QByteArray ba;
+    {
+        QDataStream ds(&ba, QIODevice::WriteOnly);
+        ds.setByteOrder(byteOrder);
+        auto gpsTags = m_gpsTags;
+        gpsTags.insert(GPS_GPSVERSION, QByteArray("2400"));
+        TagPos positions;
+        if (!writeIfd(ds, gpsTags, positions, 0, staticGpsTagTypes))
+            return {};
+        return ba;
+    }
+}
+
+bool MicroExif::setGpsIfdByteArray(const QByteArray &ba, const QDataStream::ByteOrder &byteOrder)
+{
+    QDataStream ds(ba);
+    ds.setByteOrder(byteOrder);
+    return readIfd(ds, m_gpsTags, 0, staticGpsTagTypes);
+}
+
 bool MicroExif::write(QIODevice *device, const QDataStream::ByteOrder &byteOrder) const
 {
     if (device == nullptr || device->isSequential() || isEmpty())
@@ -993,8 +1085,13 @@ void MicroExif::toImageMetadata(QImage &targetImage, bool replaceExisting) const
     }
 
     // set date and time
-    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_CREATIONDATE)).isEmpty()) {
+    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_MODIFICATIONDATE)).isEmpty()) {
         auto dt = dateTime();
+        if (dt.isValid())
+            targetImage.setText(QStringLiteral(META_KEY_MODIFICATIONDATE), dt.toString(Qt::ISODate));
+    }
+    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_CREATIONDATE)).isEmpty()) {
+        auto dt = dateTimeOriginal();
         if (dt.isValid())
             targetImage.setText(QStringLiteral(META_KEY_CREATIONDATE), dt.toString(Qt::ISODate));
     }
@@ -1095,11 +1192,17 @@ MicroExif MicroExif::fromImage(const QImage &image)
         exif.setSoftware(sw.trimmed());
     }
 
-    // TIFF Creation date and time
-    auto dt = QDateTime::fromString(image.text(QStringLiteral(META_KEY_CREATIONDATE)), Qt::ISODate);
+    // TIFF date and time
+    auto dt = QDateTime::fromString(image.text(QStringLiteral(META_KEY_MODIFICATIONDATE)), Qt::ISODate);
     if (!dt.isValid())
         dt = QDateTime::currentDateTime();
     exif.setDateTime(dt);
+
+    // EXIF original date and time
+    dt = QDateTime::fromString(image.text(QStringLiteral(META_KEY_CREATIONDATE)), Qt::ISODate);
+    if (!dt.isValid())
+        dt = QDateTime::currentDateTime();
+    exif.setDateTimeOriginal(dt);
 
     // GPS Info
     auto ok = false;

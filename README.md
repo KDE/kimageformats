@@ -125,8 +125,9 @@ About the image:
   example a verbal description of the image.
 - `Copyright`: Copyright notice of the person or organization that claims 
   the copyright to the image.
-- `CreationDate`: Creation date and time in ISO 8601 format without 
-  milliseconds (e.g. 2024-03-23T15:30:43).
+- `CreationDate`: When the image was created or captured. Date and time in 
+  ISO 8601 format without milliseconds (e.g. 2024-03-23T15:30:43). This value
+  should be kept unchanged when present.
 - `Description`: A string that describes the subject of the image.
 - `DocumentName`: The name of the document from which this image was 
   scanned.
@@ -136,6 +137,9 @@ About the image:
   north of the equator (e.g. 27.717).
 - `Longitude`: Floating-point number indicating the longitude in degrees 
   east of Greenwich (e.g. 85.317).
+- `ModificationDate`: Last modification date and time in ISO 8601 format 
+  without milliseconds (e.g. 2024-03-23T15:30:43). This value should be 
+  updated every time the image is saved.
 - `Owner`: Name of the owner of the image.
 - `Software`: Name and version number of the software package(s) used to 
   create the image.
@@ -189,6 +193,7 @@ are created automatically:
 - `Software`: Created using `applicationName` and `applicationVersion` methods
   of [`QCoreApplication`](https://doc.qt.io/qt-6/qcoreapplication.html).
 - `CreationDate`: Set to current time and date.
+- `ModificationDate`: Set to current time and date.
 
 ### ICC profile support
 

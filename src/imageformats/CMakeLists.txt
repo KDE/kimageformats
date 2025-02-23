@@ -140,7 +140,7 @@ endif()
 ##################################
 
 if (LibJXR_FOUND)
-    kimageformats_add_plugin(kimg_jxr SOURCES jxr.cpp)
+    kimageformats_add_plugin(kimg_jxr SOURCES jxr.cpp microexif.cpp)
     kde_enable_exceptions()
     target_include_directories(kimg_jxr PRIVATE ${LIBJXR_INCLUDE_DIRS})
     target_link_libraries(kimg_jxr PRIVATE ${LIBJXR_LIBRARIES})

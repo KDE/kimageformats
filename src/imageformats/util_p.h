@@ -24,6 +24,7 @@
 #define META_KEY_HOSTCOMPUTER "HostComputer"
 #define META_KEY_LATITUDE "Latitude"
 #define META_KEY_LONGITUDE "Longitude"
+#define META_KEY_MODIFICATIONDATE "ModificationDate"
 #define META_KEY_OWNER "Owner"
 #define META_KEY_SOFTWARE "Software"
 #define META_KEY_TITLE "Title"

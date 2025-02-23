@@ -15,6 +15,7 @@
  */
 
 #include "jxr_p.h"
+#include "microexif_p.h"
 #include "util_p.h"
 
 #include <QColorSpace>
@@ -83,9 +84,10 @@ Q_LOGGING_CATEGORY(LOG_JXRPLUGIN, "kf.imageformats.plugins.jxr", QtWarningMsg)
 class JXRHandlerPrivate : public QSharedData
 {
 private:
-    QSharedPointer<QTemporaryDir> tempDir;
-    mutable QSharedPointer<QFile> jxrFile;
-    mutable QHash<QString, QString> txtMeta;
+    QSharedPointer<QTemporaryDir> m_tempDir;
+    QSharedPointer<QFile> m_jxrFile;
+    MicroExif m_exif;
+    mutable QHash<QString, QString> m_txtMeta;
 
 public:
     PKFactory *pFactory = nullptr;
@@ -95,7 +97,7 @@ public:
 
     JXRHandlerPrivate()
     {
-        tempDir = QSharedPointer<QTemporaryDir>(new QTemporaryDir);
+        m_tempDir = QSharedPointer<QTemporaryDir>(new QTemporaryDir);
         if (PKCreateFactory(&pFactory, PK_SDK_VERSION) == WMP_errSuccess) {
             PKCreateCodecFactory(&pCodecFactory, WMP_SDK_VERSION);
         }
@@ -123,7 +125,7 @@ public:
 
     QString fileName() const
     {
-        return jxrFile->fileName();
+        return m_jxrFile->fileName();
     }
 
     /* *** READ *** */
@@ -318,11 +320,20 @@ public:
     }
 
     /*!
-     * \brief setTextMetadata
-     * Set the text metadata into \a image
+     * \brief exifData
+     * \return The EXIF data.
+     */
+    MicroExif exifData() const
+    {
+        return m_exif;
+    }
+
+    /*!
+     * \brief setMetadata
+     * Set the metadata into \a image
      * \param image Image on which to write metadata
      */
-    void setTextMetadata(QImage& image)
+    void setMetadata(QImage& image)
     {
         auto xmp = xmpData();
         if (!xmp.isEmpty()) {
@@ -344,10 +355,6 @@ public:
         if (!model.isEmpty()) {
             image.setText(QStringLiteral(META_KEY_MODEL), model);
         }
-        auto cDate = dateTime();
-        if (!cDate.isEmpty()) {
-            image.setText(QStringLiteral(META_KEY_CREATIONDATE), cDate);
-        }
         auto author = artist();
         if (!author.isEmpty()) {
             image.setText(QStringLiteral(META_KEY_AUTHOR), author);
@@ -368,20 +375,23 @@ public:
         if (!docn.isEmpty()) {
             image.setText(QStringLiteral(META_KEY_DOCUMENTNAME), docn);
         }
+        auto exif = exifData();
+        if (!exif.isEmpty()) {
+            exif.toImageMetadata(image);
+        }
     }
 
 #define META_TEXT(name, key)                                                                                                                                   \
     QString name() const                                                                                                                                       \
     {                                                                                                                                                          \
         readTextMeta();                                                                                                                                        \
-        return txtMeta.value(QStringLiteral(key));                                                                                                             \
+        return m_txtMeta.value(QStringLiteral(key));                                                                                                           \
     }
 
     META_TEXT(description, META_KEY_DESCRIPTION)
     META_TEXT(cameraMake, META_KEY_MANUFACTURER)
     META_TEXT(cameraModel, META_KEY_MODEL)
     META_TEXT(software, META_KEY_SOFTWARE)
-    META_TEXT(dateTime, META_KEY_CREATIONDATE)
     META_TEXT(artist, META_KEY_AUTHOR)
     META_TEXT(copyright, META_KEY_COPYRIGHT)
     META_TEXT(caption, META_KEY_TITLE)
@@ -400,9 +410,9 @@ public:
     bool initForWriting()
     {
         // I have to use QFile because, on Windows, the QTemporary file is locked (even if I close it)
-        auto fileName = QStringLiteral("%1.jxr").arg(tempDir->filePath(QUuid::createUuid().toString(QUuid::WithoutBraces).left(8)));
+        auto fileName = QStringLiteral("%1.jxr").arg(m_tempDir->filePath(QUuid::createUuid().toString(QUuid::WithoutBraces).left(8)));
         QSharedPointer<QFile> file(new QFile(fileName));
-        jxrFile = file;
+        m_jxrFile = file;
         return initEncoder();
     }
 
@@ -422,7 +432,7 @@ public:
             return false;
         }
 
-        if (!deviceCopy(device, jxrFile.data())) {
+        if (!deviceCopy(device, m_jxrFile.data())) {
             qCWarning(LOG_JXRPLUGIN) << "JXRHandlerPrivate::finalizeWriting() error while writing in the target device";
             return false;
         }
@@ -580,7 +590,6 @@ public:
         META_CTEXT(META_KEY_MODEL, pvarCameraModel)
         META_CTEXT(META_KEY_AUTHOR, pvarArtist)
         META_CTEXT(META_KEY_COPYRIGHT, pvarCopyright)
-        META_CTEXT(META_KEY_CREATIONDATE, pvarDateTime)
         META_CTEXT(META_KEY_DOCUMENTNAME, pvarDocumentName)
         META_CTEXT(META_KEY_HOSTCOMPUTER, pvarHostComputer)
         META_WTEXT(META_KEY_TITLE, pvarCaption)
@@ -595,12 +604,33 @@ public:
             meta.pvarSoftware.VT.pszVal = software.data();
         }
 
+        // Date and Time (TIFF format)
+        auto cDate = QDateTime::fromString(image.text(QStringLiteral(META_KEY_MODIFICATIONDATE)), Qt::ISODate);
+        auto sDate = cDate.isValid() ? cDate.toString(QStringLiteral("yyyy:MM:dd HH:mm:ss")).toLatin1() : QByteArray();
+        if (!sDate.isEmpty()) {
+            meta.pvarDateTime.vt = DPKVT_LPSTR;
+            meta.pvarDateTime.VT.pszVal = sDate.data();
+        }
+
         auto xmp = image.text(QStringLiteral(META_KEY_XMP_ADOBE)).toUtf8();
         if (!xmp.isNull()) {
-            if (auto err = PKImageEncode_SetXMPMetadata_WMP(pEncoder, reinterpret_cast<quint8 *>(xmp.data()), xmp.size())) {
+            if (auto err = PKImageEncode_SetXMPMetadata_WMP(pEncoder, reinterpret_cast<const quint8 *>(xmp.constData()), xmp.size())) {
                 qCWarning(LOG_JXRPLUGIN) << "JXRHandler::write() error while setting XMP data:" << err;
             }
         }
+
+        auto exif = MicroExif::fromImage(image);
+        if (!exif.isEmpty()) {
+            auto exifIfd = exif.exifIfdByteArray(QDataStream::LittleEndian);
+            if (auto err = PKImageEncode_SetEXIFMetadata_WMP(pEncoder, reinterpret_cast<const quint8 *>(exifIfd.constData()), exifIfd.size())) {
+                qCWarning(LOG_JXRPLUGIN) << "JXRHandler::write() error while setting EXIF data:" << err;
+            }
+            auto gpsIfd = exif.gpsIfdByteArray(QDataStream::LittleEndian);
+            if (auto err = PKImageEncode_SetGPSInfoMetadata_WMP(pEncoder, reinterpret_cast<const quint8 *>(gpsIfd.constData()), gpsIfd.size())) {
+                qCWarning(LOG_JXRPLUGIN) << "JXRHandler::write() error while setting GPS data:" << err;
+            }
+        }
+
         if (auto err = pEncoder->SetDescriptiveMetadata(pEncoder, &meta)) {
             qCWarning(LOG_JXRPLUGIN) << "JXRHandler::write() error while setting descriptive data:" << err;
         }
@@ -710,11 +740,11 @@ private:
         if (device == nullptr) {
             return false;
         }
-        if (!jxrFile.isNull()) {
+        if (!m_jxrFile.isNull()) {
             return true;
         }
         // I have to use QFile because, on Windows, the QTemporary file is locked (even if I close it)
-        auto fileName = QStringLiteral("%1.jxr").arg(tempDir->filePath(QUuid::createUuid().toString(QUuid::WithoutBraces).left(8)));
+        auto fileName = QStringLiteral("%1.jxr").arg(m_tempDir->filePath(QUuid::createUuid().toString(QUuid::WithoutBraces).left(8)));
         QSharedPointer<QFile> file(new QFile(fileName));
         if (!file->open(QFile::WriteOnly)) {
             return false;
@@ -724,7 +754,8 @@ private:
             return false;
         }
         file->close();
-        jxrFile = file;
+        m_exif = MicroExif::fromDevice(file.data());
+        m_jxrFile = file;
         return true;
     }
 
@@ -762,7 +793,7 @@ private:
         if (pDecoder == nullptr) {
             return false;
         }
-        if (!txtMeta.isEmpty()) {
+        if (!m_txtMeta.isEmpty()) {
             return true;
         }
 
@@ -773,15 +804,14 @@ private:
 
 #define META_TEXT(name, field)                                                                                                                                 \
     if (meta.field.vt == DPKVT_LPSTR)                                                                                                                          \
-        txtMeta.insert(QStringLiteral(name), QString::fromUtf8(meta.field.VT.pszVal));                                                                         \
+        m_txtMeta.insert(QStringLiteral(name), QString::fromUtf8(meta.field.VT.pszVal));                                                                       \
     else if (meta.field.vt == DPKVT_LPWSTR)                                                                                                                    \
-        txtMeta.insert(QStringLiteral(name), QString::fromUtf16(reinterpret_cast<char16_t *>(meta.field.VT.pwszVal)));
+        m_txtMeta.insert(QStringLiteral(name), QString::fromUtf16(reinterpret_cast<char16_t *>(meta.field.VT.pwszVal)));
 
         META_TEXT(META_KEY_DESCRIPTION, pvarImageDescription)
         META_TEXT(META_KEY_MANUFACTURER, pvarCameraMake)
         META_TEXT(META_KEY_MODEL, pvarCameraModel)
         META_TEXT(META_KEY_SOFTWARE, pvarSoftware)
-        META_TEXT(META_KEY_CREATIONDATE, pvarDateTime)
         META_TEXT(META_KEY_AUTHOR, pvarArtist)
         META_TEXT(META_KEY_COPYRIGHT, pvarCopyright)
         META_TEXT(META_KEY_TITLE, pvarCaption)
@@ -867,7 +897,7 @@ bool JXRHandler::read(QImage *outImage)
 
     // Metadata (e.g.: icc profile, description, etc...)
     img.setColorSpace(d->colorSpace());
-    d->setTextMetadata(img);
+    d->setMetadata(img);
 
 #ifndef JXR_DENY_FLOAT_IMAGE
     // JXR float are stored in scRGB.

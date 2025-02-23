@@ -6,6 +6,14 @@
             "value" : "2025-01-14T13:53:32+01:00"
         },
         {
+            "key" : "ModificationDate",
+            "value" : "2025-02-14T15:58:44+01:00"
+        },
+        {
+            "key" : "Altitude",
+            "value" : "34"
+        },
+        {
             "key" : "Author",
             "value" : "KDE Project"
         },
@@ -16,6 +24,22 @@
         {
             "key" : "Description",
             "value" : "TV broadcast test image."
+        },
+        {
+            "key" : "Latitude",
+            "value" : "44.6478"
+        },
+        {
+            "key" : "LensManufacturer",
+            "value" : "KDE Glasses"
+        },
+        {
+            "key" : "LensModel",
+            "value" : "A1234"
+        },
+        {
+            "key" : "Longitude",
+            "value" : "10.9254"
         },
         {
             "key" : "Manufacturer",
