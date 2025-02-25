@@ -87,6 +87,8 @@ private:
     QSharedPointer<QTemporaryDir> m_tempDir;
     QSharedPointer<QFile> m_jxrFile;
     MicroExif m_exif;
+    qint32 m_quality;
+    QImageIOHandler::Transformations m_transformations;
     mutable QHash<QString, QString> m_txtMeta;
 
 public:
@@ -96,6 +98,8 @@ public:
     PKImageEncode *pEncoder = nullptr;
 
     JXRHandlerPrivate()
+        : m_quality(-1)
+        , m_transformations(QImageIOHandler::TransformationNone)
     {
         m_tempDir = QSharedPointer<QTemporaryDir>(new QTemporaryDir);
         if (PKCreateFactory(&pFactory, PK_SDK_VERSION) == WMP_errSuccess) {
@@ -127,6 +131,98 @@ public:
     {
         return m_jxrFile->fileName();
     }
+
+    /*!
+     * \brief setQuality
+     * Set the image quality (write only)
+     * \param q
+     */
+    void setQuality(qint32 q)
+    {
+        m_quality = q;
+    }
+    qint32 quality() const
+    {
+        return m_quality;
+    }
+
+    /*!
+     * \brief setTransformation
+     * Set the image transformation (read/write)
+     * \param t
+     */
+    void setTransformation(const QImageIOHandler::Transformations& t)
+    {
+        m_transformations = t;
+    }
+    QImageIOHandler::Transformations transformation() const
+    {
+        return m_transformations;
+    }
+
+    static QImageIOHandler::Transformations orientationToTransformation(const ORIENTATION& o)
+    {
+        auto v = QImageIOHandler::TransformationNone;
+        switch (o) {
+        case O_FLIPV:
+            v = QImageIOHandler::TransformationFlip;
+            break;
+        case O_FLIPH:
+            v = QImageIOHandler::TransformationMirror;
+            break;
+        case O_FLIPVH:
+            v = QImageIOHandler::TransformationRotate180;
+            break;
+        case O_RCW:
+            v = QImageIOHandler::TransformationRotate90;
+            break;
+        case O_RCW_FLIPH:
+            v = QImageIOHandler::TransformationFlipAndRotate90;
+            break;
+        case O_RCW_FLIPV:
+            v = QImageIOHandler::TransformationMirrorAndRotate90;
+            break;
+        case O_RCW_FLIPVH:
+            v = QImageIOHandler::TransformationRotate270;
+            break;
+        default:
+            v = QImageIOHandler::TransformationNone;
+            break;
+        }
+        return v;
+    }
+    static ORIENTATION transformationToOrientation(const QImageIOHandler::Transformations& t)
+    {
+        auto v = O_NONE;
+        switch (t) {
+        case QImageIOHandler::TransformationFlip:
+            v = O_FLIPV;
+            break;
+        case QImageIOHandler::TransformationMirror:
+            v = O_FLIPH;
+            break;
+        case QImageIOHandler::TransformationRotate180:
+            v = O_FLIPVH;
+            break;
+        case QImageIOHandler::TransformationRotate90:
+            v = O_RCW;
+            break;
+        case QImageIOHandler::TransformationFlipAndRotate90:
+            v = O_RCW_FLIPH;
+            break;
+        case QImageIOHandler::TransformationMirrorAndRotate90:
+            v = O_RCW_FLIPV;
+            break;
+        case QImageIOHandler::TransformationRotate270:
+            v = O_RCW_FLIPVH;
+            break;
+        default:
+            v = O_NONE;
+            break;
+        }
+        return v;
+    }
+
 
     /* *** READ *** */
 
@@ -555,6 +651,9 @@ public:
         wmiSCP->cNumOfSliceMinus1H = wmiSCP->cNumOfSliceMinus1V = 0;
         wmiSCP->sbSubband = SB_ALL;
         wmiSCP->uAlphaMode = image.hasAlphaChannel() ? 2 : 0;
+        if (quality() > -1) {
+            wmiSCP->uiDefaultQPIndex = qBound(0, 100 - quality(), 100);
+        }
         return true;
     }
 
@@ -771,6 +870,8 @@ private:
             qCWarning(LOG_JXRPLUGIN) << "JXRHandlerPrivate::initDecoder() unable to create decoder:" << err;
             return false;
         }
+        setTransformation(JXRHandlerPrivate::orientationToTransformation(pDecoder->WMP.wmiI.oOrientation));
+        pDecoder->WMP.wmiI.oOrientation = O_NONE; // disable the library rotation application
         return true;
     }
 
@@ -786,6 +887,7 @@ private:
             qCWarning(LOG_JXRPLUGIN) << "JXRHandlerPrivate::initEncoder() unable to create encoder:" << err;
             return false;
         }
+        pEncoder->WMP.oOrientation = JXRHandlerPrivate::transformationToOrientation(transformation());
         return true;
     }
 
@@ -951,6 +1053,10 @@ bool JXRHandler::write(const QImage &image)
         return false;
     }
 #ifndef JXR_DISABLE_BGRA_HACK
+    if (IsEqualGUID(jxlfmt, GUID_PKPixelFormat32bppRGB)) {
+        jxlfmt = GUID_PKPixelFormat32bppBGR;
+        qi.rgbSwap();
+    }
     if (IsEqualGUID(jxlfmt, GUID_PKPixelFormat32bppRGBA)) {
         jxlfmt = GUID_PKPixelFormat32bppBGRA;
         qi.rgbSwap();
@@ -967,10 +1073,6 @@ bool JXRHandler::write(const QImage &image)
         qCWarning(LOG_JXRPLUGIN) << "JXRHandler::write() something wrong when calculating encoder parameters for" << qi.format();
         return false;
     }
-    if (m_quality > -1) {
-        wmiSCP.uiDefaultQPIndex = qBound(0, 100 - m_quality, 100);
-    }
-
     if (auto err = d->pEncoder->Initialize(d->pEncoder, pEncodeStream, &wmiSCP, sizeof(wmiSCP))) {
         qCWarning(LOG_JXRPLUGIN) << "JXRHandler::write() error while initializing the encoder:" << err;
         return false;
@@ -1013,10 +1115,18 @@ bool JXRHandler::write(const QImage &image)
 void JXRHandler::setOption(ImageOption option, const QVariant &value)
 {
     if (option == QImageIOHandler::Quality) {
-        bool ok = false;
+        auto ok = false;
         auto q = value.toInt(&ok);
         if (ok) {
-            m_quality = q;
+            d->setQuality(q);
+        }
+    }
+
+    if (option == QImageIOHandler::ImageTransformation) {
+        auto ok = false;
+        auto t = value.toInt(&ok);
+        if (ok) {
+            d->setTransformation(QImageIOHandler::Transformation(t));
         }
     }
 }
@@ -1033,7 +1143,7 @@ bool JXRHandler::supportsOption(ImageOption option) const
         return true;
     }
     if (option == QImageIOHandler::ImageTransformation) {
-        return false; // disabled because test cases are missing
+        return true;
     }
     return false;
 }
@@ -1058,39 +1168,13 @@ QVariant JXRHandler::option(ImageOption option) const
     }
 
     if (option == QImageIOHandler::Quality) {
-        v = m_quality;
+        v = d->quality();
     }
 
     if (option == QImageIOHandler::ImageTransformation) {
-        // TODO: rotation info (test case needed)
-        if (d->initForReading(device())) {
-            switch (d->pDecoder->WMP.oOrientationFromContainer) {
-            case O_FLIPV:
-                v = int(QImageIOHandler::TransformationFlip);
-                break;
-            case O_FLIPH:
-                v = int(QImageIOHandler::TransformationMirror);
-                break;
-            case O_FLIPVH:
-                v = int(QImageIOHandler::TransformationRotate180);
-                break;
-            case O_RCW:
-                v = int(QImageIOHandler::TransformationRotate90);
-                break;
-            case O_RCW_FLIPV:
-                v = int(QImageIOHandler::TransformationFlipAndRotate90);
-                break;
-            case O_RCW_FLIPH:
-                v = int(QImageIOHandler::TransformationMirrorAndRotate90);
-                break;
-            case O_RCW_FLIPVH:
-                v = int(QImageIOHandler::TransformationRotate270);
-                break;
-            default:
-                v = int(QImageIOHandler::TransformationNone);
-                break;
-            }
-        }
+        // ignore result: I might want to read the value set in writing
+        d->initForReading(device());
+        v = int(d->transformation());
     }
 
     return v;
@@ -1098,7 +1182,6 @@ QVariant JXRHandler::option(ImageOption option) const
 
 JXRHandler::JXRHandler()
     : d(new JXRHandlerPrivate)
-    , m_quality(-1)
 {
 }
 
