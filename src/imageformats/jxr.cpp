@@ -473,7 +473,7 @@ public:
         }
         auto exif = exifData();
         if (!exif.isEmpty()) {
-            exif.toImageMetadata(image);
+            exif.updateImageMetadata(image);
         }
     }
 

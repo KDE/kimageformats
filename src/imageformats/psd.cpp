@@ -545,7 +545,7 @@ static bool setExifData(QImage &img, const MicroExif &exif)
 {
     if (exif.isEmpty())
         return false;
-    exif.toImageMetadata(img);
+    exif.updateImageMetadata(img);
     return true;
 }
 

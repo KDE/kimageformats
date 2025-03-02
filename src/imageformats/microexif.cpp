@@ -63,7 +63,8 @@
 #define GPS_LONGITUDE 4
 #define GPS_ALTITUDEREF 5
 #define GPS_ALTITUDE 6
-
+#define GPS_IMGDIRECTIONREF 16
+#define GPS_IMGDIRECTION 17
 #define EXIF_TAG_VALUE(n, byteSize) (((n) << 6) | ((byteSize) & 0x3F))
 #define EXIF_TAG_SIZEOF(dataType) (quint16(dataType) & 0x3F)
 #define EXIF_TAG_DATATYPE(dataType) (quint16(dataType) >> 6)
@@ -152,7 +153,9 @@ static const KnownTags staticGpsTagTypes = {
     TagInfo(GPS_LONGITUDEREF, ExifTagType::Ascii),
     TagInfo(GPS_LONGITUDE, ExifTagType::Rational),
     TagInfo(GPS_ALTITUDEREF, ExifTagType::Byte),
-    TagInfo(GPS_ALTITUDE, ExifTagType::Rational)
+    TagInfo(GPS_ALTITUDE, ExifTagType::Rational),
+    TagInfo(GPS_IMGDIRECTIONREF, ExifTagType::Ascii),
+    TagInfo(GPS_IMGDIRECTION, ExifTagType::Rational)
 };
 // clang-format on
 
@@ -944,6 +947,10 @@ double MicroExif::latitude() const
 
 void MicroExif::setLatitude(double degree)
 {
+    if (qIsNaN(degree)) {
+        m_gpsTags.remove(GPS_LATITUDEREF);
+        m_gpsTags.remove(GPS_LATITUDE);
+    }
     if (degree < -90.0 || degree > 90.0)
         return; // invalid latitude
     auto adeg = qAbs(degree);
@@ -969,6 +976,10 @@ double MicroExif::longitude() const
 
 void MicroExif::setLongitude(double degree)
 {
+    if (qIsNaN(degree)) {
+        m_gpsTags.remove(GPS_LONGITUDEREF);
+        m_gpsTags.remove(GPS_LONGITUDE);
+    }
     if (degree < -180.0 || degree > 180.0)
         return; // invalid longitude
     auto adeg = qAbs(degree);
@@ -983,14 +994,42 @@ double MicroExif::altitude() const
     auto ref = m_gpsTags.value(GPS_ALTITUDEREF);
     if (ref.isNull())
         return qQNaN();
+    if (!m_gpsTags.contains(GPS_ALTITUDE))
+        return qQNaN();
     auto alt = m_gpsTags.value(GPS_ALTITUDE).toDouble();
     return (ref.toInt() == 0 || ref.toInt() == 2) ? alt : -alt;
 }
 
 void MicroExif::setAltitude(double meters)
 {
+    if (qIsNaN(meters)) {
+        m_gpsTags.remove(GPS_ALTITUDEREF);
+        m_gpsTags.remove(GPS_ALTITUDE);
+    }
     m_gpsTags.insert(GPS_ALTITUDEREF, quint8(meters < 0 ? 1 : 0));
     m_gpsTags.insert(GPS_ALTITUDE, meters);
+}
+
+double MicroExif::imageDirection(bool *isMagnetic) const
+{
+    auto tmp = false;
+    if (isMagnetic == nullptr)
+        isMagnetic = &tmp;
+    if (!m_gpsTags.contains(GPS_IMGDIRECTION))
+        return qQNaN();
+    auto ref = gpsString(GPS_IMGDIRECTIONREF).toUpper();
+    *isMagnetic = (ref == QStringLiteral("M"));
+    return m_gpsTags.value(GPS_IMGDIRECTION).toDouble();
+}
+
+void MicroExif::setImageDirection(double degree, bool isMagnetic)
+{
+    if (qIsNaN(degree)) {
+        m_gpsTags.remove(GPS_IMGDIRECTIONREF);
+        m_gpsTags.remove(GPS_IMGDIRECTION);
+    }
+    m_gpsTags.insert(GPS_IMGDIRECTIONREF, isMagnetic ? QStringLiteral("M") : QStringLiteral("T"));
+    m_gpsTags.insert(GPS_IMGDIRECTION, degree);
 }
 
 QByteArray MicroExif::toByteArray(const QDataStream::ByteOrder &byteOrder) const
@@ -1064,7 +1103,7 @@ bool MicroExif::write(QIODevice *device, const QDataStream::ByteOrder &byteOrder
     return true;
 }
 
-void MicroExif::toImageMetadata(QImage &targetImage, bool replaceExisting) const
+void MicroExif::updateImageMetadata(QImage &targetImage, bool replaceExisting) const
 {
     // set TIFF strings
     for (auto &&p : tiffStrMap) {
@@ -1112,6 +1151,19 @@ void MicroExif::toImageMetadata(QImage &targetImage, bool replaceExisting) const
         if (!qIsNaN(v))
             targetImage.setText(QStringLiteral(META_KEY_LONGITUDE), QStringLiteral("%1").arg(v, 0, 'g', 9));
     }
+    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_DIRECTION)).isEmpty()) {
+        auto v = imageDirection();
+        if (!qIsNaN(v))
+            targetImage.setText(QStringLiteral(META_KEY_DIRECTION), QStringLiteral("%1").arg(v, 0, 'g', 9));
+    }
+}
+
+void MicroExif::updateImageResolution(QImage &targetImage)
+{
+    if (horizontalResolution() > 0)
+        targetImage.setDotsPerMeterX(qRound(horizontalResolution() / 25.4 * 1000));
+    if (verticalResolution() > 0)
+        targetImage.setDotsPerMeterY(qRound(verticalResolution() / 25.4 * 1000));
 }
 
 MicroExif MicroExif::fromByteArray(const QByteArray &ba)
@@ -1215,6 +1267,9 @@ MicroExif MicroExif::fromImage(const QImage &image)
     auto lon = image.text(QStringLiteral(META_KEY_LONGITUDE)).toDouble(&ok);
     if (ok)
         exif.setLongitude(lon);
+    auto dir = image.text(QStringLiteral(META_KEY_DIRECTION)).toDouble(&ok);
+    if (ok)
+        exif.setImageDirection(dir);
 
     return exif;
 }

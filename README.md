@@ -129,6 +129,8 @@ About the image:
   ISO 8601 format without milliseconds (e.g. 2024-03-23T15:30:43). This value
   should be kept unchanged when present.
 - `Description`: A string that describes the subject of the image.
+- `Direction`: Floating-point number indicating the direction of the image
+  when it was captured in degrees (e.g. 123.3).
 - `DocumentName`: The name of the document from which this image was 
   scanned.
 - `HostComputer`: The computer and/or operating system in use at the time 

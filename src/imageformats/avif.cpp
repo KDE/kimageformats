@@ -534,13 +534,8 @@ bool QAVIFHandler::decode_one_frame()
 
     if (m_decoder->image->exif.size) {
         auto exif = MicroExif::fromRawData(reinterpret_cast<const char *>(m_decoder->image->exif.data), m_decoder->image->exif.size);
-        // set image resolution
-        if (exif.horizontalResolution() > 0)
-            m_current_image.setDotsPerMeterX(qRound(exif.horizontalResolution() / 25.4 * 1000));
-        if (exif.verticalResolution() > 0)
-            m_current_image.setDotsPerMeterY(qRound(exif.verticalResolution() / 25.4 * 1000));
-        // set image metadata
-        exif.toImageMetadata(m_current_image);
+        exif.updateImageResolution(m_current_image);
+        exif.updateImageMetadata(m_current_image);
     }
 
     if (m_decoder->image->xmp.size) {

@@ -31,8 +31,6 @@
  *
  * This class is a partial (or rather minimal) implementation and is only used
  * to avoid including external libraries when only a few tags are needed.
- *
- * It reads/writes the main IFD only.
  */
 class MicroExif
 {
@@ -252,6 +250,14 @@ public:
     void setAltitude(double meters);
 
     /*!
+     * \brief imageDirection
+     * \param isMagnetic Set to true if the direction is relative to magnetic north, false if it is relative to true north. Leave nullptr if is not of interest.
+     * \return Floating-point number indicating the direction of the image when it was captured. The range of values is from 0.00 to 359.99 or NaN if not set.
+     */
+    double imageDirection(bool *isMagnetic = nullptr) const;
+    void setImageDirection(double degree, bool isMagnetic = false);
+
+    /*!
      * \brief toByteArray
      * Converts the class to RAW data. The raw data contains:
      * - TIFF header
@@ -309,12 +315,19 @@ public:
     bool write(QIODevice *device, const QDataStream::ByteOrder &byteOrder = EXIF_DEFAULT_BYTEORDER) const;
 
     /*!
-     * \brief toImageMetadata
-     * Helper to set metadata in an image.
+     * \brief updateImageMetadata
+     * Helper to set EXIF metadata to the image.
      * \param targetImage The image to set metadata on.
      * \param replaceExisting Replaces any existing metadata.
      */
-    void toImageMetadata(QImage& targetImage, bool replaceExisting = false) const;
+    void updateImageMetadata(QImage &targetImage, bool replaceExisting = false) const;
+
+    /*!
+     * \brief updateImageResolution
+     * Helper to set the EXIF resolution to the image. Resolution is set only if valid.
+     * \param targetImage The image to set resolution on.
+     */
+    void updateImageResolution(QImage &targetImage);
 
     /*!
      * \brief fromByteArray

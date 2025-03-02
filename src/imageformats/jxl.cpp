@@ -791,13 +791,8 @@ bool QJpegXLHandler::decode_one_frame()
 
     if (!m_exif.isEmpty()) {
         auto exif = MicroExif::fromByteArray(m_exif);
-        // set image resolution
-        if (exif.horizontalResolution() > 0)
-            m_current_image.setDotsPerMeterX(qRound(exif.horizontalResolution() / 25.4 * 1000));
-        if (exif.verticalResolution() > 0)
-            m_current_image.setDotsPerMeterY(qRound(exif.verticalResolution() / 25.4 * 1000));
-        // set image metadata
-        exif.toImageMetadata(m_current_image);
+        exif.updateImageResolution(m_current_image);
+        exif.updateImageMetadata(m_current_image);
     }
 
     m_next_image_delay = m_framedelays[m_currentimage_index];

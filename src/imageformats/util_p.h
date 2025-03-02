@@ -20,6 +20,7 @@
 #define META_KEY_COPYRIGHT "Copyright"
 #define META_KEY_CREATIONDATE "CreationDate"
 #define META_KEY_DESCRIPTION "Description"
+#define META_KEY_DIRECTION "Direction"
 #define META_KEY_DOCUMENTNAME "DocumentName"
 #define META_KEY_HOSTCOMPUTER "HostComputer"
 #define META_KEY_LATITUDE "Latitude"

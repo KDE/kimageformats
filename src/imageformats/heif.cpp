@@ -955,13 +955,8 @@ bool HEIFHandler::ensureDecoder()
                 } else if (isExif) {
                     auto exif = MicroExif::fromByteArray(ba.mid(4));
                     if (!exif.isEmpty()) {
-                        // set image resolution
-                        if (exif.horizontalResolution() > 0)
-                            m_current_image.setDotsPerMeterX(qRound(exif.horizontalResolution() / 25.4 * 1000));
-                        if (exif.verticalResolution() > 0)
-                            m_current_image.setDotsPerMeterY(qRound(exif.verticalResolution() / 25.4 * 1000));
-                        // set image metadata
-                        exif.toImageMetadata(m_current_image);
+                        exif.updateImageResolution(m_current_image);
+                        exif.updateImageMetadata(m_current_image);
                     }
                 }
             }
