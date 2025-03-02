@@ -8,6 +8,7 @@
 */
 
 #include "heif_p.h"
+#include "microexif_p.h"
 #include "util_p.h"
 #include <libheif/heif.h>
 
@@ -17,6 +18,14 @@
 #include <QSysInfo>
 #include <limits>
 #include <string.h>
+
+#ifndef HEIF_MAX_METADATA_SIZE
+/*!
+ * XMP and EXIF maximum size.
+ */
+#define HEIF_MAX_METADATA_SIZE (4 * 1024 * 1024)
+#endif
+
 
 size_t HEIFHandler::m_initialized_count = 0;
 bool HEIFHandler::m_plugins_queried = false;
@@ -305,7 +314,25 @@ bool HEIFHandler::write_helper(const QImage &image)
         }
     }
 
-    err = heif_context_encode_image(context, h_image, encoder, encoder_options, nullptr);
+    struct heif_image_handle* handle;
+    err = heif_context_encode_image(context, h_image, encoder, encoder_options, &handle);
+
+    // exif metadata
+    if (err.code == heif_error_Ok) {
+        auto exif = MicroExif::fromImage(tmpimage);
+        if (!exif.isEmpty()) {
+            auto ba = exif.toByteArray();
+            err = heif_context_add_exif_metadata(context, handle, ba.constData(), ba.size());
+        }
+    }
+    // xmp metadata
+    if (err.code == heif_error_Ok) {
+        auto xmp = image.text(META_KEY_XMP_ADOBE);
+        if (!xmp.isEmpty()) {
+            auto ba = xmp.toUtf8();
+            err = heif_context_add_XMP_metadata2(context, handle, ba.constData(), ba.size(), heif_metadata_compression_off);
+        }
+    }
 
     if (encoder_options) {
         heif_encoding_options_free(encoder_options);
@@ -902,6 +929,43 @@ bool HEIFHandler::ensureDecoder()
 
     } else {
         m_current_image.setColorSpace(QColorSpace(QColorSpace::SRgb));
+    }
+
+    // read metadata
+    if (auto numMetadata = heif_image_handle_get_number_of_metadata_blocks(handle, nullptr)) {
+        QVector<heif_item_id> ids(numMetadata);
+        heif_image_handle_get_list_of_metadata_block_IDs(handle, nullptr, ids.data(), numMetadata);
+        for (int n = 0; n < numMetadata; ++n) {
+            auto itemtype = heif_image_handle_get_metadata_type(handle, ids[n]);
+            auto contenttype = heif_image_handle_get_metadata_content_type(handle, ids[n]);
+            auto isExif = !std::strcmp(itemtype, "Exif");
+            auto isXmp = !std::strcmp(contenttype, "application/rdf+xml");
+            if (isExif || isXmp) {
+                auto sz = heif_image_handle_get_metadata_size(handle, ids[n]);
+                if (sz == 0 || sz >= HEIF_MAX_METADATA_SIZE)
+                    continue;
+                QByteArray ba(sz, char());
+                auto err = heif_image_handle_get_metadata(handle, ids[n], ba.data());
+                if (err.code != heif_error_Ok) {
+                    qWarning() << "Error while reading metadata" << err.message;
+                    continue;
+                }
+                if (isXmp) {
+                    m_current_image.setText(META_KEY_XMP_ADOBE, QString::fromUtf8(ba));
+                } else if (isExif) {
+                    auto exif = MicroExif::fromByteArray(ba.mid(4));
+                    if (!exif.isEmpty()) {
+                        // set image resolution
+                        if (exif.horizontalResolution() > 0)
+                            m_current_image.setDotsPerMeterX(qRound(exif.horizontalResolution() / 25.4 * 1000));
+                        if (exif.verticalResolution() > 0)
+                            m_current_image.setDotsPerMeterY(qRound(exif.verticalResolution() / 25.4 * 1000));
+                        // set image metadata
+                        exif.toImageMetadata(m_current_image);
+                    }
+                }
+            }
+        }
     }
 
     heif_image_release(img);
