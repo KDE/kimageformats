@@ -327,7 +327,7 @@ bool HEIFHandler::write_helper(const QImage &image)
     }
     // xmp metadata
     if (err.code == heif_error_Ok) {
-        auto xmp = image.text(META_KEY_XMP_ADOBE);
+        auto xmp = image.text(QStringLiteral(META_KEY_XMP_ADOBE));
         if (!xmp.isEmpty()) {
             auto ba = xmp.toUtf8();
             err = heif_context_add_XMP_metadata2(context, handle, ba.constData(), ba.size(), heif_metadata_compression_off);
@@ -951,7 +951,7 @@ bool HEIFHandler::ensureDecoder()
                     continue;
                 }
                 if (isXmp) {
-                    m_current_image.setText(META_KEY_XMP_ADOBE, QString::fromUtf8(ba));
+                    m_current_image.setText(QStringLiteral(META_KEY_XMP_ADOBE), QString::fromUtf8(ba));
                 } else if (isExif) {
                     auto exif = MicroExif::fromByteArray(ba.mid(4));
                     if (!exif.isEmpty()) {
