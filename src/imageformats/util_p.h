@@ -61,4 +61,13 @@ inline QImage imageAlloc(qint32 width, qint32 height, const QImage::Format &form
     return imageAlloc(QSize(width, height), format);
 }
 
+inline double qRoundOrZero(double d)
+{
+    // If the value d is outside the range of int, the behavior is undefined.
+    if (d > std::numeric_limits<int>::max()) {
+        return 0;
+    }
+    return qRound(d);
+}
+
 #endif // UTIL_P_H
