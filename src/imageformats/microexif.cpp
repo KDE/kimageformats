@@ -1166,18 +1166,30 @@ void MicroExif::updateImageResolution(QImage &targetImage)
         targetImage.setDotsPerMeterY(qRound(verticalResolution() / 25.4 * 1000));
 }
 
-MicroExif MicroExif::fromByteArray(const QByteArray &ba)
+MicroExif MicroExif::fromByteArray(const QByteArray &ba, bool searchHeader)
 {
+    auto ba0(ba);
+    if (searchHeader) {
+        auto idxLE = ba0.indexOf(QByteArray("II"));
+        auto idxBE = ba0.indexOf(QByteArray("MM"));
+        auto idx = -1;
+        if (idxLE > -1 && idxBE > -1)
+            idx = std::min(idxLE, idxBE);
+        else
+            idx = idxLE > -1 ? idxLE : idxBE;
+        if(idx > 0)
+            ba0 = ba0.mid(idx);
+    }
     QBuffer buf;
-    buf.setData(ba);
+    buf.setData(ba0);
     return fromDevice(&buf);
 }
 
-MicroExif MicroExif::fromRawData(const char *data, size_t size)
+MicroExif MicroExif::fromRawData(const char *data, size_t size, bool searchHeader)
 {
     if (data == nullptr || size == 0)
         return {};
-    return fromByteArray(QByteArray::fromRawData(data, size));
+    return fromByteArray(QByteArray::fromRawData(data, size), searchHeader);
 }
 
 MicroExif MicroExif::fromDevice(QIODevice *device)

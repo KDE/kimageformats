@@ -332,18 +332,23 @@ public:
     /*!
      * \brief fromByteArray
      * Creates the class from RAW EXIF data.
+     * \param ba Raw data containing EXIF ​​data.
+     * \param searchHeader If true, the EXIF ​​header is searched within the data. If false, the data must begin with the EXIF ​​header.
      * \return The created class (empty on error).
      * \sa isEmpty
      */
-    static MicroExif fromByteArray(const QByteArray &ba);
+    static MicroExif fromByteArray(const QByteArray &ba, bool searchHeader = false);
 
     /*!
      * \brief fromRawData
      * Creates the class from RAW EXIF data.
+     * \param data Raw data containing EXIF ​​data.
+     * \param size The size of \a data.
+     * \param searchHeader If true, the EXIF ​​header is searched within the data. If false, the data must begin with the EXIF ​​header.
      * \return The created class (empty on error).
-     * \sa isEmpty
+     * \sa isEmpty, fromByteArray
      */
-    static MicroExif fromRawData(const char *data, size_t size);
+    static MicroExif fromRawData(const char *data, size_t size, bool searchHeader = false);
 
     /*!
      * \brief fromDevice

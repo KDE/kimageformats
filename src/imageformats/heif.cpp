@@ -953,7 +953,7 @@ bool HEIFHandler::ensureDecoder()
                 if (isXmp) {
                     m_current_image.setText(QStringLiteral(META_KEY_XMP_ADOBE), QString::fromUtf8(ba));
                 } else if (isExif) {
-                    auto exif = MicroExif::fromByteArray(ba.mid(4));
+                    auto exif = MicroExif::fromByteArray(ba, true);
                     if (!exif.isEmpty()) {
                         exif.updateImageResolution(m_current_image);
                         exif.updateImageMetadata(m_current_image);
