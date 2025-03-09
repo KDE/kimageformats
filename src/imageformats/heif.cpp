@@ -330,7 +330,7 @@ bool HEIFHandler::write_helper(const QImage &image)
         auto xmp = image.text(QStringLiteral(META_KEY_XMP_ADOBE));
         if (!xmp.isEmpty()) {
             auto ba = xmp.toUtf8();
-            err = heif_context_add_XMP_metadata2(context, handle, ba.constData(), ba.size(), heif_metadata_compression_off);
+            err = heif_context_add_XMP_metadata(context, handle, ba.constData(), ba.size());
         }
     }
 
