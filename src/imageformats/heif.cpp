@@ -16,8 +16,8 @@
 #include <QDebug>
 #include <QPointF>
 #include <QSysInfo>
+#include <cstring>
 #include <limits>
-#include <string.h>
 
 #ifndef HEIF_MAX_METADATA_SIZE
 /*!
@@ -25,7 +25,6 @@
  */
 #define HEIF_MAX_METADATA_SIZE (4 * 1024 * 1024)
 #endif
-
 
 size_t HEIFHandler::m_initialized_count = 0;
 bool HEIFHandler::m_plugins_queried = false;
@@ -314,7 +313,7 @@ bool HEIFHandler::write_helper(const QImage &image)
         }
     }
 
-    struct heif_image_handle* handle;
+    struct heif_image_handle *handle;
     err = heif_context_encode_image(context, h_image, encoder, encoder_options, &handle);
 
     // exif metadata
@@ -554,7 +553,7 @@ bool HEIFHandler::ensureDecoder()
 
     QImage::Format target_image_format;
 
-    if (bit_depth == 10 || bit_depth == 12) {
+    if (bit_depth == 10 || bit_depth == 12 || bit_depth == 16) {
         if (hasAlphaChannel) {
             chroma = (QSysInfo::ByteOrder == QSysInfo::LittleEndian) ? heif_chroma_interleaved_RRGGBBAA_LE : heif_chroma_interleaved_RRGGBBAA_BE;
             target_image_format = QImage::Format_RGBA64;
@@ -646,6 +645,35 @@ bool HEIFHandler::ensureDecoder()
     }
 
     switch (bit_depth) {
+    case 16:
+        if (hasAlphaChannel) {
+            for (int y = 0; y < imageHeight; y++) {
+                memcpy(m_current_image.scanLine(y), src + (y * stride), 8 * size_t(imageWidth));
+            }
+        } else { // no alpha channel
+            for (int y = 0; y < imageHeight; y++) {
+                const uint16_t *src_word = reinterpret_cast<const uint16_t *>(src + (y * stride));
+                uint16_t *dest_data = reinterpret_cast<uint16_t *>(m_current_image.scanLine(y));
+                for (int x = 0; x < imageWidth; x++) {
+                    // R
+                    *dest_data = *src_word;
+                    src_word++;
+                    dest_data++;
+                    // G
+                    *dest_data = *src_word;
+                    src_word++;
+                    dest_data++;
+                    // B
+                    *dest_data = *src_word;
+                    src_word++;
+                    dest_data++;
+                    // X = 0xffff
+                    *dest_data = 0xffff;
+                    dest_data++;
+                }
+            }
+        }
+        break;
     case 12:
         if (hasAlphaChannel) {
             for (int y = 0; y < imageHeight; y++) {
