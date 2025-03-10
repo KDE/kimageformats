@@ -622,8 +622,24 @@ int main(int argc, char **argv)
         }
     }
 
-    // run test
     auto suffix = args.at(0);
+
+    // skip test if libheif configuration is obviously incomplete
+    QByteArray format = suffix.toLatin1();
+    const QList<QByteArray> read_formats = QImageReader::supportedImageFormats();
+    const QList<QByteArray> write_formats = QImageWriter::supportedImageFormats();
+
+    if (!read_formats.contains(format) && format == "heif") {
+        QTextStream(stdout) << "WARNING : libheif configuration is missing necessary decoder(s)!\n";
+        return 0;
+    }
+
+    if (!write_formats.contains(format) && format == "heif") {
+        QTextStream(stdout) << "WARNING : libheif configuration is missing necessary encoder(s)!\n";
+        return 0;
+    }
+
+    // run test
     auto ret = basicTest(suffix, parser.isSet(lossless), parser.isSet(ignoreDataCheck), parser.isSet(skipOptTest), fuzzarg);
     if (ret == 0) {
         ret = formatTest(suffix, parser.isSet(createFormatTempates));

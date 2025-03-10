@@ -258,6 +258,15 @@ int main(int argc, char **argv)
     });
     QTextStream(stdout) << "QImageReader::supportedImageFormats: " << formatStrings.join(", ") << "\n";
 
+    if (!formats.contains(format)) {
+        if (format == "avci" || format == "heif" || format == "hej2") {
+            QTextStream(stdout) << "WARNING : " << suffix << " is not supported with current libheif configuration!\n"
+                                << "********* "
+                                << "Finished basic read tests for " << suffix << " images *********\n";
+            return 0;
+        }
+    }
+
     const QFileInfoList lstImgDir = imgdir.entryInfoList();
     // Launch 2 runs for each test: first run on a random access device, second run on a sequential access device
     for (int seq = 0; seq < 2; ++seq) {
