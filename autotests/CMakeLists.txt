@@ -124,7 +124,7 @@ if (LibHeif_FOUND)
         )
     endif()
 
-    if (LibHeif_VERSION VERSION_GREATER_EQUAL "1.19.0")
+    if (LibHeif_VERSION VERSION_GREATER_EQUAL "1.19.6")
         kimageformats_read_tests(FUZZ 4
             avci
         )

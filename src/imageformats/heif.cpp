@@ -1042,7 +1042,7 @@ void HEIFHandler::queryHeifLib()
 #if LIBHEIF_HAVE_VERSION(1, 13, 0)
         m_hej2_decoder_available = heif_have_decoder_for_format(heif_compression_JPEG2000);
 #endif
-#if LIBHEIF_HAVE_VERSION(1, 19, 0)
+#if LIBHEIF_HAVE_VERSION(1, 19, 6)
         m_avci_decoder_available = heif_have_decoder_for_format(heif_compression_AVC);
 #endif
         m_plugins_queried = true;
