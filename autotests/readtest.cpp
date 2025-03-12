@@ -332,7 +332,12 @@ int main(int argc, char **argv)
             OptionTest optionTest;
             if (!optionTest.store(&inputReader)) {
                 QTextStream(stdout) << "FAIL : " << fi.fileName() << ": error while reading options\n";
-                ++failed;
+                if (format == "heif") {
+                    // libheif + ffmpeg decoder is unable to load all HEIF files.
+                    ++skipped;
+                } else {
+                    ++failed;
+                }
                 continue;
             }
 
