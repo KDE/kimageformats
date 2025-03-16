@@ -634,14 +634,18 @@ int main(int argc, char **argv)
     const QList<QByteArray> read_formats = QImageReader::supportedImageFormats();
     const QList<QByteArray> write_formats = QImageWriter::supportedImageFormats();
 
-    if (!read_formats.contains(format) && format == "heif") {
-        QTextStream(stdout) << "WARNING : libheif configuration is missing necessary decoder(s)!\n";
-        return 0;
+    if (!read_formats.contains(format)) {
+        if (format == "heif" || format == "hej2") {
+            QTextStream(stdout) << "WARNING : libheif configuration is missing necessary decoder(s)!\n";
+            return 0;
+        }
     }
 
-    if (!write_formats.contains(format) && format == "heif") {
-        QTextStream(stdout) << "WARNING : libheif configuration is missing necessary encoder(s)!\n";
-        return 0;
+    if (!write_formats.contains(format)) {
+        if (format == "heif" || format == "hej2") {
+            QTextStream(stdout) << "WARNING : libheif configuration is missing necessary encoder(s)!\n";
+            return 0;
+        }
     }
 
     // run test

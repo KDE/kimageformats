@@ -122,6 +122,9 @@ if (LibHeif_FOUND)
         kimageformats_read_tests(FUZZ 1
             hej2
         )
+        kimageformats_write_tests(FUZZ 1
+            hej2-nodatacheck-lossless
+        )
     endif()
 
     if (LibHeif_VERSION VERSION_GREATER_EQUAL "1.19.6")
