@@ -20,7 +20,7 @@
 #include <string.h>
 
 // Avoid rotation on buggy Qts (see also https://bugreports.qt.io/browse/QTBUG-126575)
-#if (QT_VERSION >= QT_VERSION_CHECK(6, 5, 7) && QT_VERSION < QT_VERSION_CHECK(6, 6, 0)) || (QT_VERSION >= QT_VERSION_CHECK(6, 7, 3))
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 3)
 #ifndef JXL_QT_AUTOTRANSFORM
 #define JXL_QT_AUTOTRANSFORM
 #endif
