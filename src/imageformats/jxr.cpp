@@ -720,11 +720,11 @@ public:
 
         auto exif = MicroExif::fromImage(image);
         if (!exif.isEmpty()) {
-            auto exifIfd = exif.exifIfdByteArray(QDataStream::LittleEndian);
+            auto exifIfd = exif.exifIfdByteArray(QDataStream::LittleEndian, MicroExif::V2);
             if (auto err = PKImageEncode_SetEXIFMetadata_WMP(pEncoder, reinterpret_cast<const quint8 *>(exifIfd.constData()), exifIfd.size())) {
                 qCWarning(LOG_JXRPLUGIN) << "JXRHandler::write() error while setting EXIF data:" << err;
             }
-            auto gpsIfd = exif.gpsIfdByteArray(QDataStream::LittleEndian);
+            auto gpsIfd = exif.gpsIfdByteArray(QDataStream::LittleEndian, MicroExif::V2);
             if (auto err = PKImageEncode_SetGPSInfoMetadata_WMP(pEncoder, reinterpret_cast<const quint8 *>(gpsIfd.constData()), gpsIfd.size())) {
                 qCWarning(LOG_JXRPLUGIN) << "JXRHandler::write() error while setting GPS data:" << err;
             }

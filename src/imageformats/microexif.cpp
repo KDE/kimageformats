@@ -111,17 +111,17 @@ static const KnownTags staticTagTypes = {
     TagInfo(TIFF_IMAGEWIDTH, ExifTagType::Long),
     TagInfo(TIFF_IMAGEHEIGHT, ExifTagType::Long),
     TagInfo(TIFF_BITSPERSAMPLE, ExifTagType::Short),
-    TagInfo(TIFF_IMAGEDESCRIPTION, ExifTagType::Ascii),
-    TagInfo(TIFF_MAKE, ExifTagType::Ascii),
-    TagInfo(TIFF_MODEL, ExifTagType::Ascii),
+    TagInfo(TIFF_IMAGEDESCRIPTION, ExifTagType::Utf8),
+    TagInfo(TIFF_MAKE, ExifTagType::Utf8),
+    TagInfo(TIFF_MODEL, ExifTagType::Utf8),
     TagInfo(TIFF_ORIENT, ExifTagType::Short),
     TagInfo(TIFF_XRES, ExifTagType::Rational),
     TagInfo(TIFF_YRES, ExifTagType::Rational),
     TagInfo(TIFF_URES, ExifTagType::Short),
-    TagInfo(TIFF_SOFTWARE, ExifTagType::Ascii),
-    TagInfo(TIFF_ARTIST, ExifTagType::Ascii),
+    TagInfo(TIFF_SOFTWARE, ExifTagType::Utf8),
+    TagInfo(TIFF_ARTIST, ExifTagType::Utf8),
     TagInfo(TIFF_DATETIME, ExifTagType::Ascii),
-    TagInfo(TIFF_COPYRIGHT, ExifTagType::Ascii),
+    TagInfo(TIFF_COPYRIGHT, ExifTagType::Utf8),
     TagInfo(EXIF_EXIFIFD, ExifTagType::Long),
     TagInfo(EXIF_GPSIFD, ExifTagType::Long),
     TagInfo(EXIF_DATETIMEORIGINAL, ExifTagType::Ascii),
@@ -134,10 +134,10 @@ static const KnownTags staticTagTypes = {
     TagInfo(EXIF_PIXELYDIM, ExifTagType::Long),
     TagInfo(EXIF_IMAGEUNIQUEID, ExifTagType::Ascii),
     TagInfo(EXIF_BODYSERIALNUMBER, ExifTagType::Ascii),
-    TagInfo(EXIF_LENSMAKE, ExifTagType::Ascii),
-    TagInfo(EXIF_LENSMODEL, ExifTagType::Ascii),
+    TagInfo(EXIF_LENSMAKE, ExifTagType::Utf8),
+    TagInfo(EXIF_LENSMODEL, ExifTagType::Utf8),
     TagInfo(EXIF_LENSSERIALNUMBER, ExifTagType::Ascii),
-    TagInfo(EXIF_IMAGETITLE, ExifTagType::Ascii),
+    TagInfo(EXIF_IMAGETITLE, ExifTagType::Utf8),
     TagInfo(EXIF_EXIFVERSION, ExifTagType::Undefined)
 };
 // clang-format on
@@ -367,6 +367,30 @@ static void writeData(QDataStream &ds, const QVariant &value, const ExifTagType&
     }
 }
 
+static ExifTagType updateDataType(const ExifTagType &dataType, const QVariant &value, const MicroExif::Version &ver)
+{
+    if (dataType != ExifTagType::Utf8)
+        return dataType;
+
+    if (ver == MicroExif::V2)
+        return ExifTagType::Ascii;
+
+    // Note that in EXIF specs, UTF-8 is backward compatible with ASCII: all UTF-8 tags can also be ASCII.
+    // To maximize compatibility, I check if the string can be encoded in ASCII.
+    auto txt = value.toString();
+
+    // I try to implement a rudimentary check without going through Qt's string conversion classes:
+    // a UTF-8 string if it uses only characters in the first 127 of the ASCII table is encoded as
+    // a Latin 1. Each character above 128, whether it is an extended ASCII character or a character
+    // of another nature, uses 2 or more bytes. Since the EXIF ​​specifications state that the ASCII
+    // type must use only the first 127 characters, I only need to do the size comparison to understand
+    // which type to use.
+    if (txt.toLatin1().size() == txt.toUtf8().size())
+        return ExifTagType::Ascii;
+
+    return dataType;
+}
+
 /*!
  * \brief writeIfd
  * \param ds The stream.
@@ -375,7 +399,12 @@ static void writeData(QDataStream &ds, const QVariant &value, const ExifTagType&
  * \param knownTags List of known and supported tags.
  * \return True on success, otherwise false.
  */
-static bool writeIfd(QDataStream &ds, const MicroExif::Tags &tags, TagPos &positions, quint32 pos = 0, const KnownTags &knownTags = staticTagTypes)
+static bool writeIfd(QDataStream &ds,
+                     const MicroExif::Version &ver,
+                     const MicroExif::Tags &tags,
+                     TagPos &positions,
+                     quint32 pos = 0,
+                     const KnownTags &knownTags = staticTagTypes)
 {
     if (tags.isEmpty())
         return true;
@@ -390,7 +419,7 @@ static bool writeIfd(QDataStream &ds, const MicroExif::Tags &tags, TagPos &posit
             continue;
         }
         auto value = tags.value(key);
-        auto dataType = knownTags.value(key);
+        auto dataType = updateDataType(knownTags.value(key), value, ver);
         auto count = countBytes(dataType, value);
 
         ds << quint16(key);
@@ -412,9 +441,8 @@ static bool writeIfd(QDataStream &ds, const MicroExif::Tags &tags, TagPos &posit
         if (!knownTags.contains(key)) {
             continue;
         }
-
         auto value = tags.value(key);
-        auto dataType = knownTags.value(key);
+        auto dataType = updateDataType(knownTags.value(key), value, ver);
         auto count = countBytes(dataType, value);
         auto valueSize = count * EXIF_TAG_SIZEOF(dataType);
         if (valueSize <= 4)
@@ -1032,7 +1060,7 @@ void MicroExif::setImageDirection(double degree, bool isMagnetic)
     m_gpsTags.insert(GPS_IMGDIRECTION, degree);
 }
 
-QByteArray MicroExif::toByteArray(const QDataStream::ByteOrder &byteOrder) const
+QByteArray MicroExif::toByteArray(const QDataStream::ByteOrder &byteOrder, const Version &version) const
 {
     QByteArray ba;
     {
@@ -1043,16 +1071,16 @@ QByteArray MicroExif::toByteArray(const QDataStream::ByteOrder &byteOrder) const
     return ba;
 }
 
-QByteArray MicroExif::exifIfdByteArray(const QDataStream::ByteOrder &byteOrder) const
+QByteArray MicroExif::exifIfdByteArray(const QDataStream::ByteOrder &byteOrder, const Version &version) const
 {
     QByteArray ba;
     {
         QDataStream ds(&ba, QIODevice::WriteOnly);
         ds.setByteOrder(byteOrder);
         auto exifTags = m_exifTags;
-        exifTags.insert(EXIF_EXIFVERSION, QByteArray("0300"));
+        exifTags.insert(EXIF_EXIFVERSION, version == Version::V3 ? QByteArray("0300") : QByteArray("0232"));
         TagPos positions;
-        if (!writeIfd(ds, exifTags, positions))
+        if (!writeIfd(ds, version, exifTags, positions))
             return {};
     }
     return ba;
@@ -1065,7 +1093,7 @@ bool MicroExif::setExifIfdByteArray(const QByteArray &ba, const QDataStream::Byt
     return readIfd(ds, m_exifTags, 0, staticTagTypes);
 }
 
-QByteArray MicroExif::gpsIfdByteArray(const QDataStream::ByteOrder &byteOrder) const
+QByteArray MicroExif::gpsIfdByteArray(const QDataStream::ByteOrder &byteOrder, const Version &version) const
 {
     QByteArray ba;
     {
@@ -1074,7 +1102,7 @@ QByteArray MicroExif::gpsIfdByteArray(const QDataStream::ByteOrder &byteOrder) c
         auto gpsTags = m_gpsTags;
         gpsTags.insert(GPS_GPSVERSION, QByteArray("2400"));
         TagPos positions;
-        if (!writeIfd(ds, gpsTags, positions, 0, staticGpsTagTypes))
+        if (!writeIfd(ds, version, gpsTags, positions, 0, staticGpsTagTypes))
             return {};
         return ba;
     }
@@ -1087,7 +1115,7 @@ bool MicroExif::setGpsIfdByteArray(const QByteArray &ba, const QDataStream::Byte
     return readIfd(ds, m_gpsTags, 0, staticGpsTagTypes);
 }
 
-bool MicroExif::write(QIODevice *device, const QDataStream::ByteOrder &byteOrder) const
+bool MicroExif::write(QIODevice *device, const QDataStream::ByteOrder &byteOrder, const Version &version) const
 {
     if (device == nullptr || device->isSequential() || isEmpty())
         return false;
@@ -1096,7 +1124,7 @@ bool MicroExif::write(QIODevice *device, const QDataStream::ByteOrder &byteOrder
         ds.setByteOrder(byteOrder);
         if (!writeHeader(ds))
             return false;
-        if (!writeIfds(ds))
+        if (!writeIfds(ds, version))
             return false;
     }
     device->close();
@@ -1327,30 +1355,30 @@ bool MicroExif::writeHeader(QDataStream &ds) const
     return ds.status() ==  QDataStream::Ok;
 }
 
-bool MicroExif::writeIfds(QDataStream &ds) const
+bool MicroExif::writeIfds(QDataStream &ds, const Version &version) const
 {
     auto tiffTags = m_tiffTags;
     auto exifTags = m_exifTags;
     auto gpsTags = m_gpsTags;
-    updateTags(tiffTags, exifTags, gpsTags);
+    updateTags(tiffTags, exifTags, gpsTags, version);
 
     TagPos positions;
-    if (!writeIfd(ds, tiffTags, positions))
+    if (!writeIfd(ds, version, tiffTags, positions))
         return false;
-    if (!writeIfd(ds, exifTags, positions, positions.value(EXIF_EXIFIFD)))
+    if (!writeIfd(ds, version, exifTags, positions, positions.value(EXIF_EXIFIFD)))
         return false;
-    if (!writeIfd(ds, gpsTags, positions, positions.value(EXIF_GPSIFD), staticGpsTagTypes))
+    if (!writeIfd(ds, version, gpsTags, positions, positions.value(EXIF_GPSIFD), staticGpsTagTypes))
         return false;
     return true;
 }
 
-void MicroExif::updateTags(Tags &tiffTags, Tags &exifTags, Tags &gpsTags) const
+void MicroExif::updateTags(Tags &tiffTags, Tags &exifTags, Tags &gpsTags, const Version &version) const
 {
     if (exifTags.isEmpty()) {
         tiffTags.remove(EXIF_EXIFIFD);
     } else {
         tiffTags.insert(EXIF_EXIFIFD, quint32());
-        exifTags.insert(EXIF_EXIFVERSION, QByteArray("0300"));
+        exifTags.insert(EXIF_EXIFVERSION, version == Version::V3 ? QByteArray("0300") : QByteArray("0232"));
     }
     if (gpsTags.isEmpty()) {
         tiffTags.remove(EXIF_GPSIFD);
