@@ -15,6 +15,16 @@ function(kimageformats_add_plugin plugin)
     target_sources(${plugin} PRIVATE ${KIF_ADD_PLUGIN_SOURCES})
     set_target_properties(${plugin} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/imageformats)
     target_link_libraries(${plugin} PRIVATE Qt6::Gui)
+
+    if(ANDROID)
+        # Plugins should be named with lib prefix on Android
+        # Working name: libplugins_imageformats_kimg_avif_armeabi-v7a.so
+        # Doesn't work: plugins_imageformats_kimg_avif_armeabi-v7a.so
+        if(NOT ${CMAKE_SHARED_LIBRARY_PREFIX} STREQUAL "")
+            set_target_properties(${plugin} PROPERTIES PREFIX ${CMAKE_SHARED_LIBRARY_PREFIX})
+        endif()
+    endif()
+
     install(TARGETS ${plugin} DESTINATION ${KDE_INSTALL_QTPLUGINDIR}/imageformats)
 endfunction()
 
