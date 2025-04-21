@@ -12,6 +12,7 @@
 #include <QCoreApplication>
 #include <QDataStream>
 #include <QHash>
+#include <QStringDecoder>
 #include <QTimeZone>
 
 // TIFF 6 specs
@@ -379,16 +380,14 @@ static ExifTagType updateDataType(const ExifTagType &dataType, const QVariant &v
     // To maximize compatibility, I check if the string can be encoded in ASCII.
     auto txt = value.toString();
 
-    // I try to implement a rudimentary check without going through Qt's string conversion classes:
-    // a UTF-8 string if it uses only characters in the first 127 of the ASCII table is encoded as
-    // a Latin 1. Each character above 128, whether it is an extended ASCII character or a character
-    // of another nature, uses 2 or more bytes. Since the EXIF ​​specifications state that the ASCII
-    // type must use only the first 127 characters, I only need to do the size comparison to understand
-    // which type to use.
-    if (txt.toLatin1().size() == txt.toUtf8().size())
-        return ExifTagType::Ascii;
+    // Exif ASCII data type allow only values up to 127 (7-bit ASCII).
+    auto u8 = txt.toUtf8();
+    for (auto &&c : u8) {
+        if (uchar(c) > 127)
+            return dataType;
+    }
 
-    return dataType;
+    return ExifTagType::Ascii;
 }
 
 /*!
@@ -562,8 +561,16 @@ static bool readIfd(QDataStream &ds, MicroExif::Tags &tags, quint32 pos = 0, con
 
         if (dataType == EXIF_TAG_DATATYPE(ExifTagType::Ascii) || dataType == EXIF_TAG_DATATYPE(ExifTagType::Utf8)) {
             auto l = readBytes(ds, count, true);
-            if (!l.isEmpty())
-                tags.insert(tagId, dataType == EXIF_TAG_DATATYPE(ExifTagType::Utf8) ? QString::fromUtf8(l) : QString::fromLatin1(l));
+            if (!l.isEmpty()) {
+                // It seems that converting to Latin 1 never detects errors so, using UTF-8.
+                // Note that if the dataType is ASCII, by EXIF specification, it must use only the
+                // first 128 values ​​so the UTF-8 conversion is correct.
+                auto dec = QStringDecoder(QStringDecoder::Utf8);
+                // QStringDecoder raise an error only after converting to QString
+                auto ut8 = QString(dec(l));
+                // If there are errors in the conversion to UTF-8, then I try with latin1 (extended ASCII)
+                tags.insert(tagId, dec.hasError() ? QString::fromLatin1(l) : ut8);
+            }
         } else if (dataType == EXIF_TAG_DATATYPE(ExifTagType::Undefined)) {
             auto l = readBytes(ds, count, false);
             if (!l.isEmpty())
