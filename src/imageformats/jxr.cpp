@@ -977,9 +977,9 @@ bool JXRHandler::read(QImage *outImage)
                 return false;
             }
         } else { // additional buffer needed
-            qsizetype convStrideSize = (img.width() * d->pDecoder->WMP.wmiI.cBitsPerUnit + 7) / 8;
-            qsizetype buffSize = convStrideSize * img.height();
-            qsizetype limit = QImageReader::allocationLimit();
+            qint64 convStrideSize = (img.width() * d->pDecoder->WMP.wmiI.cBitsPerUnit + 7) / 8;
+            qint64 buffSize = convStrideSize * img.height();
+            qint64 limit = QImageReader::allocationLimit();
             if (limit && (buffSize + img.sizeInBytes()) > limit * 1024 * 1024) {
                 qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() unable to covert due to allocation limit set:" << limit << "MiB";
                 return false;
@@ -991,7 +991,7 @@ bool JXRHandler::read(QImage *outImage)
                 return false;
             }
             for (qint32 y = 0, h = img.height(); y < h; ++y) {
-                std::memcpy(img.scanLine(y), ba.data() + convStrideSize * y, (std::min)(convStrideSize, img.bytesPerLine()));
+                std::memcpy(img.scanLine(y), ba.data() + convStrideSize * y, (std::min)(convStrideSize, qint64(img.bytesPerLine())));
             }
         }
         PKFormatConverter_Release(&pConverter);
