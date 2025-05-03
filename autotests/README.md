@@ -46,6 +46,7 @@ argument. The format is one of those supported by plugins and a folder with
 the name of the format must be present inside the `read` folder.
 Depending on the format, you can specify the following additional options.
 
+- `--help`: Displays help on commandline options.
 - `--fuzz <max>`: The fuzziness. Used to add some deviation in ARGB data 
 (nornally used on lossy codec).
 - `--perceptive-fuzz`: Used to scale dynamically the fuzziness based on 
@@ -55,6 +56,10 @@ in very different RGB values. Since the alpha is small visually there is no
 difference (so it is not considered an error).
 - `--skip-optional-tests`: Used to skip the optional test such as metadata 
 and resolution tests.
+
+Note that some tests may fail if the correct options are not used. The correct
+options for each test are defined in [CMakeLists.txt](CMakeLists.txt).
+See also [Add a test to CMakeLists.txt](#add-a-test-to-cmakeliststxt).
 
 ### Test image nomenclature
 
@@ -142,10 +147,11 @@ the name of the format must be present inside the `write/format` folder and
 may need a template image in `write/basic`.
 Depending on the format, you can specify the following additional options.
 
+- `--help`: Displays help on commandline options.
 - `--create-format-templates`: Create template images for all formats 
 supported by the QImage in `write/format`. Command to simplify the creation of
 format test images when adding a new plugin or modifying an old one. This 
-command is not intended to be used from the CMakeList file as it must be used
+command is not intended to be used from the CMakeLists file as it must be used
 manually and the generated images must be verified one by one.
 - `--fuzz <max>`: The fuzziness. Used to add some deviation in ARGB data 
 (nornally used on lossy codec).
@@ -153,6 +159,10 @@ manually and the generated images must be verified one by one.
 - `--no-data-check`: Don't check that write data is exactly the same.
 - `--skip-optional-tests`: Skip optional data tests (metadata, resolution,
 etc...).
+
+Note that some tests may fail if the correct options are not used. The correct
+options for each test are defined in [CMakeLists.txt](CMakeLists.txt).
+See also [Add a test to CMakeLists.txt](#add-a-test-to-cmakeliststxt).
 
 ### JSON properties file
 
@@ -186,7 +196,7 @@ The ANI test is generated using Qt Test class. For more information
 see [Qt Test](https://doc.qt.io/qt-6/qttest-index.html).
 
 
-## Add a test to CMakeList.txt
+## Add a test to CMakeLists.txt
 
 To add a test to CMake use the `kimageformats_read_tests` and 
 `kimageformats_write_tests` functions. For example, to add the read 
@@ -230,9 +240,9 @@ List of tests not implemented or only partially implemented.
 
 ### Color Profiles Test
 
-Many plugins support color profiles via QColorSpace. Checking for correct 
-color management is increasingly necessary especially now that monitors are
-HDR and other than RGB color spaces have been added to Qt.
+Many plugins support color profiles via [`QColorSpace`](https://doc.qt.io/qt-6/qcolorspace.html). 
+Checking for correct color management is increasingly necessary especially now
+that monitors are HDR and other than RGB color spaces have been added to Qt.
 
 Furthermore, lossy plugins often have different color management behaviors 
 depending on how the image is saved.
