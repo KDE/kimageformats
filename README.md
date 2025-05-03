@@ -53,8 +53,10 @@ willing to sign the Qt Project contributor agreement, it may be better to
 submit the plugin directly to the Qt Project.
 
 To be accepted, contributions must:
-- Contain the test images needed to verify that the changes work correctly
-- Pass the tests successfully
+- Contain the test images needed to verify that the changes work correctly.
+- Pass the tests successfully.
+
+For more info about tests, see also [Autotests README](autotests/README.md).
 
 ## Duplicated Plugins
 
