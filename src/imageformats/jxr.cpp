@@ -244,6 +244,24 @@ public:
     }
 
     /*!
+     * \brief initForReadingAndRollBack
+     * Initialize the device for reading and rollback the device to start position.
+     * \param device The source device.
+     * \return True on success, otherwise false.
+     */
+    bool initForReadingAndRollBack(QIODevice *device)
+    {
+        if (device) {
+            device->startTransaction();
+        }
+        auto ok = initForReading(device);
+        if (device) {
+            device->rollbackTransaction();
+        }
+        return ok;
+    }
+
+    /*!
      * \brief jxrFormat
      * \return The JXR format.
      */
@@ -1153,7 +1171,7 @@ QVariant JXRHandler::option(ImageOption option) const
     QVariant v;
 
     if (option == QImageIOHandler::Size) {
-        if (d->initForReading(device())) {
+        if (d->initForReadingAndRollBack(device())) {
             auto size = d->imageSize();
             if (size.isValid()) {
                 v = QVariant::fromValue(size);
@@ -1162,7 +1180,7 @@ QVariant JXRHandler::option(ImageOption option) const
     }
 
     if (option == QImageIOHandler::ImageFormat) {
-        if (d->initForReading(device())) {
+        if (d->initForReadingAndRollBack(device())) {
             v = QVariant::fromValue(d->imageFormat());
         }
     }
@@ -1173,7 +1191,7 @@ QVariant JXRHandler::option(ImageOption option) const
 
     if (option == QImageIOHandler::ImageTransformation) {
         // ignore result: I might want to read the value set in writing
-        d->initForReading(device());
+        d->initForReadingAndRollBack(device());
         v = int(d->transformation());
     }
 
