@@ -109,6 +109,28 @@ if (BUILD_TESTING)
     add_subdirectory(tests)
 endif()
 
+set(CMAKECONFIG_INSTALL_DIR "${KDE_INSTALL_CMAKEPACKAGEDIR}/KF6ImageFormats")
+include(CMakePackageConfigHelpers)
+
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/KF6ImageFormatsConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/KF6ImageFormatsConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/KF6ImageFormatsConfig.cmake"
+    INSTALL_DESTINATION "${CMAKECONFIG_INSTALL_DIR}"
+)
+
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/KF6ImageFormatsConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/KF6ImageFormatsConfigVersion.cmake"
+  DESTINATION "${CMAKECONFIG_INSTALL_DIR}"
+  COMPONENT Devel
+)
+
 include(ECMFeatureSummary)
 ecm_feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)
 
