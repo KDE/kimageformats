@@ -230,9 +230,7 @@ kimageformats_write_tests(FUZZ 1
 
 Plugins are also tested with [OSS-Fuzz](https://google.github.io/oss-fuzz/)
 project to identify possible security issues. When adding a new plugin it is 
-also necessary to add it to the test in the [kimageformats 
-project](https://github.com/google/oss-fuzz/tree/master/projects/kimageformats) 
-on OSS-Fuzz.
+also necessary to add it to the test in the [ossfuzz](ossfuzz) directory.
 
 ## TODO
 
