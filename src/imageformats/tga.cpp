@@ -99,7 +99,11 @@ static bool IsSupported(const TgaHeader &head)
         return false;
     }
     if (head.image_type == TGA_TYPE_INDEXED || head.image_type == TGA_TYPE_RLE_INDEXED) {
-        if (head.colormap_length > 256 || head.colormap_size != 24 || head.colormap_type != 1) {
+        if (head.colormap_length > 256 || head.colormap_type != 1) {
+            return false;
+        }
+        // colormap_size == 16 would be ARRRRRGG GGGBBBBB but we don't support that.
+        if (head.colormap_size != 24 && head.colormap_size != 32) {
             return false;
         }
     }
@@ -189,6 +193,8 @@ static QImage::Format imageFormat(const TgaHeader &head)
             if (numAlphaBits == 8) {
                 format = QImage::Format_ARGB32;
             }
+        } else if (head.image_type == TGA_TYPE_INDEXED || head.image_type == TGA_TYPE_RLE_INDEXED) {
+            format = QImage::Format_Indexed8;
         } else {
             format = QImage::Format_RGB32;
         }
@@ -232,21 +238,40 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
     }
 
     // Read palette.
-    static const int max_palette_size = 768;
-    char palette[max_palette_size];
     if (info.pal) {
-        // @todo Support palettes in other formats!
-        const int palette_size = 3 * tga.colormap_length;
-        if (palette_size > max_palette_size) {
+        QList<QRgb> colorTable;
+#if QT_VERSION < QT_VERSION_CHECK(6, 8, 0)
+        colorTable.resize(tga.colormap_length);
+#else
+        colorTable.resizeForOverwrite(tga.colormap_length);
+#endif
+
+        if (tga.colormap_size == 32) { // BGRA.
+            char data[4];
+            for (QRgb &rgb : colorTable) {
+                const auto dataRead = s.readRawData(data, 4);
+                if (dataRead < 4) {
+                    return false;
+                }
+                // BGRA.
+                rgb = qRgba(data[2], data[1], data[0], data[3]);
+            }
+        } else if (tga.colormap_size == 24) { // BGR.
+            char data[3];
+            for (QRgb &rgb : colorTable) {
+                const auto dataRead = s.readRawData(data, 3);
+                if (dataRead < 3) {
+                    return false;
+                }
+                // BGR.
+                rgb = qRgb(data[2], data[1], data[0]);
+            }
+            // TODO tga.colormap_size == 16 ARRRRRGG GGGBBBBB
+        } else {
             return false;
         }
-        const int dataRead = s.readRawData(palette, palette_size);
-        if (dataRead < 0) {
-            return false;
-        }
-        if (dataRead < max_palette_size) {
-            memset(&palette[dataRead], 0, max_palette_size - dataRead);
-        }
+
+        img.setColorTable(colorTable);
     }
 
     // Allocate image.
@@ -355,14 +380,19 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
     uchar *src = image;
 
     for (int y = y_start; y != y_end; y += y_step) {
-        auto scanline = reinterpret_cast<QRgb *>(img.scanLine(y));
         if (info.pal) {
             // Paletted.
+            auto scanline = img.scanLine(y);
             for (int x = 0; x < tga.width; x++) {
                 uchar idx = *src++;
-                scanline[x] = qRgb(palette[3 * idx + 2], palette[3 * idx + 1], palette[3 * idx + 0]);
+                if (Q_UNLIKELY(idx >= tga.colormap_length)) {
+                    valid = false;
+                    break;
+                }
+                scanline[x] = idx;
             }
         } else if (info.grey) {
+            auto scanline = reinterpret_cast<QRgb *>(img.scanLine(y));
             // Greyscale.
             for (int x = 0; x < tga.width; x++) {
                 if (tga.pixel_size == 16) {
@@ -375,6 +405,7 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
                 }
             }
         } else {
+            auto scanline = reinterpret_cast<QRgb *>(img.scanLine(y));
             // True Color.
             if (tga.pixel_size == 16) {
                 for (int x = 0; x < tga.width; x++) {
@@ -401,7 +432,7 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
     // Free image.
     free(image);
 
-    return true;
+    return valid;
 }
 
 } // namespace
