@@ -17,6 +17,7 @@ The following image formats have read-only support:
 - Animated Windows cursors (ani)
 - Camera RAW images (arw, cr2, cr3, dcs, dng, ...)
 - Gimp (xcf)
+- Interchange Format Files (IFF)
 - Krita (kra)
 - OpenRaster (ora)
 - Pixar raster (pxr)
@@ -222,6 +223,7 @@ plugin ('n/a' means no limit, i.e. the limit depends on the format encoding).
 - EPS: n/a
 - HDR: n/a (large image)
 - HEIF: n/a
+- IFF: 65,535 x 65,535 pixels
 - JP2: 300,000 x 300,000 pixels, in any case no larger than 2 gigapixels
 - JXL: 262,144 x 262,144 pixels, in any case no larger than 256 megapixels
 - JXR: n/a, in any case no larger than 4 GB

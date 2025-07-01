@@ -84,6 +84,10 @@ endif()
 
 ##################################
 
+kimageformats_add_plugin(kimg_iff SOURCES iff.cpp chunks.cpp)
+
+##################################
+
 if (LibJXL_FOUND AND LibJXLThreads_FOUND AND LibJXLCMS_FOUND)
     kimageformats_add_plugin(kimg_jxl SOURCES jxl.cpp microexif.cpp)
     target_link_libraries(kimg_jxl PRIVATE PkgConfig::LibJXL PkgConfig::LibJXLThreads PkgConfig::LibJXLCMS)
