@@ -99,7 +99,8 @@ static bool IsSupported(const TgaHeader &head)
         return false;
     }
     if (head.image_type == TGA_TYPE_INDEXED || head.image_type == TGA_TYPE_RLE_INDEXED) {
-        if (head.colormap_length > 256 || head.colormap_type != 1) {
+        // GIMP saves TGAs with palette size of 257 (but 256 used) so, I need to check the pixel size only.
+        if (head.pixel_size > 8 || head.colormap_type != 1) {
             return false;
         }
         // colormap_size == 16 would be ARRRRRGG GGGBBBBB but we don't support that.
@@ -501,6 +502,59 @@ bool TGAHandler::read(QImage *outImage)
 
 bool TGAHandler::write(const QImage &image)
 {
+    if (image.format() == QImage::Format_Indexed8)
+        return writeIndexed(image);
+    return writeRGBA(image);
+}
+
+bool TGAHandler::writeIndexed(const QImage &image)
+{
+    QDataStream s(device());
+    s.setByteOrder(QDataStream::LittleEndian);
+
+    QImage img(image);
+    auto ct = img.colorTable();
+
+    s << quint8(0); // ID Length
+    s << quint8(1); // Color Map Type
+    s << quint8(TGA_TYPE_INDEXED); // Image Type
+    s << quint16(0); // First Entry Index
+    s << quint16(ct.size()); // Color Map Length
+    s << quint8(32); // Color map Entry Size
+    s << quint16(0); // X-origin of Image
+    s << quint16(0); // Y-origin of Image
+
+    s << quint16(img.width()); // Image Width
+    s << quint16(img.height()); // Image Height
+    s << quint8(8); // Pixe Depth
+    s << quint8(TGA_ORIGIN_UPPER + TGA_ORIGIN_LEFT); // Image Descriptor
+
+    for (auto &&rgb : ct) {
+        s << quint8(qBlue(rgb));
+        s << quint8(qGreen(rgb));
+        s << quint8(qRed(rgb));
+        s << quint8(qAlpha(rgb));
+    }
+
+    if (s.status() != QDataStream::Ok) {
+        return false;
+    }
+
+    for (int y = 0; y < img.height(); y++) {
+        auto ptr = img.constScanLine(y);
+        for (int x = 0; x < img.width(); x++) {
+            s << *(ptr + x);
+        }
+        if (s.status() != QDataStream::Ok) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool TGAHandler::writeRGBA(const QImage &image)
+{
     QDataStream s(device());
     s.setByteOrder(QDataStream::LittleEndian);
 
@@ -535,6 +589,10 @@ bool TGAHandler::write(const QImage &image)
     s << quint8(hasAlpha ? 32 : 24); // depth (24 bit RGB + 8 bit alpha)
     s << quint8(hasAlpha ? originTopLeft + alphaChannel8Bits : originTopLeft);   // top left image (0x20) + 8 bit alpha (0x8)
 
+    if (s.status() != QDataStream::Ok) {
+        return false;
+    }
+
     for (int y = 0; y < img.height(); y++) {
         auto ptr = reinterpret_cast<const QRgb *>(img.constScanLine(y));
         for (int x = 0; x < img.width(); x++) {
@@ -545,6 +603,9 @@ bool TGAHandler::write(const QImage &image)
             if (hasAlpha) {
                 s << quint8(qAlpha(color));
             }
+        }
+        if (s.status() != QDataStream::Ok) {
+            return false;
         }
     }
 
