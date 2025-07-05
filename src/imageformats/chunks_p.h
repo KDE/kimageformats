@@ -256,6 +256,14 @@ protected:
      */
     void setChunks(const ChunkList &chunks);
 
+    /*!
+     * \brief recursionCounter
+     * Protection against stack overflow due to broken data.
+     * \return The current recursion counter.
+     */
+    qint32 recursionCounter() const;
+    void setRecursionCounter(qint32 cnt);
+
     inline quint16 ui16(quint8 c1, quint8 c2) const {
         return (quint16(c2) << 8) | quint16(c1);
     }
@@ -272,7 +280,7 @@ protected:
         return qint32(ui32(c1, c2, c3, c4));
     }
 
-    static ChunkList innerFromDevice(QIODevice *d, bool *ok, qint32 alignBytes);
+    static ChunkList innerFromDevice(QIODevice *d, bool *ok, qint32 alignBytes, qint32 recursionCnt);
 
 private:
     char _chunkId[4];
@@ -286,6 +294,8 @@ private:
     QByteArray _data;
 
     ChunkList _chunks;
+
+    qint32 _recursionCnt;
 
 
 };
