@@ -10,6 +10,8 @@
 
 #include <QDebug>
 
+#define RECURSION_PROTECTION 10
+
 IFFChunk::~IFFChunk()
 {
 
@@ -20,6 +22,7 @@ IFFChunk::IFFChunk()
     , _size{0}
     , _align{2}
     , _dataPos{0}
+    , _recursionCnt{0}
 {
 }
 
@@ -49,12 +52,16 @@ qint32 IFFChunk::alignBytes() const
 bool IFFChunk::readStructure(QIODevice *d)
 {
     auto ok = readInfo(d);
-    ok = ok && innerReadStructure(d);
+    if (recursionCounter() > RECURSION_PROTECTION - 1) {
+        ok = ok && IFFChunk::innerReadStructure(d); // force default implementation (no more recursion)
+    } else {
+        ok = ok && innerReadStructure(d);
+    }
     if (ok) {
         auto pos = _dataPos + _size;
         if (auto align = pos % alignBytes())
             pos += alignBytes() - align;
-        ok = d->seek(pos);
+        ok = pos < d->pos() ? false : d->seek(pos);
     }
     return ok;
 }
@@ -169,7 +176,17 @@ void IFFChunk::setChunks(const ChunkList &chunks)
     _chunks = chunks;
 }
 
-IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, qint32 alignBytes)
+qint32 IFFChunk::recursionCounter() const
+{
+    return _recursionCnt;
+}
+
+void IFFChunk::setRecursionCounter(qint32 cnt)
+{
+    _recursionCnt = cnt;
+}
+
+IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, qint32 alignBytes, qint32 recursionCnt)
 {
     auto tmp = false;
     if (ok == nullptr) {
@@ -178,6 +195,10 @@ IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, qint32 ali
     *ok = false;
 
     if (d == nullptr) {
+        return {};
+    }
+
+    if (recursionCnt > RECURSION_PROTECTION) {
         return {};
     }
 
@@ -229,6 +250,7 @@ IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, qint32 ali
             chunk->setAlignBytes(alignBytes);
         }
 
+        chunk->setRecursionCounter(recursionCnt + 1);
         if (!chunk->readStructure(d)) {
             *ok = false;
             return {};
@@ -243,7 +265,7 @@ IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, qint32 ali
 
 IFFChunk::ChunkList IFFChunk::fromDevice(QIODevice *d, bool *ok)
 {
-    return innerFromDevice(d, ok, 2);
+    return innerFromDevice(d, ok, 2, 0);
 }
 
 
@@ -754,7 +776,7 @@ bool FORMChunk::innerReadStructure(QIODevice *d)
     _type = d->read(4);
     auto ok = true;
     if (_type == QByteArray("ILBM")) {
-        setChunks(IFFChunk::innerFromDevice(d, &ok, alignBytes()));
+        setChunks(IFFChunk::innerFromDevice(d, &ok, alignBytes(), recursionCounter()));
     }
     return ok;
 }
@@ -857,9 +879,9 @@ bool FOR4Chunk::innerReadStructure(QIODevice *d)
     _type = d->read(4);
     auto ok = true;
     if (_type == QByteArray("CIMG")) {
-        setChunks(IFFChunk::innerFromDevice(d, &ok, alignBytes()));
+        setChunks(IFFChunk::innerFromDevice(d, &ok, alignBytes(), recursionCounter()));
     } else if (_type == QByteArray("TBMP")) {
-        setChunks(IFFChunk::innerFromDevice(d, &ok, alignBytes()));
+        setChunks(IFFChunk::innerFromDevice(d, &ok, alignBytes(), recursionCounter()));
     }
     return ok;
 }
