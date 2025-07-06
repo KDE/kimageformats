@@ -1,4 +1,4 @@
 {
-    "Keys": [ "iff" ],
-    "MimeTypes": [ "application/x-iff" ]
+    "Keys": [ "iff", "ilbm" ],
+    "MimeTypes": [ "application/x-iff", "application/x-ilbm" ]
 }

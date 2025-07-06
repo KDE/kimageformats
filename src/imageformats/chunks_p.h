@@ -451,6 +451,7 @@ protected:
     virtual bool innerReadStructure(QIODevice *d) override;
 };
 
+class FORMChunk;
 
 /*!
  * \brief The BODYChunk class
@@ -476,7 +477,7 @@ public:
      * \return The scanline as requested for QImage.
      * \warning Call resetStrideRead() once before this one.
      */
-    QByteArray strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr) const;
+    QByteArray strideRead(QIODevice *d, const FORMChunk *form, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr) const;
 
     /*!
      * \brief resetStrideRead
@@ -500,9 +501,13 @@ private:
  */
 class FORMChunk : public IFFChunk
 {
-    QByteArray _type;
-
 public:
+    enum class FormType {
+        Unknown,
+        Ilbm,
+        Pbm,
+    };
+
     virtual ~FORMChunk() override;
     FORMChunk();
     FORMChunk(const FORMChunk& other) = default;
@@ -512,7 +517,7 @@ public:
 
     bool isSupported() const;
 
-    QByteArray formType() const;
+    FormType formType() const;
 
     QImage::Format format() const;
 
@@ -522,8 +527,10 @@ public:
 
 protected:
     virtual bool innerReadStructure(QIODevice *d) override;
-};
 
+private:
+    FormType _type = FormType::Unknown;
+};
 
 /*!
  * \brief The FOR4Chunk class

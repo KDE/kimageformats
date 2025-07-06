@@ -74,7 +74,7 @@ IFFHandler::IFFHandler()
 bool IFFHandler::canRead() const
 {
     if (canRead(device())) {
-        setFormat("iff");
+        setFormat("iff"); // TODO ilbm based on header?
         return true;
     }
     return false;
@@ -192,7 +192,7 @@ bool IFFHandler::readStandardImage(QImage *image)
         }
         for (auto y = 0, h = img.height(); y < h; ++y) {
             auto line = reinterpret_cast<char*>(img.scanLine(y));
-            auto ba = body->strideRead(device(), header, camg, cmap);
+            auto ba = body->strideRead(device(), form, header, camg, cmap);
             if (ba.isEmpty()) {
                 qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readStandardImage() error while reading image scanline";
                 return false;
@@ -334,7 +334,7 @@ QVariant IFFHandler::option(ImageOption option) const
 
 QImageIOPlugin::Capabilities IFFPlugin::capabilities(QIODevice *device, const QByteArray &format) const
 {
-    if (format == "iff") {
+    if (format == "iff" || format == "ilbm") {
         return Capabilities(CanRead);
     }
     if (!format.isEmpty()) {

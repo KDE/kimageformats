@@ -547,9 +547,9 @@ bool BODYChunk::isValid() const
     return chunkId() == BODYChunk::defaultChunkId();
 }
 
-QByteArray BODYChunk::strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap) const
+QByteArray BODYChunk::strideRead(QIODevice *d, const FORMChunk *form, const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap) const
 {
-    if (!isValid() || header == nullptr) {
+    if (!isValid() || form == nullptr || header == nullptr) {
         return {};
     }
 
@@ -571,7 +571,11 @@ QByteArray BODYChunk::strideRead(QIODevice *d, const BMHDChunk *header, const CA
 
     auto planes = _readBuffer.left(readSize);
     _readBuffer.remove(0, readSize);
-    return BODYChunk::deinterleave(planes, header, camg, cmap);
+    if (form->formType() == FORMChunk::FormType::Pbm) {
+        return planes;
+    } else {
+        return BODYChunk::deinterleave(planes, header, camg, cmap);
+    }
 }
 
 bool BODYChunk::resetStrideRead(QIODevice *d) const
@@ -773,15 +777,21 @@ bool FORMChunk::innerReadStructure(QIODevice *d)
     if (bytes() < 4) {
         return false;
     }
-    _type = d->read(4);
-    auto ok = true;
-    if (_type == QByteArray("ILBM")) {
+    const auto type = d->read(4);
+    auto ok = false;
+    if (type == QByteArrayLiteral("ILBM")) {
+        _type = FormType::Ilbm;
+    } else if (type == QByteArrayLiteral("PBM ")) {
+        _type = FormType::Pbm;
+    }
+
+    if (_type != FormType::Unknown) {
         setChunks(IFFChunk::innerFromDevice(d, &ok, alignBytes(), recursionCounter()));
     }
     return ok;
 }
 
-QByteArray FORMChunk::formType() const
+FORMChunk::FormType FORMChunk::formType() const
 {
     return _type;
 }
