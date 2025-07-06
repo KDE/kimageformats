@@ -119,10 +119,11 @@ static bool IsSupported(const TgaHeader &head)
     if (head.pixel_size != 8 && head.pixel_size != 16 && head.pixel_size != 24 && head.pixel_size != 32) {
         return false;
     }
-    // If the colormap_type field is set to zero, indicating that no color map exists, then colormap_size, colormap_index and colormap_length should be set to zero.
-    if (head.colormap_type == 0 && (head.colormap_size != 0 || head.colormap_index != 0 || head.colormap_length != 0)) {
+    // If the colormap_type field is set to zero, indicating that no color map exists, then colormap_index and colormap_length should be set to zero.
+    if (head.colormap_type == 0 && (head.colormap_index != 0 || head.colormap_length != 0)) {
         return false;
     }
+
     return true;
 }
 
