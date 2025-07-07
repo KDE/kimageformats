@@ -1072,7 +1072,7 @@ QByteArray MicroExif::toByteArray(const QDataStream::ByteOrder &byteOrder, const
     QByteArray ba;
     {
         QBuffer buf(&ba);
-        if (!write(&buf, byteOrder))
+        if (!write(&buf, byteOrder, version))
             return {};
     }
     return ba;
