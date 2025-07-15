@@ -107,11 +107,12 @@ bool IFFHandler::canRead(QIODevice *device)
 
 void addMetadata(QImage& img, const IFFChunk *form)
 {
-    auto dates = IFFChunk::searchT<DATEChunk>(form);
-    if (!dates.isEmpty()) {
-        auto dt = dates.first()->value();
-        if (dt.isValid()) {
-            img.setText(QStringLiteral(META_KEY_CREATIONDATE), dt.toString(Qt::ISODate));
+    // standard IFF metadata
+    auto annos = IFFChunk::searchT<ANNOChunk>(form);
+    if (!annos.isEmpty()) {
+        auto anno = annos.first()->value();
+        if (!anno.isEmpty()) {
+            img.setText(QStringLiteral(META_KEY_DESCRIPTION), anno);
         }
     }
     auto auths = IFFChunk::searchT<AUTHChunk>(form);
@@ -121,11 +122,68 @@ void addMetadata(QImage& img, const IFFChunk *form)
             img.setText(QStringLiteral(META_KEY_AUTHOR), auth);
         }
     }
+    auto dates = IFFChunk::searchT<DATEChunk>(form);
+    if (!dates.isEmpty()) {
+        auto dt = dates.first()->value();
+        if (dt.isValid()) {
+            img.setText(QStringLiteral(META_KEY_CREATIONDATE), dt.toString(Qt::ISODate));
+        }
+    }
+    auto copys = IFFChunk::searchT<COPYChunk>(form);
+    if (!copys.isEmpty()) {
+        auto cp = copys.first()->value();
+        if (!cp.isEmpty()) {
+            img.setText(QStringLiteral(META_KEY_COPYRIGHT), cp);
+        }
+    }
+    auto names = IFFChunk::searchT<NAMEChunk>(form);
+    if (!names.isEmpty()) {
+        auto name = names.first()->value();
+        if (!name.isEmpty()) {
+            img.setText(QStringLiteral(META_KEY_TITLE), name);
+        }
+    }
+
+    // software info
     auto vers = IFFChunk::searchT<VERSChunk>(form);
     if (!vers.isEmpty()) {
         auto ver = vers.first()->value();
         if (!vers.isEmpty()) {
             img.setText(QStringLiteral(META_KEY_SOFTWARE), ver);
+        }
+    }
+
+    // SView5 metadata
+    auto exifs = IFFChunk::searchT<EXIFChunk>(form);
+    if (!exifs.isEmpty()) {
+        auto exif = exifs.first()->value();
+        exif.updateImageMetadata(img, false);
+        exif.updateImageResolution(img);
+    }
+
+    auto xmp0s = IFFChunk::searchT<XMP0Chunk>(form);
+    if (!xmp0s.isEmpty()) {
+        auto xmp = xmp0s.first()->value();
+        if (!xmp.isEmpty()) {
+            img.setText(QStringLiteral(META_KEY_XMP_ADOBE), xmp);
+        }
+    }
+
+    auto iccps = IFFChunk::searchT<ICCPChunk>(form);
+    if (!iccps.isEmpty()) {
+        auto cs = iccps.first()->value();
+        if (cs.isValid()) {
+            img.setColorSpace(cs);
+        }
+    }
+
+    // resolution -> leave after set of EXIF chunk
+    auto dpis = IFFChunk::searchT<DPIChunk>(form);
+    if (!dpis.isEmpty()) {
+        auto &&dpi = dpis.first();
+        if (dpi->isValid()) {
+            img.setDotsPerMeterX(dpi->dotsPerMeterX());
+            img.setDotsPerMeterY(dpi->dotsPerMeterY());
         }
     }
 }
@@ -151,16 +209,6 @@ bool IFFHandler::readStandardImage(QImage *image)
     if (img.isNull()) {
         qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readStandardImage() error while allocating the image";
         return false;
-    }
-
-    // resolution
-    auto dpis = IFFChunk::searchT<DPIChunk>(form);
-    if (!dpis.isEmpty()) {
-        auto &&dpi = dpis.first();
-        if (dpi->isValid()) {
-            img.setDotsPerMeterX(dpi->dotsPerMeterX());
-            img.setDotsPerMeterY(dpi->dotsPerMeterY());
-        }
     }
 
     // set color table
@@ -190,9 +238,10 @@ bool IFFHandler::readStandardImage(QImage *image)
             qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readStandardImage() error while reading image data";
             return false;
         }
+        auto isPbm = form->formType() == PBM__FORM_TYPE;
         for (auto y = 0, h = img.height(); y < h; ++y) {
             auto line = reinterpret_cast<char*>(img.scanLine(y));
-            auto ba = body->strideRead(device(), header, camg, cmap);
+            auto ba = body->strideRead(device(), header, camg, cmap, isPbm);
             if (ba.isEmpty()) {
                 qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readStandardImage() error while reading image scanline";
                 return false;
@@ -201,6 +250,7 @@ bool IFFHandler::readStandardImage(QImage *image)
         }
     }
 
+    // set metadata (including image resolution)
     addMetadata(img, form);
 
     *image = img;

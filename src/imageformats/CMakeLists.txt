@@ -84,7 +84,7 @@ endif()
 
 ##################################
 
-kimageformats_add_plugin(kimg_iff SOURCES iff.cpp chunks.cpp)
+kimageformats_add_plugin(kimg_iff SOURCES iff.cpp chunks.cpp microexif.cpp)
 
 ##################################
 

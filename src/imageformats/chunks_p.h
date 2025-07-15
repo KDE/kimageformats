@@ -9,6 +9,7 @@
  * Format specifications:
  * - https://wiki.amigaos.net/wiki/IFF_FORM_and_Chunk_Registry
  * - https://www.fileformat.info/format/iff/egff.htm
+ * - https://download.autodesk.com/us/maya/2010help/index.html (Developer resources -> File formats -> Maya IFF)
  */
 
 #ifndef KIMG_CHUNKS_P_H
@@ -22,6 +23,8 @@
 #include <QSize>
 #include <QSharedPointer>
 
+#include "microexif_p.h"
+
 // Main chunks (Standard)
 #define CAT__CHUNK QByteArray("CAT ")
 #define FILL_CHUNK QByteArray("    ")
@@ -30,7 +33,15 @@
 #define PROP_CHUNK QByteArray("PROP")
 
 // Main chuncks (Maya)
+#define CAT4_CHUNK QByteArray("CAT4") // 4 byte alignment
 #define FOR4_CHUNK QByteArray("FOR4")
+#define LIS4_CHUNK QByteArray("LIS4")
+#define PRO4_CHUNK QByteArray("PRO4")
+
+#define CAT8_CHUNK QByteArray("CAT8") // 8 byte alignment (never seen)
+#define FOR8_CHUNK QByteArray("FOR8")
+#define LIS8_CHUNK QByteArray("LIS8")
+#define PRO8_CHUNK QByteArray("PRO8")
 
 // FORM ILBM IFF
 #define BMHD_CHUNK QByteArray("BMHD")
@@ -38,6 +49,8 @@
 #define CAMG_CHUNK QByteArray("CAMG")
 #define CMAP_CHUNK QByteArray("CMAP")
 #define DPI__CHUNK QByteArray("DPI ")
+
+#define CTBL_CHUNK QByteArray("CTBL") // undocumented
 #define SHAM_CHUNK QByteArray("SHAM") // undocumented
 
 // FOR4 CIMG IFF (Maya)
@@ -45,11 +58,22 @@
 #define TBHD_CHUNK QByteArray("TBHD")
 
 // FORx IFF (found on some IFF format specs)
+#define ANNO_CHUNK QByteArray("ANNO")
 #define AUTH_CHUNK QByteArray("AUTH")
+#define COPY_CHUNK QByteArray("(c) ")
 #define DATE_CHUNK QByteArray("DATE")
+#define EXIF_CHUNK QByteArray("EXIF") // https://aminet.net/package/docs/misc/IFF-metadata
+#define ICCP_CHUNK QByteArray("ICCP") // https://aminet.net/package/docs/misc/IFF-metadata
 #define FVER_CHUNK QByteArray("FVER")
 #define HIST_CHUNK QByteArray("HIST")
+#define NAME_CHUNK QByteArray("NAME")
 #define VERS_CHUNK QByteArray("VERS")
+#define XMP0_CHUNK QByteArray("XMP0") // https://aminet.net/package/docs/misc/IFF-metadata
+
+#define ILBM_FORM_TYPE QByteArray("ILBM")
+#define PBM__FORM_TYPE QByteArray("PBM ")
+#define CIMG_FOR4_TYPE QByteArray("CIMG")
+#define TBMP_FOR4_TYPE QByteArray("TBMP")
 
 #define CHUNKID_DEFINE(a) static QByteArray defaultChunkId() { return a; }
 
@@ -195,15 +219,18 @@ public:
     template <class T>
     static QList<const T*> searchT(const IFFChunk *chunk) {
         QList<const T*> list;
-        if (chunk == nullptr)
+        if (chunk == nullptr) {
             return list;
+        }
         auto cid = T::defaultChunkId();
-        if (chunk->chunkId() == cid)
+        if (chunk->chunkId() == cid) {
             if (auto c = dynamic_cast<const T*>(chunk))
                 list << c;
+        }
         auto tmp = chunk->chunks();
-        for (auto &&c : tmp)
+        for (auto &&c : tmp) {
             list << searchT<T>(c.data());
+        }
         return list;
     }
 
@@ -216,8 +243,9 @@ public:
     template <class T>
     static QList<const T*> searchT(const ChunkList& chunks) {
         QList<const T*> list;
-        for (auto &&chunk : chunks)
+        for (auto &&chunk : chunks) {
             list << searchT<T>(chunk.data());
+        }
         return list;
     }
 
@@ -236,11 +264,14 @@ protected:
      * \brief setAlignBytes
      * \param bytes
      */
-    void setAlignBytes(qint32 bytes)
-    {
-        _align = bytes;
-    }
+    void setAlignBytes(qint32 bytes);
 
+    /*!
+     * \brief nextChunkPos
+     * Calculates the position of the next chunk. The position is already aligned.
+     * \return The position of the next chunk from the beginning of the stream.
+     */
+    qint64 nextChunkPos() const;
 
     /*!
      * \brief cacheData
@@ -280,7 +311,7 @@ protected:
         return qint32(ui32(c1, c2, c3, c4));
     }
 
-    static ChunkList innerFromDevice(QIODevice *d, bool *ok, qint32 alignBytes, qint32 recursionCnt);
+    static ChunkList innerFromDevice(QIODevice *d, bool *ok, IFFChunk *parent = nullptr);
 
 private:
     char _chunkId[4];
@@ -296,20 +327,31 @@ private:
     ChunkList _chunks;
 
     qint32 _recursionCnt;
-
-
 };
 
 /*!
- * \brief The IffBMHD class
+ * \brief The BMHDChunk class
  * Bitmap Header
  */
 class BMHDChunk: public IFFChunk
 {
 public:
     enum Compression {
-        Uncompressed = 0,
-        Rle = 1
+        Uncompressed = 0, /**< Image data are uncompressed. */
+        Rle = 1 /**< Image data are RLE compressed. */
+    };
+    enum Masking {
+        None = 0, /**< Designates an opaque rectangular image. */
+        HasMask = 1, /**< A mask plane is interleaved with the bitplanes in the BODY chunk. */
+        HasTransparentColor = 2, /**< Pixels in the source planes matching transparentColor
+                                      are to be considered “transparent”. (Actually, transparentColor
+                                      isn’t a “color number” since it’s matched with numbers formed
+                                      by the source bitmap rather than the possibly deeper destination
+                                      bitmap. Note that having a transparent color implies ignoring
+                                      one of the color registers. */
+        Lasso = 3 /**< The reader may construct a mask by lassoing the image as in MacPaint.
+                       To do this, put a 1 pixel border of transparentColor around the image rectangle.
+                        Then do a seed fill from this border. Filled pixels are to be transparent. */
     };
 
     virtual ~BMHDChunk() override;
@@ -320,34 +362,88 @@ public:
 
     virtual bool isValid() const override;
 
+    /*!
+     * \brief width
+     * \return Width of the bitmap in pixels.
+     */
     qint32 width() const;
 
+    /*!
+     * \brief height
+     * \return Height of the bitmap in pixels.
+     */
     qint32 height() const;
 
+    /*!
+     * \brief size
+     * \return Size in pixels.
+     */
     QSize size() const;
 
+    /*!
+     * \brief left
+     * \return The left position of the image.
+     */
     qint32 left() const;
 
+    /*!
+     * \brief top
+     * \return The top position of the image.
+     */
     qint32 top() const;
 
+    /*!
+     * \brief bitplanes
+     * \return The number of bit planes.
+     */
     quint8 bitplanes() const;
 
-    quint8 masking() const;
+    /*!
+     * \brief masking
+     * \return Kind of masking is to be used for this image.
+     */
+    Masking masking() const;
 
+    /*!
+     * \brief compression
+     * \return The type of compression used.
+     */
     Compression compression() const;
 
-    quint8 padding() const;
-
+    /*!
+     * \brief transparency
+     * \return Transparent "color number".
+     */
     qint16 transparency() const;
 
+    /*!
+     * \brief xAspectRatio
+     * \return X pixel aspect.
+     */
     quint8 xAspectRatio() const;
 
+    /*!
+     * \brief yAspectRatio
+     * \return Y pixel aspect.
+     */
     quint8 yAspectRatio() const;
 
+    /*!
+     * \brief pageWidth
+     * \return Source "page" width in pixels.
+     */
     quint16 pageWidth() const;
 
+    /*!
+     * \brief pageHeight
+     * \return Source "page" height in pixels.
+     */
     quint16 pageHeight() const;
 
+    /*!
+     * \brief rowLen
+     * \return The row len of a plane.
+     */
     quint32 rowLen() const;
 
     CHUNKID_DEFINE(BMHD_CHUNK)
@@ -473,10 +569,11 @@ public:
      * \param header The bitmap header.
      * \param camg The CAMG chunk (optional)
      * \param cmap The CMAP chunk (optional)
+     * \param isPbm Set to true if the formType() == "PBM "
      * \return The scanline as requested for QImage.
      * \warning Call resetStrideRead() once before this one.
      */
-    QByteArray strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr) const;
+    QByteArray strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr, bool isPbm = false) const;
 
     /*!
      * \brief resetStrideRead
@@ -490,7 +587,14 @@ public:
     bool resetStrideRead(QIODevice *d) const;
 
 private:
-    static QByteArray deinterleave(const QByteArray &planes, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr);
+    /*!
+     * \brief strideSize
+     * \param isPbm Set true if the image is PBM.
+     * \return The size of data to have to decode an image row.
+     */
+    quint32 strideSize(const BMHDChunk *header, bool isPbm) const;
+
+    QByteArray deinterleave(const QByteArray &planes, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr, bool isPbm = false) const;
 
     mutable QByteArray _readBuffer;
 };
@@ -563,12 +667,11 @@ class TBHDChunk : public IFFChunk
 {
 public:
     enum Flag {
-        Rgb = 0x01,
-        Alpha = 0x02,
-        ZBuffer = 0x04,
-        Black = 0x10,
+        Rgb = 0x01, /**< RGB image */
+        Alpha = 0x02, /**< Image contains alpha channel */
+        ZBuffer = 0x04, /**< If the image has a z-buffer, it is described by ZBUF blocks with the same structure as the RGBA blocks, RLE encoded. */
 
-        RgbA = Rgb | Alpha
+        RgbA = Rgb | Alpha /**< RGBA image */
     };
     Q_DECLARE_FLAGS(Flags, Flag)
 
@@ -715,13 +818,33 @@ private:
     QByteArray readStride(QIODevice *d, const TBHDChunk *header) const;
 
 private:
-    QPoint _pos;
+    QPoint _posPx;
 
-    QSize _size;
+    QSize _sizePx;
 
     mutable QByteArray _readBuffer;
 };
 
+/*!
+ * \brief The ANNOChunk class
+ */
+class ANNOChunk : public IFFChunk
+{
+public:
+    virtual ~ANNOChunk() override;
+    ANNOChunk();
+    ANNOChunk(const ANNOChunk& other) = default;
+    ANNOChunk& operator =(const ANNOChunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    QString value() const;
+
+    CHUNKID_DEFINE(ANNO_CHUNK)
+
+protected:
+    virtual bool innerReadStructure(QIODevice *d) override;
+};
 
 /*!
  * \brief The AUTHChunk class
@@ -739,6 +862,27 @@ public:
     QString value() const;
 
     CHUNKID_DEFINE(AUTH_CHUNK)
+
+protected:
+    virtual bool innerReadStructure(QIODevice *d) override;
+};
+
+/*!
+ * \brief The COPYChunk class
+ */
+class COPYChunk : public IFFChunk
+{
+public:
+    virtual ~COPYChunk() override;
+    COPYChunk();
+    COPYChunk(const COPYChunk& other) = default;
+    COPYChunk& operator =(const COPYChunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    QString value() const;
+
+    CHUNKID_DEFINE(COPY_CHUNK)
 
 protected:
     virtual bool innerReadStructure(QIODevice *d) override;
@@ -764,6 +908,49 @@ public:
 protected:
     virtual bool innerReadStructure(QIODevice *d) override;
 };
+
+/*!
+ * \brief The EXIFChunk class
+ */
+class EXIFChunk : public IFFChunk
+{
+public:
+    virtual ~EXIFChunk() override;
+    EXIFChunk();
+    EXIFChunk(const EXIFChunk& other) = default;
+    EXIFChunk& operator =(const EXIFChunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    MicroExif value() const;
+
+    CHUNKID_DEFINE(EXIF_CHUNK)
+
+protected:
+    virtual bool innerReadStructure(QIODevice *d) override;
+};
+
+/*!
+ * \brief The ICCPChunk class
+ */
+class ICCPChunk : public IFFChunk
+{
+public:
+    virtual ~ICCPChunk() override;
+    ICCPChunk();
+    ICCPChunk(const ICCPChunk& other) = default;
+    ICCPChunk& operator =(const ICCPChunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    QColorSpace value() const;
+
+    CHUNKID_DEFINE(ICCP_CHUNK)
+
+protected:
+    virtual bool innerReadStructure(QIODevice *d) override;
+};
+
 
 /*!
  * \brief The FVERChunk class
@@ -810,6 +997,27 @@ protected:
 
 
 /*!
+ * \brief The NAMEChunk class
+ */
+class NAMEChunk : public IFFChunk
+{
+public:
+    virtual ~NAMEChunk() override;
+    NAMEChunk();
+    NAMEChunk(const NAMEChunk& other) = default;
+    NAMEChunk& operator =(const NAMEChunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    QString value() const;
+
+    CHUNKID_DEFINE(NAME_CHUNK)
+
+protected:
+    virtual bool innerReadStructure(QIODevice *d) override;
+};
+
+/*!
  * \brief The VERSChunk class
  */
 class VERSChunk : public IFFChunk
@@ -825,6 +1033,28 @@ public:
     QString value() const;
 
     CHUNKID_DEFINE(VERS_CHUNK)
+
+protected:
+    virtual bool innerReadStructure(QIODevice *d) override;
+};
+
+
+/*!
+ * \brief The XMP0Chunk class
+ */
+class XMP0Chunk : public IFFChunk
+{
+public:
+    virtual ~XMP0Chunk() override;
+    XMP0Chunk();
+    XMP0Chunk(const XMP0Chunk& other) = default;
+    XMP0Chunk& operator =(const XMP0Chunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    QString value() const;
+
+    CHUNKID_DEFINE(XMP0_CHUNK)
 
 protected:
     virtual bool innerReadStructure(QIODevice *d) override;

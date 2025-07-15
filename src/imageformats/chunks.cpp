@@ -37,8 +37,19 @@ bool IFFChunk::operator ==(const IFFChunk &other) const
 bool IFFChunk::isValid() const
 {
     auto cid = chunkId();
+    if (cid.isEmpty()) {
+        return false;
+    }
+    // A “type ID”, “property name”, “FORM type”, or any other IFF
+    // identifier is a 32-bit value: the concatenation of four ASCII
+    // characters in the range “ ” (SP, hex 20) through “~” (hex 7E).
+    // Spaces (hex 20) should not precede printing characters;
+    // trailing spaces are OK. Control characters are forbidden.
+    if (cid.at(0) == ' ') {
+        return false;
+    }
     for (auto &&c : cid) {
-        if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c == ' ')))
+        if (c < ' ' || c > '~')
             return false;
     }
     return true;
@@ -58,10 +69,7 @@ bool IFFChunk::readStructure(QIODevice *d)
         ok = ok && innerReadStructure(d);
     }
     if (ok) {
-        auto pos = _dataPos + _size;
-        if (auto align = pos % alignBytes())
-            pos += alignBytes() - align;
-        ok = pos < d->pos() ? false : d->seek(pos);
+        ok = d->seek(nextChunkPos());
     }
     return ok;
 }
@@ -127,24 +135,40 @@ bool IFFChunk::readInfo(QIODevice *d)
 
 QByteArray IFFChunk::readRawData(QIODevice *d, qint64 relPos, qint64 size) const
 {
-    if (!seek(d, relPos))
+    if (!seek(d, relPos)) {
         return{};
-    if (size == -1)
+    }
+    if (size == -1) {
         size = _size;
+    }
     auto read = std::min(size, _size - relPos);
     return d->read(read);
 }
 
 bool IFFChunk::seek(QIODevice *d, qint64 relPos) const
 {
-    if (d == nullptr)
+    if (d == nullptr) {
         return false;
+    }
     return d->seek(_dataPos + relPos);
 }
 
 bool IFFChunk::innerReadStructure(QIODevice *)
 {
     return true;
+}
+
+void IFFChunk::setAlignBytes(qint32 bytes)
+{
+    _align = bytes;
+}
+
+qint64 IFFChunk::nextChunkPos() const
+{
+    auto pos = _dataPos + _size;
+    if (auto align = pos % alignBytes())
+        pos += alignBytes() - align;
+    return pos;
 }
 
 IFFChunk::ChunkList IFFChunk::search(const QByteArray &cid, const QSharedPointer<IFFChunk> &chunk)
@@ -165,8 +189,9 @@ IFFChunk::ChunkList IFFChunk::search(const QByteArray &cid, const ChunkList &chu
 
 bool IFFChunk::cacheData(QIODevice *d)
 {
-    if (bytes() > 8 * 1024 * 1024)
+    if (bytes() > 8 * 1024 * 1024) {
         return false;
+    }
     _data = readRawData(d);
     return _data.size() == _size;
 }
@@ -186,7 +211,7 @@ void IFFChunk::setRecursionCounter(qint32 cnt)
     _recursionCnt = cnt;
 }
 
-IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, qint32 alignBytes, qint32 recursionCnt)
+IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, IFFChunk *parent)
 {
     auto tmp = false;
     if (ok == nullptr) {
@@ -198,42 +223,63 @@ IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, qint32 ali
         return {};
     }
 
+    auto alignBytes = qint32(2);
+    auto recursionCnt = qint32();
+    auto nextChunkPos = qint64();
+    if (parent) {
+        alignBytes = parent->alignBytes();
+        recursionCnt = parent->recursionCounter();
+        nextChunkPos = parent->nextChunkPos();
+    }
+
     if (recursionCnt > RECURSION_PROTECTION) {
         return {};
     }
 
     IFFChunk::ChunkList list;
-    for (; !d->atEnd();) {
+    for (; !d->atEnd() && (nextChunkPos == 0 || d->pos() < nextChunkPos);) {
         auto cid = d->peek(4);
         QSharedPointer<IFFChunk> chunk;
-        if (cid == FORM_CHUNK) {
-            chunk = QSharedPointer<IFFChunk>(new FORMChunk());
-        } else if (cid == CAMG_CHUNK) {
-            chunk = QSharedPointer<IFFChunk>(new CAMGChunk());
-        } else if (cid == CMAP_CHUNK) {
-            chunk = QSharedPointer<IFFChunk>(new CMAPChunk());
+        if (cid == ANNO_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new ANNOChunk());
+        } else if (cid == AUTH_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new AUTHChunk());
         } else if (cid == BMHD_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new BMHDChunk());
         } else if (cid == BODY_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new BODYChunk());
-        } else if (cid == DPI__CHUNK) {
-            chunk = QSharedPointer<IFFChunk>(new DPIChunk());
-        } else if (cid == FOR4_CHUNK) {
-            chunk = QSharedPointer<IFFChunk>(new FOR4Chunk());
-        } else if (cid == TBHD_CHUNK) {
-            chunk = QSharedPointer<IFFChunk>(new TBHDChunk());
-        } else if (cid == RGBA_CHUNK) {
-            chunk = QSharedPointer<IFFChunk>(new RGBAChunk());
-        } else if (cid == AUTH_CHUNK) {
-            chunk = QSharedPointer<IFFChunk>(new AUTHChunk());
+        } else if (cid == CAMG_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new CAMGChunk());
+        } else if (cid == CMAP_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new CMAPChunk());
+        } else if (cid == COPY_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new COPYChunk());
         } else if (cid == DATE_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new DATEChunk());
+        } else if (cid == DPI__CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new DPIChunk());
+        } else if (cid == EXIF_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new EXIFChunk());
+        } else if (cid == FOR4_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new FOR4Chunk());
+        } else if (cid == FORM_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new FORMChunk());
         } else if (cid == FVER_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new FVERChunk());
         } else if (cid == HIST_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new HISTChunk());
+        } else if (cid == ICCP_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new ICCPChunk());
+        } else if (cid == NAME_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new NAMEChunk());
+        } else if (cid == RGBA_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new RGBAChunk());
+        } else if (cid == TBHD_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new TBHDChunk());
         } else if (cid == VERS_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new VERSChunk());
+        } else if (cid == XMP0_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new XMP0Chunk());
         } else { // unknown chunk
             chunk = QSharedPointer<IFFChunk>(new IFFChunk());
             qInfo() << "IFFChunk::innerFromDevice: unkwnown chunk" << cid;
@@ -256,6 +302,12 @@ IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, qint32 ali
             return {};
         }
 
+        // skip any non-IFF data at the end of the file.
+        // NOTE: there should be no more chunks after the first (root)
+        if (nextChunkPos == 0) {
+            nextChunkPos = chunk->nextChunkPos();
+        }
+
         list << chunk;
     }
 
@@ -265,7 +317,7 @@ IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, qint32 ali
 
 IFFChunk::ChunkList IFFChunk::fromDevice(QIODevice *d, bool *ok)
 {
-    return innerFromDevice(d, ok, 2, 0);
+    return innerFromDevice(d, ok, nullptr);
 }
 
 
@@ -340,12 +392,12 @@ quint8 BMHDChunk::bitplanes() const
     return quint8(data().at(8));
 }
 
-quint8 BMHDChunk::masking() const
+BMHDChunk::Masking BMHDChunk::masking() const
 {
     if (!isValid()) {
-        return 0;
+        return BMHDChunk::Masking::None;
     }
-    return quint8(data().at(9));
+    return BMHDChunk::Masking(quint8(data().at(9)));
 }
 
 BMHDChunk::Compression BMHDChunk::compression() const
@@ -355,14 +407,6 @@ BMHDChunk::Compression BMHDChunk::compression() const
     }
     return BMHDChunk::Compression(data().at(10));
 
-}
-
-quint8 BMHDChunk::padding() const
-{
-    if (!isValid()) {
-        return 0;
-    }
-    return quint8(data().at(11));
 }
 
 qint16 BMHDChunk::transparency() const
@@ -547,13 +591,13 @@ bool BODYChunk::isValid() const
     return chunkId() == BODYChunk::defaultChunkId();
 }
 
-QByteArray BODYChunk::strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap) const
+QByteArray BODYChunk::strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap, bool isPbm) const
 {
     if (!isValid() || header == nullptr) {
         return {};
     }
 
-    auto readSize = header->rowLen() * header->bitplanes();
+    auto readSize = strideSize(header, isPbm);
     for(;!d->atEnd() && _readBuffer.size() < readSize;) {
         QByteArray buf(readSize, char());
         qint64 rr = -1;
@@ -562,7 +606,7 @@ QByteArray BODYChunk::strideRead(QIODevice *d, const BMHDChunk *header, const CA
             // not accurate: the RLE -128 code is not a noop.
             rr = packbitsDecompress(d, buf.data(), buf.size(), true);
         } else if (header->compression() == BMHDChunk::Compression::Uncompressed) {
-            rr = d->read(buf.data(), buf.size());
+            rr = d->read(buf.data(), buf.size()); // never seen
         }
         if (rr != readSize)
             return {};
@@ -571,7 +615,7 @@ QByteArray BODYChunk::strideRead(QIODevice *d, const BMHDChunk *header, const CA
 
     auto planes = _readBuffer.left(readSize);
     _readBuffer.remove(0, readSize);
-    return BODYChunk::deinterleave(planes, header, camg, cmap);
+    return deinterleave(planes, header, camg, cmap, isPbm);
 }
 
 bool BODYChunk::resetStrideRead(QIODevice *d) const
@@ -580,14 +624,31 @@ bool BODYChunk::resetStrideRead(QIODevice *d) const
     return seek(d);
 }
 
-QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap)
+quint32 BODYChunk::strideSize(const BMHDChunk *header, bool isPbm) const
 {
-    auto rowLen = qint32(header->rowLen());
-    auto bitplanes = header->bitplanes();
-    if (planes.size() != rowLen * bitplanes) {
+    auto rs = header->rowLen() * header->bitplanes();
+    if (!isPbm) {
+        return rs;
+    }
+
+    // I found two versions of PBM: one uses ILBM calculation, the other uses width-based.
+    // As it is a proprietary extension, one of them was probably generated incorrectly.
+    if (header->compression() == BMHDChunk::Compression::Uncompressed) {
+        if (rs * header->height() != bytes())
+            rs = header->width() * header->bitplanes() / 8;
+    }
+
+    return rs;
+}
+
+QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap, bool isPbm) const
+{
+    if (planes.size() != strideSize(header, isPbm)) {
         return {};
     }
 
+    auto rowLen = qint32(header->rowLen());
+    auto bitplanes = header->bitplanes();
     auto modeId = CAMGChunk::ModeIds();
     if (camg) {
         modeId = camg->modeId();
@@ -609,7 +670,10 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
     case 6:
     case 7:
     case 8:
-        if (modeId == CAMGChunk::ModeId::Ham && cmap && bitplanes == 6) {
+        if (isPbm && bitplanes == 8) {
+            // The data are contiguous.
+            ba = planes;
+        } else if ((modeId & CAMGChunk::ModeId::Ham) && (cmap) && (bitplanes >= 5 && bitplanes <= 8)) {
             // From A Quick Introduction to IFF.txt:
             //
             // Amiga HAM (Hold and Modify) mode lets the Amiga display all 4096 RGB values.
@@ -631,6 +695,7 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
             //    11 - hold previous. replacing Green component with bits from planes 0-3
             ba = QByteArray(rowLen * 8 * 3, char());
             auto pal = cmap->palette();
+            auto max = (1 << (bitplanes - 2)) - 1;
             quint8 prev[3] = {};
             for (qint32 i = 0, cnt = 0; i < rowLen; ++i) {
                 for (qint32 j = 0; j < 8; ++j, ++cnt) {
@@ -638,21 +703,20 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
                     for (qint32 k = 0, msk = (1 << (7 - j)); k < bitplanes; ++k) {
                         if ((planes.at(k * rowLen + i) & msk) == 0)
                             continue;
-                        if (k < 4) {
+                        if (k < bitplanes - 2)
                             idx |= 1 << k;
-                        } else {
+                        else
                             ctl |= 1 << (bitplanes - k - 1);
-                        }
                     }
                     switch (ctl) {
                     case 1: // red
-                        prev[0] = idx | (idx << 4);
+                        prev[0] = idx * 255 / max;
                         break;
                     case 2: // blue
-                        prev[2] = idx | (idx << 4);
+                        prev[2] = idx * 255 / max;
                         break;
                     case 3: // green
-                        prev[1] = idx | (idx << 4);
+                        prev[1] = idx * 255 / max;
                         break;
                     default:
                         if (idx < pal.size()) {
@@ -670,7 +734,38 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
                     ba[cnt3 + 2] = char(prev[2]);
                 }
             }
-        } else if (modeId == CAMGChunk::ModeIds()) {
+        } else if ((modeId & CAMGChunk::ModeId::HalfBrite) && (cmap)) {
+            // In HALFBRITE mode, the Amiga interprets the bit in the
+            // last plane as HALFBRITE modification.  The bits in the other planes are
+            // treated as normal color register numbers (RGB values for each color register
+            // is specified in the CMAP chunk).  If the bit in the last plane is set (1),
+            // then that pixel is displayed at half brightness.  This can provide up to 64
+            // absolute colors.
+            ba = QByteArray(rowLen * 8 * 3, char());
+            auto pal = cmap->palette();
+            for (qint32 i = 0, cnt = 0; i < rowLen; ++i) {
+                for (qint32 j = 0; j < 8; ++j, ++cnt) {
+                    quint8 idx = 0, ctl = 0;
+                    for (qint32 k = 0, msk = (1 << (7 - j)); k < bitplanes; ++k) {
+                        if ((planes.at(k * rowLen + i) & msk) == 0)
+                            continue;
+                        if (k < bitplanes - 1)
+                            idx |= 1 << k;
+                        else
+                            ctl = 1;
+                    }
+                    if (idx < pal.size()) {
+                        auto cnt3 = cnt * 3;
+                        auto div = ctl ? 2 : 1;
+                        ba[cnt3] = qRed(pal.at(idx)) / div;
+                        ba[cnt3 + 1] = qGreen(pal.at(idx)) / div;
+                        ba[cnt3 + 2] = qBlue(pal.at(idx)) / div;
+                    } else {
+                        qWarning() << "BODYChunk::deinterleave: palette index" << idx << "is out of range";
+                    }
+                }
+            }
+        } else {
             // From A Quick Introduction to IFF.txt:
             //
             // If the ILBM is not HAM or HALFBRITE, then after parsing and uncompacting if
@@ -709,6 +804,12 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
         break;
 
     case 24: // rgb
+    case 32: // rgba
+        if (isPbm) {
+            // TODO: no testcase found
+            break;
+        }
+
         // From A Quick Introduction to IFF.txt:
         //
         // If a deep ILBM (like 12 or 24 planes), there should be no CMAP
@@ -775,8 +876,10 @@ bool FORMChunk::innerReadStructure(QIODevice *d)
     }
     _type = d->read(4);
     auto ok = true;
-    if (_type == QByteArray("ILBM")) {
-        setChunks(IFFChunk::innerFromDevice(d, &ok, alignBytes(), recursionCounter()));
+    if (_type == ILBM_FORM_TYPE) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
+    } else if (_type == PBM__FORM_TYPE) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
     }
     return ok;
 }
@@ -805,25 +908,28 @@ QImage::Format FORMChunk::format() const
             // assume HAM and you'll probably be right.
             modeId = CAMGChunk::ModeIds(CAMGChunk::ModeId::Ham);
         }
-
         if (h->bitplanes() == 24) {
             return QImage::Format_RGB888;
         }
+        if (h->bitplanes() == 32) {
+            return QImage::Format_RGBA8888;
+        }
         if (h->bitplanes() >= 2 && h->bitplanes() <= 8) {
-            // Currently supported modes: HAM6 and No HAM/HALFBRITE.
-            if (modeId != CAMGChunk::ModeIds() && (modeId != CAMGChunk::ModeId::Ham || h->bitplanes() != 6))
+            if (!IFFChunk::search(SHAM_CHUNK, chunks()).isEmpty() || !IFFChunk::search(CTBL_CHUNK, chunks()).isEmpty()) {
+                // Images with the SHAM or CTBL chunk do not load correctly: it seems they contains
+                // a color table but I didn't find any specs.
                 return QImage::Format_Invalid;
-
-            if (modeId & CAMGChunk::ModeId::Ham) {
-                if (IFFChunk::search(SHAM_CHUNK, chunks()).isEmpty())
-                    return QImage::Format_RGB888;
-                else // Images with the SHAM chunk do not load correctly.
-                    return QImage::Format_Invalid;
-            } else if (!cmaps.isEmpty()) {
-                return QImage::Format_Indexed8;
-            } else {
-                return QImage::Format_Grayscale8;
             }
+
+            if (modeId & (CAMGChunk::ModeId::Ham | CAMGChunk::ModeId::HalfBrite)) {
+                return QImage::Format_RGB888;
+            }
+
+            if (!cmaps.isEmpty()) {
+                return QImage::Format_Indexed8;
+            }
+
+            return QImage::Format_Grayscale8;
         }
         if (h->bitplanes() == 1) {
             return QImage::Format_Mono;
@@ -878,10 +984,10 @@ bool FOR4Chunk::innerReadStructure(QIODevice *d)
     }
     _type = d->read(4);
     auto ok = true;
-    if (_type == QByteArray("CIMG")) {
-        setChunks(IFFChunk::innerFromDevice(d, &ok, alignBytes(), recursionCounter()));
-    } else if (_type == QByteArray("TBMP")) {
-        setChunks(IFFChunk::innerFromDevice(d, &ok, alignBytes(), recursionCounter()));
+    if (_type == CIMG_FOR4_TYPE) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
+    } else if (_type == TBMP_FOR4_TYPE) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
     }
     return ok;
 }
@@ -1076,16 +1182,20 @@ bool RGBAChunk::isTileCompressed(const TBHDChunk *header) const
 
 QPoint RGBAChunk::pos() const
 {
-    return _pos;
+    return _posPx;
 }
 
 QSize RGBAChunk::size() const
 {
-    return _size;
+    return _sizePx;
 }
 
 // Maya version of IFF uses a slightly different algorithm for RLE compression.
-qint64 rleMayaDecompress(QIODevice *input, char *output, qint64 olen)
+// To understand how it works I saved images with regular patterns from Photoshop
+// and then checked the data. It is basically the same as packbits except for how
+// the length is extracted: I don't know if it's a standard variant or not, so
+// I'm keeping it private.
+inline qint64 rleMayaDecompress(QIODevice *input, char *output, qint64 olen)
 {
     qint64  j = 0;
     for (qint64 rr = 0, available = olen; j < olen; available = olen - j) {
@@ -1096,7 +1206,7 @@ qint64 rleMayaDecompress(QIODevice *input, char *output, qint64 olen)
             if (input->peek(&n, 1) != 1) { // end of data (or error)
                 break;
             }
-            rr = qint64(n & 0x7f) + 1;
+            rr = qint64(n & 0x7F) + 1;
             if (rr > available)
                 break;
         }
@@ -1106,7 +1216,7 @@ qint64 rleMayaDecompress(QIODevice *input, char *output, qint64 olen)
             break;
         }
 
-        rr = qint64(n & 0x7f) + 1;
+        rr = qint64(n & 0x7F) + 1;
         if ((n & 0x80) == 0) {
             auto read = input->read(output + j, rr);
             if (rr != read) {
@@ -1132,20 +1242,26 @@ QByteArray RGBAChunk::readStride(QIODevice *d, const TBHDChunk *header) const
         return {};
     }
 
-    // detect if the tile is compressed (8 is the size of 4 uint16 before the tile data).
-    auto compressed = isTileCompressed(header);
+    // It seems that tiles are compressed independently only if there is space savings.
+    // The compression method specified in the header is only to indicate the type of
+    // compression if used.
+    if (!isTileCompressed(header)) {
+        // when not compressed, the line contains all channels
+        readSize *= header->bpc() * header->channels();
+        QByteArray buf(readSize, char());
+        auto rr = d->read(buf.data(), buf.size());
+        if (rr != buf.size()) {
+            return {};
+        }
+        return buf;
+    }
+
+    // compressed
     for(;!d->atEnd() && _readBuffer.size() < readSize;) {
         QByteArray buf(readSize * size().height(), char());
         qint64 rr = -1;
-        if (compressed) {
-            // It seems that tiles are compressed independently only if there is space savings.
-            // The compression method specified in the header is only to indicate the type of
-            // compression if used.
-            if (header->compression() == TBHDChunk::Compression::Rle) {
-                rr = rleMayaDecompress(d, buf.data(), buf.size());
-            }
-        } else {
-            rr = d->read(buf.data(), buf.size());
+        if (header->compression() == TBHDChunk::Compression::Rle) {
+            rr = rleMayaDecompress(d, buf.data(), buf.size());
         }
         if (rr != buf.size()) {
             return {};
@@ -1159,6 +1275,18 @@ QByteArray RGBAChunk::readStride(QIODevice *d, const TBHDChunk *header) const
     return buff;
 }
 
+/*!
+ * \brief compressedTile
+ *
+ * The compressed tile contains compressed data per channel.
+ *
+ * If 16 bit, high and low bytes are treated separately (so I have
+ * channels * 2 compressed data blocks). First the high ones, then the low
+ * ones (or vice versa): for the reconstruction I went by trial and error :)
+ * \param d The device
+ * \param header The header.
+ * \return The tile as Qt image.
+ */
 QImage RGBAChunk::compressedTile(QIODevice *d, const TBHDChunk *header) const
 {
     QImage img(size(), header->format());
@@ -1184,7 +1312,7 @@ QImage RGBAChunk::compressedTile(QIODevice *d, const TBHDChunk *header) const
         }
         for (auto c = 0, cc = header->channels() * header->bpc(); c < cc; ++c) {
 #if Q_BYTE_ORDER == Q_BIG_ENDIAN
-            auto c_bcp = c / cs;
+            auto c_bcp = c / cs; // Not tried
 #else
             auto c_bcp = 1 - c / cs;
 #endif
@@ -1205,6 +1333,15 @@ QImage RGBAChunk::compressedTile(QIODevice *d, const TBHDChunk *header) const
     return img;
 }
 
+/*!
+ * \brief RGBAChunk::uncompressedTile
+ *
+ * The uncompressed tile scanline contains the data in
+ * B0 G0 R0 A0 B1 G1 R1 A1... Bn Gn Rn An format.
+ * \param d The device
+ * \param header The header.
+ * \return The tile as Qt image.
+ */
 QImage RGBAChunk::uncompressedTile(QIODevice *d, const TBHDChunk *header) const
 {
     QImage img(size(), header->format());
@@ -1212,10 +1349,8 @@ QImage RGBAChunk::uncompressedTile(QIODevice *d, const TBHDChunk *header) const
 
     if (bpc == 1) {
         auto cs = header->channels();
-        auto lineSize = img.width() * bpc * cs;
-
         for (auto y = 0, h = img.height(); y < h; ++y) {
-            auto ba = d->read(lineSize);
+            auto ba = readStride(d, header);
             if (ba.isEmpty()) {
                 return {};
             }
@@ -1229,13 +1364,12 @@ QImage RGBAChunk::uncompressedTile(QIODevice *d, const TBHDChunk *header) const
         }
     } else if (bpc == 2) {
         auto cs = header->channels();
-        auto lineSize = img.width() * bpc * cs;
         if (cs < 4) { // alpha on 64-bit images must be 0xFF
             std::memset(img.bits(), 0xFF, img.sizeInBytes());
         }
 
         for (auto y = 0, h = img.height(); y < h; ++y) {
-            auto ba = d->read(lineSize);
+            auto ba = readStride(d, header);
             if (ba.isEmpty()) {
                 return {};
             }
@@ -1246,7 +1380,7 @@ QImage RGBAChunk::uncompressedTile(QIODevice *d, const TBHDChunk *header) const
                     auto xcs = x * cs;
                     auto xcs4 = x * 4;
 #if Q_BYTE_ORDER == Q_BIG_ENDIAN
-                    scl[xcs4 + cs - c - 1] = src[xcs + c];
+                    scl[xcs4 + cs - c - 1] = src[xcs + c]; // Not tried
 #else
                     scl[xcs4 + cs - c - 1] = (src[xcs + c] >> 8) | (src[xcs + c] << 8);
 #endif
@@ -1289,10 +1423,40 @@ bool RGBAChunk::innerReadStructure(QIODevice *d)
         return false;
     }
 
-    _pos = QPoint(x0, y0);
-    _size = QSize(qint32(x1) - x0 + 1, qint32(y1) - y0 + 1);
+    _posPx = QPoint(x0, y0);
+    _sizePx = QSize(qint32(x1) - x0 + 1, qint32(y1) - y0 + 1);
 
     return true;
+}
+
+
+/* ******************
+ * *** ANNO Chunk ***
+ * ****************** */
+
+ANNOChunk::~ANNOChunk()
+{
+
+}
+
+ANNOChunk::ANNOChunk()
+{
+
+}
+
+bool ANNOChunk::isValid() const
+{
+    return chunkId() == AUTHChunk::defaultChunkId();
+}
+
+QString ANNOChunk::value() const
+{
+    return QString::fromLatin1(data()).replace(QStringLiteral("\0"), QStringLiteral(" ")).trimmed();
+}
+
+bool ANNOChunk::innerReadStructure(QIODevice *d)
+{
+    return cacheData(d);
 }
 
 /* ******************
@@ -1316,13 +1480,44 @@ bool AUTHChunk::isValid() const
 
 QString AUTHChunk::value() const
 {
-    return QString::fromLatin1(data());
+    return QString::fromLatin1(data()).replace(QStringLiteral("\0"), QStringLiteral(" ")).trimmed();
 }
 
 bool AUTHChunk::innerReadStructure(QIODevice *d)
 {
     return cacheData(d);
 }
+
+
+/* ******************
+ * *** COPY Chunk ***
+ * ****************** */
+
+COPYChunk::~COPYChunk()
+{
+
+}
+
+COPYChunk::COPYChunk()
+{
+
+}
+
+bool COPYChunk::isValid() const
+{
+    return chunkId() == COPYChunk::defaultChunkId();
+}
+
+QString COPYChunk::value() const
+{
+    return QString::fromLatin1(data()).replace(QStringLiteral("\0"), QStringLiteral(" ")).trimmed();
+}
+
+bool COPYChunk::innerReadStructure(QIODevice *d)
+{
+    return cacheData(d);
+}
+
 
 /* ******************
  * *** DATE Chunk ***
@@ -1349,6 +1544,69 @@ QDateTime DATEChunk::value() const
 }
 
 bool DATEChunk::innerReadStructure(QIODevice *d)
+{
+    return cacheData(d);
+}
+
+
+/* ******************
+ * *** EXIF Chunk ***
+ * ****************** */
+
+EXIFChunk::~EXIFChunk()
+{
+
+}
+
+EXIFChunk::EXIFChunk()
+{
+
+}
+
+bool EXIFChunk::isValid() const
+{
+    if (!data().startsWith(QByteArray("Exif\0\0"))) {
+        return false;
+    }
+    return chunkId() == EXIFChunk::defaultChunkId();
+}
+
+MicroExif EXIFChunk::value() const
+{
+    return MicroExif::fromByteArray(data().mid(6));
+}
+
+bool EXIFChunk::innerReadStructure(QIODevice *d)
+{
+    return cacheData(d);
+}
+
+
+/* ******************
+ * *** ICCP Chunk ***
+ * ****************** */
+
+ICCPChunk::~ICCPChunk()
+{
+
+}
+
+ICCPChunk::ICCPChunk()
+{
+
+}
+
+bool ICCPChunk::isValid() const
+{
+    return chunkId() == ICCPChunk::defaultChunkId();
+}
+
+QColorSpace ICCPChunk::value() const
+{
+    return QColorSpace::fromIccProfile(data());
+}
+
+bool ICCPChunk::innerReadStructure(QIODevice *d)
 {
     return cacheData(d);
 }
@@ -1406,6 +1664,37 @@ bool HISTChunk::innerReadStructure(QIODevice *d)
     return cacheData(d);
 }
 
+
+/* ******************
+ * *** NAME Chunk ***
+ * ****************** */
+
+NAMEChunk::~NAMEChunk()
+{
+
+}
+
+NAMEChunk::NAMEChunk()
+{
+
+}
+
+bool NAMEChunk::isValid() const
+{
+    return chunkId() == NAMEChunk::defaultChunkId();
+}
+
+QString NAMEChunk::value() const
+{
+    return QString::fromLatin1(data()).replace(QStringLiteral("\0"), QStringLiteral(" ")).trimmed();
+}
+
+bool NAMEChunk::innerReadStructure(QIODevice *d)
+{
+    return cacheData(d);
+}
+
+
 /* ******************
  * *** VERS Chunk ***
  * ****************** */
@@ -1434,3 +1723,34 @@ bool VERSChunk::innerReadStructure(QIODevice *d)
 {
     return cacheData(d);
 }
+
+
+/* ******************
+ * *** XMP0 Chunk ***
+ * ****************** */
+
+XMP0Chunk::~XMP0Chunk()
+{
+
+}
+
+XMP0Chunk::XMP0Chunk()
+{
+
+}
+
+bool XMP0Chunk::isValid() const
+{
+    return chunkId() == XMP0Chunk::defaultChunkId();
+}
+
+QString XMP0Chunk::value() const
+{
+    return QString::fromUtf8(data()).replace(QStringLiteral("\0"), QStringLiteral(" ")).trimmed();
+}
+
+bool XMP0Chunk::innerReadStructure(QIODevice *d)
+{
+    return cacheData(d);
+}
+
