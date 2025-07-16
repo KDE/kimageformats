@@ -9,6 +9,9 @@
 #include "packbits_p.h"
 
 #include <QDebug>
+#include <QLoggingCategory>
+
+Q_DECLARE_LOGGING_CATEGORY(LOG_IFFPLUGIN)
 
 #define RECURSION_PROTECTION 10
 
@@ -282,7 +285,7 @@ IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, IFFChunk *
             chunk = QSharedPointer<IFFChunk>(new XMP0Chunk());
         } else { // unknown chunk
             chunk = QSharedPointer<IFFChunk>(new IFFChunk());
-            qInfo() << "IFFChunk::innerFromDevice: unkwnown chunk" << cid;
+            qCInfo(LOG_IFFPLUGIN) << "IFFChunk::innerFromDevice: unknown chunk" << cid;
         }
 
         // change the alignment to the one of main chunk (required for unknown Maya IFF chunks)
@@ -724,7 +727,7 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
                             prev[1] = qGreen(pal.at(idx));
                             prev[2] = qBlue(pal.at(idx));
                         } else {
-                            qWarning() << "BODYChunk::deinterleave: palette index" << idx << "is out of range";
+                            qCWarning(LOG_IFFPLUGIN) << "BODYChunk::deinterleave: palette index" << idx << "is out of range";
                         }
                         break;
                     }
@@ -761,7 +764,7 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
                         ba[cnt3 + 1] = qGreen(pal.at(idx)) / div;
                         ba[cnt3 + 2] = qBlue(pal.at(idx)) / div;
                     } else {
-                        qWarning() << "BODYChunk::deinterleave: palette index" << idx << "is out of range";
+                        qCWarning(LOG_IFFPLUGIN) << "BODYChunk::deinterleave: palette index" << idx << "is out of range";
                     }
                 }
             }
