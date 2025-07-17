@@ -384,7 +384,7 @@ QVariant IFFHandler::option(ImageOption option) const
 
 QImageIOPlugin::Capabilities IFFPlugin::capabilities(QIODevice *device, const QByteArray &format) const
 {
-    if (format == "iff") {
+    if (format == "iff" || format == "ilbm" || format == "lbm") {
         return Capabilities(CanRead);
     }
     if (!format.isEmpty()) {

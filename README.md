@@ -17,7 +17,7 @@ The following image formats have read-only support:
 - Animated Windows cursors (ani)
 - Camera RAW images (arw, cr2, cr3, dcs, dng, ...)
 - Gimp (xcf)
-- Interchange Format Files (IFF)
+- Interchange Format Files (iff, ilbm, lbm)
 - Krita (kra)
 - OpenRaster (ora)
 - Pixar raster (pxr)
