@@ -8,6 +8,7 @@
 #include "chunks_p.h"
 #include "packbits_p.h"
 
+#include <QBuffer>
 #include <QDebug>
 #include <QLoggingCategory>
 
@@ -243,7 +244,9 @@ IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, IFFChunk *
     for (; !d->atEnd() && (nextChunkPos == 0 || d->pos() < nextChunkPos);) {
         auto cid = d->peek(4);
         QSharedPointer<IFFChunk> chunk;
-        if (cid == ANNO_CHUNK) {
+        if (cid == ABIT_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new ABITChunk());
+        } else if (cid == ANNO_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new ANNOChunk());
         } else if (cid == AUTH_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new AUTHChunk());
@@ -285,7 +288,7 @@ IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, IFFChunk *
             chunk = QSharedPointer<IFFChunk>(new XMP0Chunk());
         } else { // unknown chunk
             chunk = QSharedPointer<IFFChunk>(new IFFChunk());
-            qCInfo(LOG_IFFPLUGIN) << "IFFChunk::innerFromDevice: unknown chunk" << cid;
+            qCDebug(LOG_IFFPLUGIN) << "IFFChunk::innerFromDevice: unknown chunk" << cid;
         }
 
         // change the alignment to the one of main chunk (required for unknown Maya IFF chunks)
@@ -596,7 +599,7 @@ bool BODYChunk::isValid() const
 
 QByteArray BODYChunk::strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap, bool isPbm) const
 {
-    if (!isValid() || header == nullptr) {
+    if (!isValid() || header == nullptr || d == nullptr) {
         return {};
     }
 
@@ -850,6 +853,68 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
 }
 
 /* ******************
+ * *** ABIT Chunk ***
+ * ****************** */
+
+ABITChunk::~ABITChunk()
+{
+
+}
+
+ABITChunk::ABITChunk() : BODYChunk()
+{
+
+}
+
+bool ABITChunk::isValid() const
+{
+    return chunkId() == ABITChunk::defaultChunkId();
+}
+
+QByteArray ABITChunk::strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap, bool isPbm) const
+{
+    if (!isValid() || header == nullptr || d == nullptr) {
+        return {};
+    }
+    if (header->compression() != BMHDChunk::Compression::Uncompressed || isPbm) {
+        return {};
+    }
+
+    // convert ABIT data to an ILBM line on the fly
+    auto ilbmLine = QByteArray(strideSize(header, isPbm), char());
+    auto rowSize = header->rowLen();
+    auto height = header->height();
+    if (_y >= height) {
+        return {};
+    }
+    for (qint32 plane = 0, planes = qint32(header->bitplanes()); plane < planes; ++plane) {
+        if (!seek(d, qint64(plane) * rowSize * height + _y * rowSize))
+            return {};
+        auto offset = qint64(plane) * rowSize;
+        if (offset + rowSize > ilbmLine.size())
+            return {};
+        if (d->read(ilbmLine.data() + offset, rowSize) != rowSize)
+            return {};
+    }
+    // next line on the next run
+    ++_y;
+
+    // decode the ILBM line
+    QBuffer buf;
+    buf.setData(ilbmLine);
+    if (!buf.open(QBuffer::ReadOnly)) {
+        return {};
+    }
+    return BODYChunk::strideRead(&buf, header, camg, cmap, isPbm);
+}
+
+bool ABITChunk::resetStrideRead(QIODevice *d) const
+{
+    _y = 0;
+    return BODYChunk::resetStrideRead(d);
+}
+
+/* ******************
  * *** FORM Chunk ***
  * ****************** */
 
@@ -882,6 +947,8 @@ bool FORMChunk::innerReadStructure(QIODevice *d)
     if (_type == ILBM_FORM_TYPE) {
         setChunks(IFFChunk::innerFromDevice(d, &ok, this));
     } else if (_type == PBM__FORM_TYPE) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
+    } else if (_type == ACBM_FORM_TYPE) {
         setChunks(IFFChunk::innerFromDevice(d, &ok, this));
     }
     return ok;

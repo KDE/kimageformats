@@ -44,6 +44,7 @@
 #define PRO8_CHUNK QByteArray("PRO8")
 
 // FORM ILBM IFF
+#define ABIT_CHUNK QByteArray("ABIT")
 #define BMHD_CHUNK QByteArray("BMHD")
 #define BODY_CHUNK QByteArray("BODY")
 #define CAMG_CHUNK QByteArray("CAMG")
@@ -70,6 +71,7 @@
 #define VERS_CHUNK QByteArray("VERS")
 #define XMP0_CHUNK QByteArray("XMP0") // https://aminet.net/package/docs/misc/IFF-metadata
 
+#define ACBM_FORM_TYPE QByteArray("ACBM")
 #define ILBM_FORM_TYPE QByteArray("ILBM")
 #define PBM__FORM_TYPE QByteArray("PBM ")
 #define CIMG_FOR4_TYPE QByteArray("CIMG")
@@ -573,20 +575,21 @@ public:
      * \return The scanline as requested for QImage.
      * \warning Call resetStrideRead() once before this one.
      */
-    QByteArray strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr, bool isPbm = false) const;
+    virtual QByteArray strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr, bool isPbm = false) const;
 
     /*!
      * \brief resetStrideRead
      * Reset the stride read set the position at the beginning of the data and reset all buffers.
-     * \param d The device
+     * \param d The device.
      * \param header The BMHDChunk chunk (mandatory)
      * \param camg The CAMG chunk (optional)
      * \return True on success, otherwise false.
      * \sa strideRead
+     * \note Must be called once before strideRead().
      */
-    bool resetStrideRead(QIODevice *d) const;
+    virtual bool resetStrideRead(QIODevice *d) const;
 
-private:
+protected:
     /*!
      * \brief strideSize
      * \param isPbm Set true if the image is PBM.
@@ -596,8 +599,34 @@ private:
 
     QByteArray deinterleave(const QByteArray &planes, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr, bool isPbm = false) const;
 
+private:
     mutable QByteArray _readBuffer;
 };
+
+
+/*!
+ * \brief The ABITChunk class
+ */
+class ABITChunk : public BODYChunk
+{
+public:
+    virtual ~ABITChunk() override;
+    ABITChunk();
+    ABITChunk(const ABITChunk& other) = default;
+    ABITChunk& operator =(const ABITChunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    CHUNKID_DEFINE(ABIT_CHUNK)
+
+    virtual QByteArray strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr, bool isPbm = false) const override;
+
+    virtual bool resetStrideRead(QIODevice *d) const override;
+
+private:
+    mutable qint32 _y;
+};
+
 
 /*!
  * \brief The FORMChunk class

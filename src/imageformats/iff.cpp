@@ -91,6 +91,17 @@ bool IFFHandler::canRead(QIODevice *device)
         return false;
     }
 
+    // I avoid parsing obviously incorrect files
+    auto cid = device->peek(4);
+    if (cid != CAT__CHUNK &&
+        cid != FORM_CHUNK &&
+        cid != LIST_CHUNK &&
+        cid != CAT4_CHUNK &&
+        cid != FOR4_CHUNK &&
+        cid != LIS4_CHUNK) {
+        return false;
+    }
+
     auto ok = false;
     auto pos = device->pos();
     auto chunks = IFFChunk::fromDevice(device, &ok);
@@ -220,6 +231,11 @@ bool IFFHandler::readStandardImage(QImage *image)
     }
 
     auto bodies = IFFChunk::searchT<BODYChunk>(form);
+    if (bodies.isEmpty()) {
+        auto abits = IFFChunk::searchT<ABITChunk>(form);
+        for (auto &&abit : abits)
+            bodies.append(abit);
+    }
     if (bodies.isEmpty()) {
         img.fill(0);
     } else {
