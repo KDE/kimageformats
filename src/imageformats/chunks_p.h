@@ -49,6 +49,7 @@
 #define BODY_CHUNK QByteArray("BODY")
 #define CAMG_CHUNK QByteArray("CAMG")
 #define CMAP_CHUNK QByteArray("CMAP")
+#define CMYK_CHUNK QByteArray("CMYK") // https://wiki.amigaos.net/wiki/ILBM_IFF_Interleaved_Bitmap#ILBM.CMYK
 #define DPI__CHUNK QByteArray("DPI ")
 
 #define CTBL_CHUNK QByteArray("CTBL") // undocumented
@@ -64,6 +65,7 @@
 #define COPY_CHUNK QByteArray("(c) ")
 #define DATE_CHUNK QByteArray("DATE")
 #define EXIF_CHUNK QByteArray("EXIF") // https://aminet.net/package/docs/misc/IFF-metadata
+#define ICCN_CHUNK QByteArray("ICCN") // https://aminet.net/package/docs/misc/IFF-metadata
 #define ICCP_CHUNK QByteArray("ICCP") // https://aminet.net/package/docs/misc/IFF-metadata
 #define FVER_CHUNK QByteArray("FVER")
 #define HIST_CHUNK QByteArray("HIST")
@@ -467,12 +469,62 @@ public:
 
     virtual bool isValid() const override;
 
-    QList<QRgb> palette() const;
+    /*!
+     * \brief count
+     * \return The number of color in the palette.
+     */
+    virtual qint32 count() const;
+
+    /*!
+     * \brief palette
+     * \param halfbride When True, the new palette values are appended using the halfbride method.
+     * \return The color palette.
+     * \note If \a halfbride is true, the returned palette size is count() * 2.
+     */
+    QList<QRgb> palette(bool halfbride = false) const;
 
     CHUNKID_DEFINE(CMAP_CHUNK)
 
 protected:
+    virtual QList<QRgb> innerPalette() const;
+
     virtual bool innerReadStructure(QIODevice *d) override;
+};
+
+/*!
+ * \brief The CMYKChunk class
+ *
+ * This chunk would allow color specification in terms of Cyan,
+ * Magenta, Yellow, and Black as opposed to the current CMAP which uses RGB.
+ * The format would be the same as the CMAP chunk with the exception that this
+ * chunk uses four color components as opposed to three. The number of colors
+ * contained within would be chunk length/4.  This chunk would be used in addition
+ * to the CMAP chunk.
+ */
+class CMYKChunk : public CMAPChunk
+{
+public:
+    virtual ~CMYKChunk() override;
+    CMYKChunk();
+    CMYKChunk(const CMYKChunk& other) = default;
+    CMYKChunk& operator =(const CMYKChunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    /*!
+     * \brief count
+     * \return The number of color in the palette.
+     */
+    virtual qint32 count() const override;
+
+    CHUNKID_DEFINE(CMYK_CHUNK)
+
+protected:
+    /*!
+     * \brief palette
+     * \return The CMYK color palette converted to RGB one.
+     */
+    virtual QList<QRgb> innerPalette() const override;
 };
 
 /*!
@@ -588,6 +640,14 @@ public:
      * \note Must be called once before strideRead().
      */
     virtual bool resetStrideRead(QIODevice *d) const;
+
+    /*!
+     * \brief safeModeId
+     * \param header The header.
+     * \param camg The CAMG chunk.
+     * \return The most likely ModeId if not explicitly specified.
+     */
+    static CAMGChunk::ModeIds safeModeId(const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap = nullptr);
 
 protected:
     /*!
@@ -954,6 +1014,28 @@ public:
     MicroExif value() const;
 
     CHUNKID_DEFINE(EXIF_CHUNK)
+
+protected:
+    virtual bool innerReadStructure(QIODevice *d) override;
+};
+
+
+/*!
+ * \brief The NAMEChunk class
+ */
+class ICCNChunk : public IFFChunk
+{
+public:
+    virtual ~ICCNChunk() override;
+    ICCNChunk();
+    ICCNChunk(const ICCNChunk& other) = default;
+    ICCNChunk& operator =(const ICCNChunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    QString value() const;
+
+    CHUNKID_DEFINE(ICCN_CHUNK)
 
 protected:
     virtual bool innerReadStructure(QIODevice *d) override;

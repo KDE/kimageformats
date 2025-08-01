@@ -9,12 +9,21 @@
 #include "packbits_p.h"
 
 #include <QBuffer>
+#include <QColor>
 #include <QDebug>
 #include <QLoggingCategory>
 
 Q_DECLARE_LOGGING_CATEGORY(LOG_IFFPLUGIN)
 
 #define RECURSION_PROTECTION 10
+
+static QString dataToString(const IFFChunk *chunk)
+{
+    if (chunk == nullptr || !chunk->isValid()) {
+        return {};
+    }
+    return QString::fromUtf8(chunk->data()).replace(QStringLiteral("\0"), QStringLiteral(" ")).trimmed();
+}
 
 IFFChunk::~IFFChunk()
 {
@@ -258,6 +267,8 @@ IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, IFFChunk *
             chunk = QSharedPointer<IFFChunk>(new CAMGChunk());
         } else if (cid == CMAP_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new CMAPChunk());
+        } else if (cid == CMYK_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new CMYKChunk());
         } else if (cid == COPY_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new COPYChunk());
         } else if (cid == DATE_CHUNK) {
@@ -274,6 +285,8 @@ IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, IFFChunk *
             chunk = QSharedPointer<IFFChunk>(new FVERChunk());
         } else if (cid == HIST_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new HISTChunk());
+        } else if (cid == ICCN_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new ICCNChunk());
         } else if (cid == ICCP_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new ICCPChunk());
         } else if (cid == NAME_CHUNK) {
@@ -478,20 +491,86 @@ bool CMAPChunk::isValid() const
     return chunkId() == CMAPChunk::defaultChunkId();
 }
 
+qint32 CMAPChunk::count() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return bytes() / 3;
+}
+
+QList<QRgb> CMAPChunk::palette(bool halfbride) const
+{
+    auto p = innerPalette();
+    if (!halfbride) {
+        return p;
+    }
+    auto tmp = p;
+    for(auto &&v : tmp) {
+        p << qRgb(qRed(v) / 2, qGreen(v) / 2, qBlue(v) / 2);
+    }
+    return p;
+}
+
 bool CMAPChunk::innerReadStructure(QIODevice *d)
 {
     return cacheData(d);
 }
 
-QList<QRgb> CMAPChunk::palette() const
+QList<QRgb> CMAPChunk::innerPalette() const
 {
     QList<QRgb> l;
     auto &&d = data();
-    for (quint32 i = 0, n = bytes() / 3; i < n; ++i) {
-        l << qRgb(d.at(i * 3), d.at(i * 3 + 1), d.at(i * 3 + 2));
+    for (qint32 i = 0, n = count(); i < n; ++i) {
+        auto i3 = i * 3;
+        l << qRgb(d.at(i3), d.at(i3 + 1), d.at(i3 + 2));
     }
     return l;
 }
+
+
+/* ******************
+ * *** CMYK Chunk ***
+ * ****************** */
+
+CMYKChunk::~CMYKChunk()
+{
+
+}
+
+CMYKChunk::CMYKChunk() : CMAPChunk()
+{
+
+}
+
+bool CMYKChunk::isValid() const
+{
+    return chunkId() == CMYKChunk::defaultChunkId();
+}
+
+qint32 CMYKChunk::count() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return bytes() / 4;
+}
+
+QList<QRgb> CMYKChunk::innerPalette() const
+{
+    QList<QRgb> l;
+    auto &&d = data();
+    for (qint32 i = 0, n = count(); i < n; ++i) {
+        auto i4 = i * 4;
+        auto C = quint8(d.at(i4)) / 255.;
+        auto M = quint8(d.at(i4 + 1)) / 255.;
+        auto Y = quint8(d.at(i4 + 2)) / 255.;
+        auto K = quint8(d.at(i4 + 3)) / 255.;
+        l << QColor::fromCmykF(C, M, Y, K).toRgb().rgb();
+    }
+    return l;
+}
+
 
 /* ******************
  * *** CAMG Chunk ***
@@ -630,20 +709,33 @@ bool BODYChunk::resetStrideRead(QIODevice *d) const
     return seek(d);
 }
 
+CAMGChunk::ModeIds BODYChunk::safeModeId(const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap)
+{
+    if (camg) {
+        return camg->modeId();
+    }
+    if (header == nullptr) {
+        return CAMGChunk::ModeIds();
+    }
+    if (cmap && cmap->count() == (1 << (header->bitplanes() - 1))) {
+        return CAMGChunk::ModeIds(CAMGChunk::ModeId::HalfBrite);
+    }
+    if (header->bitplanes() == 6) {
+        // If no CAMG chunk is present, and image is 6 planes deep,
+        // assume HAM and you'll probably be right.
+        return CAMGChunk::ModeIds(CAMGChunk::ModeId::Ham);
+    }
+    return CAMGChunk::ModeIds();
+}
+
 quint32 BODYChunk::strideSize(const BMHDChunk *header, bool isPbm) const
 {
-    auto rs = header->rowLen() * header->bitplanes();
     if (!isPbm) {
-        return rs;
+        return header->rowLen() * header->bitplanes();
     }
-
-    // I found two versions of PBM: one uses ILBM calculation, the other uses width-based.
-    // As it is a proprietary extension, one of them was probably generated incorrectly.
-    if (header->compression() == BMHDChunk::Compression::Uncompressed) {
-        if (rs * header->height() != bytes())
-            rs = header->width() * header->bitplanes() / 8;
-    }
-
+    auto rs = header->width() * header->bitplanes() / 8;
+    if (rs & 1)
+        ++rs;
     return rs;
 }
 
@@ -655,21 +747,12 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
 
     auto rowLen = qint32(header->rowLen());
     auto bitplanes = header->bitplanes();
-    auto modeId = CAMGChunk::ModeIds();
-    if (camg) {
-        modeId = camg->modeId();
-    }
+    auto modeId = BODYChunk::safeModeId(header, camg, cmap);
 
     QByteArray ba;
     switch (bitplanes) {
-    case 1: // bitmap
-        ba = QByteArray((7 + header->width() * bitplanes) / 8, char());
-        for (qint32 i = 0, n = std::min(planes.size(), ba.size()); i < n; ++i) {
-            ba[i] = ~planes.at(i);
-        }
-        break;
-
-    case 2: // gray, indexed and rgb Ham mode
+    case 1: // gray, indexed and rgb Ham mode
+    case 2:
     case 3:
     case 4:
     case 5:
@@ -741,14 +824,16 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
                 }
             }
         } else if ((modeId & CAMGChunk::ModeId::HalfBrite) && (cmap)) {
+            // From A Quick Introduction to IFF.txt:
+            //
             // In HALFBRITE mode, the Amiga interprets the bit in the
             // last plane as HALFBRITE modification.  The bits in the other planes are
             // treated as normal color register numbers (RGB values for each color register
             // is specified in the CMAP chunk).  If the bit in the last plane is set (1),
             // then that pixel is displayed at half brightness.  This can provide up to 64
             // absolute colors.
-            ba = QByteArray(rowLen * 8 * 3, char());
-            auto pal = cmap->palette();
+            ba = QByteArray(rowLen * 8, char());
+            auto palSize = cmap->count();
             for (qint32 i = 0, cnt = 0; i < rowLen; ++i) {
                 for (qint32 j = 0; j < 8; ++j, ++cnt) {
                     quint8 idx = 0, ctl = 0;
@@ -760,12 +845,8 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
                         else
                             ctl = 1;
                     }
-                    if (idx < pal.size()) {
-                        auto cnt3 = cnt * 3;
-                        auto div = ctl ? 2 : 1;
-                        ba[cnt3] = qRed(pal.at(idx)) / div;
-                        ba[cnt3 + 1] = qGreen(pal.at(idx)) / div;
-                        ba[cnt3 + 2] = qBlue(pal.at(idx)) / div;
+                    if (idx < palSize) {
+                        ba[cnt] = ctl ? idx + palSize : idx;
                     } else {
                         qCWarning(LOG_IFFPLUGIN) << "BODYChunk::deinterleave: palette index" << idx << "is out of range";
                     }
@@ -968,30 +1049,28 @@ QImage::Format FORMChunk::format() const
 
     if (auto &&h = headers.first()) {
         auto cmaps = IFFChunk::searchT<CMAPChunk>(chunks());
-        auto camgs = IFFChunk::searchT<CAMGChunk>(chunks());
-
-        auto modeId = CAMGChunk::ModeIds();
-        if (!camgs.isEmpty()) {
-            modeId = camgs.first()->modeId();
-        } else if (h->bitplanes() == 6) {
-            // If no CAMG chunk is present, and image is 6 planes deep,
-            // assume HAM and you'll probably be right.
-            modeId = CAMGChunk::ModeIds(CAMGChunk::ModeId::Ham);
+        if (cmaps.isEmpty()) {
+            auto cmyks = IFFChunk::searchT<CMYKChunk>(chunks());
+            for (auto &&cmyk : cmyks)
+                cmaps.append(cmyk);
         }
+        auto camgs = IFFChunk::searchT<CAMGChunk>(chunks());
+        auto modeId = BODYChunk::safeModeId(h, camgs.isEmpty() ? nullptr : camgs.first(), cmaps.isEmpty() ? nullptr : cmaps.first());
         if (h->bitplanes() == 24) {
             return QImage::Format_RGB888;
         }
         if (h->bitplanes() == 32) {
             return QImage::Format_RGBA8888;
         }
-        if (h->bitplanes() >= 2 && h->bitplanes() <= 8) {
+        if (h->bitplanes() >= 1 && h->bitplanes() <= 8) {
             if (!IFFChunk::search(SHAM_CHUNK, chunks()).isEmpty() || !IFFChunk::search(CTBL_CHUNK, chunks()).isEmpty()) {
                 // Images with the SHAM or CTBL chunk do not load correctly: it seems they contains
                 // a color table but I didn't find any specs.
+                qCDebug(LOG_IFFPLUGIN) << "FORMChunk::format(): SHAM/CTBL chunk is not supported";
                 return QImage::Format_Invalid;
             }
 
-            if (modeId & (CAMGChunk::ModeId::Ham | CAMGChunk::ModeId::HalfBrite)) {
+            if (modeId & CAMGChunk::ModeId::Ham) {
                 return QImage::Format_RGB888;
             }
 
@@ -1000,9 +1079,6 @@ QImage::Format FORMChunk::format() const
             }
 
             return QImage::Format_Grayscale8;
-        }
-        if (h->bitplanes() == 1) {
-            return QImage::Format_Mono;
         }
     }
 
@@ -1168,10 +1244,10 @@ qint32 TBHDChunk::bpc() const
 
 qint32 TBHDChunk::channels() const
 {
-    if (flags() == TBHDChunk::Flag::RgbA) {
+    if ((flags() & TBHDChunk::Flag::RgbA) == TBHDChunk::Flag::RgbA) {
         return 4;
     }
-    if (flags() == TBHDChunk::Flag::Rgb) {
+    if ((flags() & TBHDChunk::Flag::Rgb) == TBHDChunk::Flag::Rgb) {
         return 3;
     }
     return 0;
@@ -1188,12 +1264,12 @@ quint16 TBHDChunk::tiles() const
 QImage::Format TBHDChunk::format() const
 {
     // Support for RGBA and RGB only for now.
-    if (flags() == TBHDChunk::Flag::RgbA) {
+    if ((flags() & TBHDChunk::Flag::RgbA) == TBHDChunk::Flag::RgbA) {
         if (bpc() == 2)
             return QImage::Format_RGBA64;
         else if (bpc() == 1)
             return QImage::Format_RGBA8888;
-    } else if (flags() == TBHDChunk::Flag::Rgb) {
+    } else if ((flags() & TBHDChunk::Flag::Rgb) == TBHDChunk::Flag::Rgb) {
         if (bpc() == 2)
             return QImage::Format_RGBX64;
         else if (bpc() == 1)
@@ -1516,12 +1592,12 @@ ANNOChunk::ANNOChunk()
 
 bool ANNOChunk::isValid() const
 {
-    return chunkId() == AUTHChunk::defaultChunkId();
+    return chunkId() == ANNOChunk::defaultChunkId();
 }
 
 QString ANNOChunk::value() const
 {
-    return QString::fromLatin1(data()).replace(QStringLiteral("\0"), QStringLiteral(" ")).trimmed();
+    return dataToString(this);
 }
 
 bool ANNOChunk::innerReadStructure(QIODevice *d)
@@ -1550,7 +1626,7 @@ bool AUTHChunk::isValid() const
 
 QString AUTHChunk::value() const
 {
-    return QString::fromLatin1(data()).replace(QStringLiteral("\0"), QStringLiteral(" ")).trimmed();
+    return dataToString(this);
 }
 
 bool AUTHChunk::innerReadStructure(QIODevice *d)
@@ -1580,7 +1656,7 @@ bool COPYChunk::isValid() const
 
 QString COPYChunk::value() const
 {
-    return QString::fromLatin1(data()).replace(QStringLiteral("\0"), QStringLiteral(" ")).trimmed();
+    return dataToString(this);
 }
 
 bool COPYChunk::innerReadStructure(QIODevice *d)
@@ -1610,6 +1686,9 @@ bool DATEChunk::isValid() const
 
 QDateTime DATEChunk::value() const
 {
+    if (!isValid()) {
+        return {};
+    }
     return QDateTime::fromString(QString::fromLatin1(data()), Qt::TextDate);
 }
 
@@ -1643,10 +1722,43 @@ bool EXIFChunk::isValid() const
 
 MicroExif EXIFChunk::value() const
 {
+    if (!isValid()) {
+        return {};
+    }
     return MicroExif::fromByteArray(data().mid(6));
 }
 
 bool EXIFChunk::innerReadStructure(QIODevice *d)
+{
+    return cacheData(d);
+}
+
+
+/* ******************
+ * *** ICCN Chunk ***
+ * ****************** */
+
+ICCNChunk::~ICCNChunk()
+{
+
+}
+
+ICCNChunk::ICCNChunk()
+{
+
+}
+
+bool ICCNChunk::isValid() const
+{
+    return chunkId() == ICCNChunk::defaultChunkId();
+}
+
+QString ICCNChunk::value() const
+{
+    return dataToString(this);
+}
+
+bool ICCNChunk::innerReadStructure(QIODevice *d)
 {
     return cacheData(d);
 }
@@ -1673,6 +1785,9 @@ bool ICCPChunk::isValid() const
 
 QColorSpace ICCPChunk::value() const
 {
+    if (!isValid()) {
+        return {};
+    }
     return QColorSpace::fromIccProfile(data());
 }
 
@@ -1726,6 +1841,9 @@ bool HISTChunk::isValid() const
 
 QString HISTChunk::value() const
 {
+    if (!isValid()) {
+        return {};
+    }
     return QString::fromLatin1(data());
 }
 
@@ -1756,7 +1874,7 @@ bool NAMEChunk::isValid() const
 
 QString NAMEChunk::value() const
 {
-    return QString::fromLatin1(data()).replace(QStringLiteral("\0"), QStringLiteral(" ")).trimmed();
+    return dataToString(this);
 }
 
 bool NAMEChunk::innerReadStructure(QIODevice *d)
@@ -1786,6 +1904,9 @@ bool VERSChunk::isValid() const
 
 QString VERSChunk::value() const
 {
+    if (!isValid()) {
+        return {};
+    }
     return QString::fromLatin1(data());
 }
 
@@ -1816,11 +1937,10 @@ bool XMP0Chunk::isValid() const
 
 QString XMP0Chunk::value() const
 {
-    return QString::fromUtf8(data()).replace(QStringLiteral("\0"), QStringLiteral(" ")).trimmed();
+    return dataToString(this);
 }
 
 bool XMP0Chunk::innerReadStructure(QIODevice *d)
 {
     return cacheData(d);
 }
-

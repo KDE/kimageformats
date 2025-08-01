@@ -15,7 +15,7 @@
 #include <QPainter>
 
 #ifdef QT_DEBUG
-Q_LOGGING_CATEGORY(LOG_IFFPLUGIN, "kf.imageformats.plugins.iff", QtInfoMsg)
+Q_LOGGING_CATEGORY(LOG_IFFPLUGIN, "kf.imageformats.plugins.iff", QtDebugMsg)
 #else
 Q_LOGGING_CATEGORY(LOG_IFFPLUGIN, "kf.imageformats.plugins.iff", QtWarningMsg)
 #endif
@@ -184,6 +184,12 @@ void addMetadata(QImage& img, const IFFChunk *form)
     if (!iccps.isEmpty()) {
         auto cs = iccps.first()->value();
         if (cs.isValid()) {
+            auto iccns = IFFChunk::searchT<ICCNChunk>(form);
+            if (!iccns.isEmpty()) {
+                auto desc = iccns.first()->value();
+                if (!desc.isEmpty())
+                    cs.setDescription(desc);
+            }
             img.setColorSpace(cs);
         }
     }
@@ -223,13 +229,30 @@ bool IFFHandler::readStandardImage(QImage *image)
     }
 
     // set color table
-    auto cmaps = IFFChunk::searchT<CMAPChunk>(form);
-    if (img.format() == QImage::Format_Indexed8) {
-        if (!cmaps.isEmpty())
-            if (auto &&cmap = cmaps.first())
-                img.setColorTable(cmap->palette());
+    const CAMGChunk *camg = nullptr;
+    auto camgs = IFFChunk::searchT<CAMGChunk>(form);
+    if (!camgs.isEmpty()) {
+        camg = camgs.first();
     }
 
+    const CMAPChunk *cmap = nullptr;
+    auto cmaps = IFFChunk::searchT<CMAPChunk>(form);
+    if (cmaps.isEmpty()) {
+        auto cmyks = IFFChunk::searchT<CMYKChunk>(form);
+        for (auto &&cmyk : cmyks)
+            cmaps.append(cmyk);
+    }
+    if (!cmaps.isEmpty()) {
+        cmap = cmaps.first();
+    }
+    if (img.format() == QImage::Format_Indexed8) {
+        if (cmap) {
+            auto halfbride = BODYChunk::safeModeId(header, camg, cmap) & CAMGChunk::ModeId::HalfBrite ? true : false;
+            img.setColorTable(cmap->palette(halfbride));
+        }
+    }
+
+    // reading image data
     auto bodies = IFFChunk::searchT<BODYChunk>(form);
     if (bodies.isEmpty()) {
         auto abits = IFFChunk::searchT<ABITChunk>(form);
@@ -239,16 +262,6 @@ bool IFFHandler::readStandardImage(QImage *image)
     if (bodies.isEmpty()) {
         img.fill(0);
     } else {
-        const CAMGChunk *camg = nullptr;
-        auto camgs = IFFChunk::searchT<CAMGChunk>(form);
-        if (!camgs.isEmpty()) {
-            camg = camgs.first();
-        }
-
-        const CMAPChunk *cmap = nullptr;
-        if (!cmaps.isEmpty())
-            cmap = cmaps.first();
-
         auto &&body = bodies.first();
         if (!body->resetStrideRead(device())) {
             qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readStandardImage() error while reading image data";
