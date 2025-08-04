@@ -19,11 +19,14 @@
 #include <QDateTime>
 #include <QImage>
 #include <QIODevice>
+#include <QLoggingCategory>
 #include <QPoint>
 #include <QSize>
 #include <QSharedPointer>
 
 #include "microexif_p.h"
+
+Q_DECLARE_LOGGING_CATEGORY(LOG_IFFPLUGIN)
 
 // Main chunks (Standard)
 #define CAT__CHUNK QByteArray("CAT ")

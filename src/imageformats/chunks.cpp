@@ -11,9 +11,12 @@
 #include <QBuffer>
 #include <QColor>
 #include <QDebug>
-#include <QLoggingCategory>
 
-Q_DECLARE_LOGGING_CATEGORY(LOG_IFFPLUGIN)
+#ifdef QT_DEBUG
+Q_LOGGING_CATEGORY(LOG_IFFPLUGIN, "kf.imageformats.plugins.iff", QtDebugMsg)
+#else
+Q_LOGGING_CATEGORY(LOG_IFFPLUGIN, "kf.imageformats.plugins.iff", QtWarningMsg)
+#endif
 
 #define RECURSION_PROTECTION 10
 

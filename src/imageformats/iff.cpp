@@ -11,14 +11,7 @@
 
 #include <QIODevice>
 #include <QImage>
-#include <QLoggingCategory>
 #include <QPainter>
-
-#ifdef QT_DEBUG
-Q_LOGGING_CATEGORY(LOG_IFFPLUGIN, "kf.imageformats.plugins.iff", QtDebugMsg)
-#else
-Q_LOGGING_CATEGORY(LOG_IFFPLUGIN, "kf.imageformats.plugins.iff", QtWarningMsg)
-#endif
 
 class IFFHandlerPrivate
 {
