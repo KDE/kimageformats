@@ -894,9 +894,9 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
         break;
 
     case 24: // rgb
-    case 32: // rgba
+    case 32: // rgba (SView5 extension)
         if (isPbm) {
-            // TODO: no testcase found
+            // PBM cannot be a 24/32-bits image
             break;
         }
 
@@ -930,6 +930,71 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
                     if (planes.at((7 + k8) * rowLen + i) & msk)
                         ba[cnt] |= 0x80;
                 }
+        }
+        break;
+
+    case 48: // rgb (SView5 extension)
+    case 64: // rgba (SView5 extension)
+        if (isPbm) {
+            // PBM cannot be a 48/64-bits image
+            break;
+        }
+
+        // From https://aminet.net/package/docs/misc/ILBM64:
+        //
+        // Previously, the IFF-ILBM fileformat has been
+        // extended two times already, for 24 bit and 32 bit
+        // image data:
+        //
+        //  24 bit -> 24 planes composing RGB 8:8:8 true color
+        //  32 bit -> 32 planes composing RGBA 8:8:8:8 true color
+        //                                             plus alpha
+        //
+        // The former extension quickly became a common one,
+        // while the latter until recently mainly had been
+        // used by some NewTek software.
+        //
+        // Now the following - as a consequent logical extension
+        // of the previously mentioned definitions - is introduced
+        // by SView5-Library:
+        //
+        // 48 bit -> 48 planes composing RGB 16:16:16 true color
+        // 64 bit -> 64 planes composing RGBA 16:16:16:16 true color
+        //                                                plus alpha
+        //
+        // The resulting data is intended to allow direct transformation
+        // from the PNG format into the Amiga (ILBM) bitmap format.
+
+        ba = QByteArray(rowLen * 64, char()); // the RGBX QT format is 64-bits
+        const qint32 order[] = { 1, 0, 3, 2, 5, 4, 7, 6 };
+        for (qint32 i = 0, cnt = 0, p = bitplanes / 8; i < rowLen; ++i) {
+            for (qint32 j = 0; j < 8; ++j, cnt += 8) {
+                for (qint32 k = 0; k < p; ++k) {
+                    auto k8 = k * 8;
+                    auto msk = (1 << (7 - j));
+                    auto idx = cnt + order[k];
+                    if (planes.at(k8 * rowLen + i) & msk)
+                        ba[idx] |= 0x01;
+                    if (planes.at((1 + k8) * rowLen + i) & msk)
+                        ba[idx] |= 0x02;
+                    if (planes.at((2 + k8) * rowLen + i) & msk)
+                        ba[idx] |= 0x04;
+                    if (planes.at((3 + k8) * rowLen + i) & msk)
+                        ba[idx] |= 0x08;
+                    if (planes.at((4 + k8) * rowLen + i) & msk)
+                        ba[idx] |= 0x10;
+                    if (planes.at((5 + k8) * rowLen + i) & msk)
+                        ba[idx] |= 0x20;
+                    if (planes.at((6 + k8) * rowLen + i) & msk)
+                        ba[idx] |= 0x40;
+                    if (planes.at((7 + k8) * rowLen + i) & msk)
+                        ba[idx] |= 0x80;
+                }
+                if (p == 6) { // RGBX wants unused X data set to 0xFF
+                    ba[cnt + 6] = char(0xFF);
+                    ba[cnt + 7] = char(0xFF);
+                }
+            }
         }
         break;
     }
@@ -1062,8 +1127,14 @@ QImage::Format FORMChunk::format() const
         if (h->bitplanes() == 24) {
             return QImage::Format_RGB888;
         }
+        if (h->bitplanes() == 48) {
+            return QImage::Format_RGBX64;
+        }
         if (h->bitplanes() == 32) {
             return QImage::Format_RGBA8888;
+        }
+        if (h->bitplanes() == 64) {
+            return QImage::Format_RGBA64;
         }
         if (h->bitplanes() >= 1 && h->bitplanes() <= 8) {
             if (!IFFChunk::search(SHAM_CHUNK, chunks()).isEmpty() || !IFFChunk::search(CTBL_CHUNK, chunks()).isEmpty()) {
