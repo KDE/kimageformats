@@ -23,6 +23,11 @@ public:
     bool supportsOption(QImageIOHandler::ImageOption option) const override;
     QVariant option(QImageIOHandler::ImageOption option) const override;
 
+    bool jumpToNextImage() override;
+    bool jumpToImage(int imageNumber) override;
+    int imageCount() const override;
+    int currentImageNumber() const override;
+
     static bool canRead(QIODevice *device);
 
 private:

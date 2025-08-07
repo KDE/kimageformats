@@ -79,6 +79,9 @@ Q_DECLARE_LOGGING_CATEGORY(LOG_IFFPLUGIN)
 #define ACBM_FORM_TYPE QByteArray("ACBM")
 #define ILBM_FORM_TYPE QByteArray("ILBM")
 #define PBM__FORM_TYPE QByteArray("PBM ")
+#define RGB8_FORM_TYPE QByteArray("RGB8")
+#define RGBN_FORM_TYPE QByteArray("RGBN")
+
 #define CIMG_FOR4_TYPE QByteArray("CIMG")
 #define TBMP_FOR4_TYPE QByteArray("TBMP")
 
@@ -345,7 +348,8 @@ class BMHDChunk: public IFFChunk
 public:
     enum Compression {
         Uncompressed = 0, /**< Image data are uncompressed. */
-        Rle = 1 /**< Image data are RLE compressed. */
+        Rle = 1, /**< Image data are RLE compressed. */
+        RgbN8 = 4 /**< RGB8/RGBN compresson. */
     };
     enum Masking {
         None = 0, /**< Designates an opaque rectangular image. */
@@ -626,11 +630,11 @@ public:
      * \param header The bitmap header.
      * \param camg The CAMG chunk (optional)
      * \param cmap The CMAP chunk (optional)
-     * \param isPbm Set to true if the formType() == "PBM "
+     * \param formType The type of the current form chunk.
      * \return The scanline as requested for QImage.
      * \warning Call resetStrideRead() once before this one.
      */
-    virtual QByteArray strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr, bool isPbm = false) const;
+    virtual QByteArray strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr, const QByteArray& formType = ILBM_FORM_TYPE) const;
 
     /*!
      * \brief resetStrideRead
@@ -655,12 +659,18 @@ public:
 protected:
     /*!
      * \brief strideSize
-     * \param isPbm Set true if the image is PBM.
+     * \param formType The type of the current form chunk.
      * \return The size of data to have to decode an image row.
      */
-    quint32 strideSize(const BMHDChunk *header, bool isPbm) const;
+    quint32 strideSize(const BMHDChunk *header, const QByteArray& formType) const;
 
-    QByteArray deinterleave(const QByteArray &planes, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr, bool isPbm = false) const;
+    QByteArray deinterleave(const QByteArray &planes, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr) const;
+
+    QByteArray pbm(const QByteArray &planes, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr) const;
+
+    QByteArray rgb8(const QByteArray &planes, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr) const;
+
+    QByteArray rgbN(const QByteArray &planes, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr) const;
 
 private:
     mutable QByteArray _readBuffer;
@@ -682,7 +692,7 @@ public:
 
     CHUNKID_DEFINE(ABIT_CHUNK)
 
-    virtual QByteArray strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr, bool isPbm = false) const override;
+    virtual QByteArray strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr, const QByteArray& formType = ACBM_FORM_TYPE) const override;
 
     virtual bool resetStrideRead(QIODevice *d) const override;
 
@@ -690,11 +700,52 @@ private:
     mutable qint32 _y;
 };
 
+/*!
+ * \brief The IFOR_Chunk class
+ * Interface for FORM chunks.
+ */
+class IFOR_Chunk : public IFFChunk
+{
+public:
+    virtual ~IFOR_Chunk() override;
+    IFOR_Chunk();
+
+    /*!
+     * \brief isSupported
+     * \return True if the form is supported by the plugin.
+     */
+    virtual bool isSupported() const = 0;
+
+    /*!
+     * \brief formType
+     * \return The type of image data contained in the form.
+     */
+    virtual QByteArray formType() const = 0;
+
+    /*!
+     * \brief format
+     * \return The Qt image format the form is converted to.
+     */
+    virtual QImage::Format format() const = 0;
+
+    /*!
+     * \brief transformation
+     * \return The image transformation.
+     * \note The Default implentation returns the trasformation of EXIF chunk (if any).
+     */
+    virtual QImageIOHandler::Transformation transformation() const;
+
+    /*!
+     * \brief size
+     * \return The image size in pixels.
+     */
+    virtual QSize size() const = 0;
+};
 
 /*!
  * \brief The FORMChunk class
  */
-class FORMChunk : public IFFChunk
+class FORMChunk : public IFOR_Chunk
 {
     QByteArray _type;
 
@@ -706,13 +757,13 @@ public:
 
     virtual bool isValid() const override;
 
-    bool isSupported() const;
+    virtual bool isSupported() const override;
 
-    QByteArray formType() const;
+    virtual QByteArray formType() const override;
 
-    QImage::Format format() const;
+    virtual QImage::Format format() const override;
 
-    QSize size() const;
+    virtual QSize size() const override;
 
     CHUNKID_DEFINE(FORM_CHUNK)
 
@@ -724,7 +775,7 @@ protected:
 /*!
  * \brief The FOR4Chunk class
  */
-class FOR4Chunk : public IFFChunk
+class FOR4Chunk : public IFOR_Chunk
 {
     QByteArray _type;
 
@@ -738,15 +789,38 @@ public:
 
     virtual qint32 alignBytes() const override;
 
-    bool isSupported() const;
+    virtual bool isSupported() const override;
 
-    QByteArray formType() const;
+    virtual QByteArray formType() const override;
 
-    QImage::Format format() const;
+    virtual QImage::Format format() const override;
 
-    QSize size() const;
+    virtual QSize size() const override;
 
     CHUNKID_DEFINE(FOR4_CHUNK)
+
+protected:
+    virtual bool innerReadStructure(QIODevice *d) override;
+};
+
+/*!
+ * \brief The CATChunk class
+ */
+class CATChunk : public IFFChunk
+{
+    QByteArray _type;
+
+public:
+    virtual ~CATChunk() override;
+    CATChunk();
+    CATChunk(const CATChunk& other) = default;
+    CATChunk& operator =(const CATChunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    QByteArray catType() const;
+
+    CHUNKID_DEFINE(CAT__CHUNK)
 
 protected:
     virtual bool innerReadStructure(QIODevice *d) override;

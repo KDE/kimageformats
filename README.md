@@ -317,6 +317,33 @@ plugin:
 - `HDR_HALF_QUALITY`: on read, a 16-bit float image is returned instead of a 
   32-bit float one.
 
+
+### The IFF plugin
+
+Interchange File Format is a chunk-based format. Since the original 1985
+version, various extensions have been created over time.
+
+The plugin supports the following image data:
+- FORM ILBM (Interleaved Bitmap): Electronic Arts’ IFF standard for
+  Interchange File Format (EA IFF 1985). ILBM is a format to handle raster
+  images, specifically an InterLeaved bitplane BitMap image with color map.
+  It supports from 1 to 8-bit indexed images with HAM, Halfbride, and normal
+  encoding. It also supports interleaved 24-bit RGB and 32-bit RGBA 
+  extension without color map.
+- FORM ILBM 64: ILBM extension to support 48-bit RGB and 64-bit RGBA encoding.
+- FORM ACBM (Amiga Contiguous BitMap): It supports uncompressed ACBMs by 
+  converting them to ILBMs at runtime.
+- FORM RGBN / RGB8: It supports 13-bit and 25-bit RGB images with compression 
+  type 4.
+- FORM PBM: PBM is a chunky version of IFF pictures. It supports 8-bit images 
+  with color map only.
+- FOR4 CIMG (Maya Image File Format): It supports 24/48-bit RGB and 32/64-bit 
+  RGBA images.
+
+The plugin does not load images with non-standard SHAM/CTBL chunks due to the
+lack of clear specifications.
+
+
 ### The JP2 plugin
 
 **This plugin can be disabled by setting `KIMAGEFORMATS_JP2` to `OFF` 

@@ -25,7 +25,9 @@ static QString dataToString(const IFFChunk *chunk)
     if (chunk == nullptr || !chunk->isValid()) {
         return {};
     }
-    return QString::fromUtf8(chunk->data()).replace(QStringLiteral("\0"), QStringLiteral(" ")).trimmed();
+    auto dt = chunk->data();
+    for (; dt.endsWith(char()); dt = dt.removeLast());
+    return QString::fromUtf8(dt).trimmed();
 }
 
 IFFChunk::~IFFChunk()
@@ -268,6 +270,8 @@ IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, IFFChunk *
             chunk = QSharedPointer<IFFChunk>(new BODYChunk());
         } else if (cid == CAMG_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new CAMGChunk());
+        } else if (cid == CAT__CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new CATChunk());
         } else if (cid == CMAP_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new CMAPChunk());
         } else if (cid == CMYK_CHUNK) {
@@ -509,7 +513,7 @@ QList<QRgb> CMAPChunk::palette(bool halfbride) const
         return p;
     }
     auto tmp = p;
-    for(auto &&v : tmp) {
+    for (auto &&v : tmp) {
         p << qRgb(qRed(v) / 2, qGreen(v) / 2, qBlue(v) / 2);
     }
     return p;
@@ -679,31 +683,150 @@ bool BODYChunk::isValid() const
     return chunkId() == BODYChunk::defaultChunkId();
 }
 
-QByteArray BODYChunk::strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap, bool isPbm) const
+// For each RGB value, a LONG-word (32 bits) is written:
+// with the 24 RGB bits in the MSB positions; the "genlock"
+// bit next, and then a 7 bit repeat count.
+//
+// See also: https://wiki.amigaos.net/wiki/RGBN_and_RGB8_IFF_Image_Data
+inline qint64 rgb8Decompress(QIODevice *input, char *output, qint64 olen)
+{
+    qint64 j = 0;
+    for (qint64 available = olen; j < olen; available = olen - j) {
+        auto pos = input->pos();
+        auto ba4 = input->read(4);
+        if (ba4.size() != 4) {
+            break;
+        }
+        auto cnt = qint32(ba4.at(3) & 0x7F);
+        if (cnt * 3 > available) {
+            if (!input->seek(pos))
+                return -1;
+            break;
+        }
+        for (qint32 i = 0; i < cnt; ++i) {
+            output[j++] = ba4.at(0);
+            output[j++] = ba4.at(1);
+            output[j++] = ba4.at(2);
+        }
+    }
+    return j;
+}
+
+// For each RGB value, a WORD (16-bits) is written: with the
+// 12 RGB bits in the MSB (most significant bit) positions;
+// the "genlock" bit next; and then a 3 bit repeat count.
+// If the repeat count is greater than 7, the 3-bit count is
+// zero, and a BYTE repeat count follows.  If the repeat count
+// is greater than 255, the BYTE count is zero, and a WORD
+// repeat count follows.  Repeat counts greater than 65536 are
+// not supported.
+//
+// See also: https://wiki.amigaos.net/wiki/RGBN_and_RGB8_IFF_Image_Data
+inline qint32 rgbnCount(QIODevice *input, quint8 &R, quint8& G, quint8 &B)
+{
+    auto ba2 = input->read(2);
+    if (ba2.size() != 2)
+        return 0;
+
+    R = ba2.at(0) & 0xF0;
+    R = R | (R >> 4);
+
+    G = ba2.at(0) & 0x0F;
+    G = G | (G << 4);
+
+    B = ba2.at(1) & 0xF0;
+    B = B | (B >> 4);
+
+    auto cnt = ba2.at(1) & 7;
+    if (cnt == 0) {
+        auto ba1 = input->read(1);
+        if (ba1.size() != 1)
+            return 0;
+        cnt = quint8(ba1.at(0));
+    }
+    if (cnt == 0) {
+        auto baw = input->read(2);
+        if (baw.size() != 2)
+            return 0;
+        cnt = qint32(quint8(baw.at(0))) << 8 | quint8(baw.at(1));
+    }
+
+    return cnt;
+}
+
+inline qint64 rgbNDecompress(QIODevice *input, char *output, qint64 olen)
+{
+    qint64 j = 0;
+    for (qint64 available = olen; j < olen; available = olen - j) {
+        quint8 R = 0, G = 0, B = 0;
+        auto pos = input->pos();
+        auto cnt = rgbnCount(input, R, G, B);
+        if (cnt * 3 > available || cnt == 0) {
+            if (!input->seek(pos))
+                return -1;
+            break;
+        }
+        for (qint32 i = 0; i < cnt; ++i) {
+            output[j++] = R;
+            output[j++] = G;
+            output[j++] = B;
+        }
+    }
+    return j;
+}
+
+QByteArray BODYChunk::strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap, const QByteArray& formType) const
 {
     if (!isValid() || header == nullptr || d == nullptr) {
         return {};
     }
 
-    auto readSize = strideSize(header, isPbm);
-    for(;!d->atEnd() && _readBuffer.size() < readSize;) {
-        QByteArray buf(readSize, char());
+    auto isRgbN = formType == RGBN_FORM_TYPE;
+    auto isRgb8 = formType == RGB8_FORM_TYPE;
+    auto isPbm = formType == PBM__FORM_TYPE;
+    auto lineCompressed = isRgbN || isRgb8 ? false : true;
+    auto readSize = strideSize(header, formType);
+    auto bufSize = readSize;
+    if (isRgbN) {
+        bufSize = std::max(quint32(65536 * 3), readSize);
+    }
+    if (isRgb8) {
+        bufSize = std::max(quint32(127 * 3), readSize);
+    }
+    for (auto nextPos = nextChunkPos(); !d->atEnd() && d->pos() < nextPos && _readBuffer.size() < readSize;) {
+        QByteArray buf(bufSize, char());
         qint64 rr = -1;
         if (header->compression() == BMHDChunk::Compression::Rle) {
             // WARNING: The online spec says it's the same as TIFF but that's
             // not accurate: the RLE -128 code is not a noop.
             rr = packbitsDecompress(d, buf.data(), buf.size(), true);
+        } else if (header->compression() == BMHDChunk::Compression::RgbN8) {
+            if (isRgb8)
+                rr = rgb8Decompress(d, buf.data(), buf.size());
+            else if (isRgbN)
+                rr = rgbNDecompress(d, buf.data(), buf.size());
         } else if (header->compression() == BMHDChunk::Compression::Uncompressed) {
             rr = d->read(buf.data(), buf.size()); // never seen
+        } else {
+            qCDebug(LOG_IFFPLUGIN) << "BODYChunk::strideRead: unknown compression" << header->compression();
         }
-        if (rr != readSize)
+        if ((rr != readSize && lineCompressed) || (rr < 1))
             return {};
         _readBuffer.append(buf.data(), rr);
     }
 
     auto planes = _readBuffer.left(readSize);
     _readBuffer.remove(0, readSize);
-    return deinterleave(planes, header, camg, cmap, isPbm);
+    if (isPbm) {
+        return pbm(planes, header, camg, cmap);
+    }
+    if (isRgb8) {
+        return rgb8(planes, header, camg, cmap);
+    }
+    if (isRgbN) {
+        return rgbN(planes, header, camg, cmap);
+    }
+    return deinterleave(planes, header, camg, cmap);
 }
 
 bool BODYChunk::resetStrideRead(QIODevice *d) const
@@ -731,20 +854,56 @@ CAMGChunk::ModeIds BODYChunk::safeModeId(const BMHDChunk *header, const CAMGChun
     return CAMGChunk::ModeIds();
 }
 
-quint32 BODYChunk::strideSize(const BMHDChunk *header, bool isPbm) const
+quint32 BODYChunk::strideSize(const BMHDChunk *header, const QByteArray& formType) const
 {
-    if (!isPbm) {
-        return header->rowLen() * header->bitplanes();
+    // RGB8 / RGBN
+    if (formType == RGB8_FORM_TYPE || formType == RGBN_FORM_TYPE) {
+        return header->width() * 3;
     }
-    auto rs = header->width() * header->bitplanes() / 8;
-    if (rs & 1)
-        ++rs;
-    return rs;
+
+    // PBM
+    if (formType == PBM__FORM_TYPE) {
+        auto rs = header->width() * header->bitplanes() / 8;
+        if (rs & 1)
+            ++rs;
+        return rs;
+    }
+
+    // ILBM
+    return header->rowLen() * header->bitplanes();
 }
 
-QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap, bool isPbm) const
+QByteArray BODYChunk::pbm(const QByteArray &planes, const BMHDChunk *header, const CAMGChunk *, const CMAPChunk *) const
 {
-    if (planes.size() != strideSize(header, isPbm)) {
+    if (planes.size() != strideSize(header, PBM__FORM_TYPE)) {
+        return {};
+    }
+    if (header->bitplanes() == 8) {
+        // The data are contiguous.
+        return planes;
+    }
+    return {};
+}
+
+QByteArray BODYChunk::rgb8(const QByteArray &planes, const BMHDChunk *header, const CAMGChunk *, const CMAPChunk *) const
+{
+    if (planes.size() != strideSize(header, RGB8_FORM_TYPE)) {
+        return {};
+    }
+    return planes;
+}
+
+QByteArray BODYChunk::rgbN(const QByteArray &planes, const BMHDChunk *header, const CAMGChunk *, const CMAPChunk *) const
+{
+    if (planes.size() != strideSize(header, RGBN_FORM_TYPE)) {
+        return {};
+    }
+    return planes;
+}
+
+QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap) const
+{
+    if (planes.size() != strideSize(header, ILBM_FORM_TYPE)) {
         return {};
     }
 
@@ -762,10 +921,7 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
     case 6:
     case 7:
     case 8:
-        if (isPbm && bitplanes == 8) {
-            // The data are contiguous.
-            ba = planes;
-        } else if ((modeId & CAMGChunk::ModeId::Ham) && (cmap) && (bitplanes >= 5 && bitplanes <= 8)) {
+        if ((modeId & CAMGChunk::ModeId::Ham) && (cmap) && (bitplanes >= 5 && bitplanes <= 8)) {
             // From A Quick Introduction to IFF.txt:
             //
             // Amiga HAM (Hold and Modify) mode lets the Amiga display all 4096 RGB values.
@@ -895,11 +1051,6 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
 
     case 24: // rgb
     case 32: // rgba (SView5 extension)
-        if (isPbm) {
-            // PBM cannot be a 24/32-bits image
-            break;
-        }
-
         // From A Quick Introduction to IFF.txt:
         //
         // If a deep ILBM (like 12 or 24 planes), there should be no CMAP
@@ -935,11 +1086,6 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
 
     case 48: // rgb (SView5 extension)
     case 64: // rgba (SView5 extension)
-        if (isPbm) {
-            // PBM cannot be a 48/64-bits image
-            break;
-        }
-
         // From https://aminet.net/package/docs/misc/ILBM64:
         //
         // Previously, the IFF-ILBM fileformat has been
@@ -1020,17 +1166,17 @@ bool ABITChunk::isValid() const
     return chunkId() == ABITChunk::defaultChunkId();
 }
 
-QByteArray ABITChunk::strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap, bool isPbm) const
+QByteArray ABITChunk::strideRead(QIODevice *d, const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap, const QByteArray& formType) const
 {
     if (!isValid() || header == nullptr || d == nullptr) {
         return {};
     }
-    if (header->compression() != BMHDChunk::Compression::Uncompressed || isPbm) {
+    if (header->compression() != BMHDChunk::Compression::Uncompressed || formType != ACBM_FORM_TYPE) {
         return {};
     }
 
     // convert ABIT data to an ILBM line on the fly
-    auto ilbmLine = QByteArray(strideSize(header, isPbm), char());
+    auto ilbmLine = QByteArray(strideSize(header, formType), char());
     auto rowSize = header->rowLen();
     auto height = header->height();
     if (_y >= height) {
@@ -1054,7 +1200,7 @@ QByteArray ABITChunk::strideRead(QIODevice *d, const BMHDChunk *header, const CA
     if (!buf.open(QBuffer::ReadOnly)) {
         return {};
     }
-    return BODYChunk::strideRead(&buf, header, camg, cmap, isPbm);
+    return BODYChunk::strideRead(&buf, header, camg, cmap, ILBM_FORM_TYPE);
 }
 
 bool ABITChunk::resetStrideRead(QIODevice *d) const
@@ -1062,6 +1208,33 @@ bool ABITChunk::resetStrideRead(QIODevice *d) const
     _y = 0;
     return BODYChunk::resetStrideRead(d);
 }
+
+
+/* **********************
+ * *** FORM Interface ***
+ * ********************** */
+
+IFOR_Chunk::~IFOR_Chunk()
+{
+
+}
+
+IFOR_Chunk::IFOR_Chunk() : IFFChunk()
+{
+
+}
+
+QImageIOHandler::Transformation IFOR_Chunk::transformation() const
+{
+    auto exifs = IFFChunk::searchT<EXIFChunk>(chunks());
+    if (!exifs.isEmpty()) {
+        auto exif = exifs.first()->value();
+        if (!exif.isEmpty())
+            return exif.transformation();
+    }
+    return QImageIOHandler::Transformation::TransformationNone;
+}
+
 
 /* ******************
  * *** FORM Chunk ***
@@ -1072,7 +1245,7 @@ FORMChunk::~FORMChunk()
 
 }
 
-FORMChunk::FORMChunk() : IFFChunk()
+FORMChunk::FORMChunk() : IFOR_Chunk()
 {
 }
 
@@ -1093,11 +1266,17 @@ bool FORMChunk::innerReadStructure(QIODevice *d)
     }
     _type = d->read(4);
     auto ok = true;
+
+    // NOTE: add new supported type to CATChunk as well.
     if (_type == ILBM_FORM_TYPE) {
         setChunks(IFFChunk::innerFromDevice(d, &ok, this));
     } else if (_type == PBM__FORM_TYPE) {
         setChunks(IFFChunk::innerFromDevice(d, &ok, this));
     } else if (_type == ACBM_FORM_TYPE) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
+    } else if (_type == RGB8_FORM_TYPE) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
+    } else if (_type == RGBN_FORM_TYPE) {
         setChunks(IFFChunk::innerFromDevice(d, &ok, this));
     }
     return ok;
@@ -1124,7 +1303,10 @@ QImage::Format FORMChunk::format() const
         }
         auto camgs = IFFChunk::searchT<CAMGChunk>(chunks());
         auto modeId = BODYChunk::safeModeId(h, camgs.isEmpty() ? nullptr : camgs.first(), cmaps.isEmpty() ? nullptr : cmaps.first());
-        if (h->bitplanes() == 24) {
+        if (h->bitplanes() == 13) {
+            return QImage::Format_RGB888; // NOTE: with a little work you could use Format_RGB444
+        }
+        if (h->bitplanes() == 24 || h->bitplanes() == 25) {
             return QImage::Format_RGB888;
         }
         if (h->bitplanes() == 48) {
@@ -1154,6 +1336,7 @@ QImage::Format FORMChunk::format() const
 
             return QImage::Format_Grayscale8;
         }
+        qCDebug(LOG_IFFPLUGIN) << "FORMChunk::format: Unsupported" << h->bitplanes() << "bitplanes";
     }
 
     return QImage::Format_Invalid;
@@ -1177,7 +1360,7 @@ FOR4Chunk::~FOR4Chunk()
 
 }
 
-FOR4Chunk::FOR4Chunk() : IFFChunk()
+FOR4Chunk::FOR4Chunk() : IFOR_Chunk()
 {
 
 }
@@ -1235,6 +1418,52 @@ QSize FOR4Chunk::size() const
     return headers.first()->size();
 }
 
+/* ******************
+ * *** CAT Chunk ***
+ * ****************** */
+
+CATChunk::~CATChunk()
+{
+
+}
+
+CATChunk::CATChunk() : IFFChunk()
+{
+
+}
+
+bool CATChunk::isValid() const
+{
+    return chunkId() == CATChunk::defaultChunkId();
+}
+
+QByteArray CATChunk::catType() const
+{
+    return _type;
+}
+
+bool CATChunk::innerReadStructure(QIODevice *d)
+{
+    if (bytes() < 4) {
+        return false;
+    }
+    _type = d->read(4);
+    auto ok = true;
+
+    // supports the image formats of FORMChunk.
+    if (_type == ILBM_FORM_TYPE) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
+    } else if (_type == PBM__FORM_TYPE) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
+    } else if (_type == ACBM_FORM_TYPE) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
+    } else if (_type == RGB8_FORM_TYPE) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
+    } else if (_type == RGBN_FORM_TYPE) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
+    }
+    return ok;
+}
 
 /* ******************
  * *** TBHD Chunk ***
@@ -1477,7 +1706,7 @@ QByteArray RGBAChunk::readStride(QIODevice *d, const TBHDChunk *header) const
     }
 
     // compressed
-    for(;!d->atEnd() && _readBuffer.size() < readSize;) {
+    for (auto nextPos = nextChunkPos(); !d->atEnd() && d->pos() < nextPos && _readBuffer.size() < readSize;) {
         QByteArray buf(readSize * size().height(), char());
         qint64 rr = -1;
         if (header->compression() == TBHDChunk::Compression::Rle) {

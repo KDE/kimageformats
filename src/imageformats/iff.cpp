@@ -16,28 +16,38 @@
 class IFFHandlerPrivate
 {
 public:
-    IFFHandlerPrivate() {}
-    ~IFFHandlerPrivate() {}
+    IFFHandlerPrivate()
+        : m_imageNumber(0)
+        , m_imageCount(0)
+    {
 
-    bool readStructure(QIODevice *d) {
+    }
+    ~IFFHandlerPrivate()
+    {
+
+    }
+
+    bool readStructure(QIODevice *d)
+    {
         if (d == nullptr) {
             return {};
         }
 
-        if (!_chunks.isEmpty()) {
+        if (!m_chunks.isEmpty()) {
             return true;
         }
 
         auto ok = false;
         auto chunks = IFFChunk::fromDevice(d, &ok);
         if (ok) {
-            _chunks = chunks;
+            m_chunks = chunks;
         }
         return ok;
     }
 
     template <class T>
-    static QList<const T*> searchForms(const IFFChunk::ChunkList &chunks, bool supportedOnly = true) {
+    static QList<const T*> searchForms(const IFFChunk::ChunkList &chunks, bool supportedOnly = true)
+    {
         QList<const T*> list;
         auto cid = T::defaultChunkId();
         auto forms = IFFChunk::search(cid, chunks);
@@ -50,11 +60,25 @@ public:
     }
 
     template <class T>
-    QList<const T*> searchForms(bool supportedOnly = true) {
-        return searchForms<T>(_chunks, supportedOnly);
+    QList<const T*> searchForms(bool supportedOnly = true)
+    {
+        return searchForms<T>(m_chunks, supportedOnly);
     }
 
-    IFFChunk::ChunkList _chunks;
+    IFFChunk::ChunkList m_chunks;
+
+    /*!
+     * \brief m_imageNumber
+     * Value set by QImageReader::jumpToImage() or QImageReader::jumpToNextImage().
+     * The number of view selected in a multiview image.
+     */
+    qint32 m_imageNumber;
+
+    /*!
+     * \brief m_imageCount
+     * The total number of views (cache value)
+     */
+    mutable qint32 m_imageCount;
 };
 
 
@@ -62,6 +86,7 @@ IFFHandler::IFFHandler()
     : QImageIOHandler()
     , d(new IFFHandlerPrivate)
 {
+
 }
 
 bool IFFHandler::canRead() const
@@ -204,7 +229,8 @@ bool IFFHandler::readStandardImage(QImage *image)
     if (forms.isEmpty()) {
         return false;
     }
-    auto &&form = forms.first();
+    auto cin = qBound(0, currentImageNumber(), int(forms.size() - 1));
+    auto &&form = forms.at(cin);
 
     // show the first one (I don't have a sample with many images)
     auto headers = IFFChunk::searchT<BMHDChunk>(form);
@@ -260,10 +286,9 @@ bool IFFHandler::readStandardImage(QImage *image)
             qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readStandardImage() error while reading image data";
             return false;
         }
-        auto isPbm = form->formType() == PBM__FORM_TYPE;
         for (auto y = 0, h = img.height(); y < h; ++y) {
             auto line = reinterpret_cast<char*>(img.scanLine(y));
-            auto ba = body->strideRead(device(), header, camg, cmap, isPbm);
+            auto ba = body->strideRead(device(), header, camg, cmap, form->formType());
             if (ba.isEmpty()) {
                 qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readStandardImage() error while reading image scanline";
                 return false;
@@ -285,7 +310,8 @@ bool IFFHandler::readMayaImage(QImage *image)
     if (forms.isEmpty()) {
         return false;
     }
-    auto &&form = forms.first();
+    auto cin = qBound(0, currentImageNumber(), int(forms.size() - 1));
+    auto &&form = forms.at(cin);
 
     // show the first one (I don't have a sample with many images)
     auto headers = IFFChunk::searchT<TBHDChunk>(form);
@@ -366,42 +392,88 @@ bool IFFHandler::supportsOption(ImageOption option) const
     if (option == QImageIOHandler::ImageFormat) {
         return true;
     }
+    if (option == QImageIOHandler::ImageTransformation) {
+        return true;
+    }
     return false;
 }
 
 QVariant IFFHandler::option(ImageOption option) const
 {
-    QVariant v;
+    if (!supportsOption(option)) {
+        return {};
+    }
+
+    const IFOR_Chunk *form = nullptr;
+    if (d->readStructure(device())) {
+        auto forms = d->searchForms<FORMChunk>();
+        auto for4s = d->searchForms<FOR4Chunk>();
+        auto cin = currentImageNumber();
+        if (!forms.isEmpty())
+            form = cin < forms.size() ? forms.at(cin) : forms.first();
+        else if (!for4s.isEmpty())
+            form = cin < for4s.size() ? for4s.at(cin) : for4s.first();
+    }
+    if (form == nullptr) {
+        return {};
+    }
 
     if (option == QImageIOHandler::Size) {
-        if (d->readStructure(device())) {
-            auto forms = d->searchForms<FORMChunk>();
-            if (!forms.isEmpty())
-                if (auto &&form = forms.first())
-                    v = QVariant::fromValue(form->size());
-
-            auto for4s = d->searchForms<FOR4Chunk>();
-            if (!for4s.isEmpty())
-                if (auto &&form = for4s.first())
-                    v = QVariant::fromValue(form->size());
-        }
+        return QVariant::fromValue(form->size());
     }
 
     if (option == QImageIOHandler::ImageFormat) {
-        if (d->readStructure(device())) {
-            auto forms = d->searchForms<FORMChunk>();
-            if (!forms.isEmpty())
-                if (auto &&form = forms.first())
-                    v = QVariant::fromValue(form->format());
-
-            auto for4s = d->searchForms<FOR4Chunk>();
-            if (!for4s.isEmpty())
-                if (auto &&form = for4s.first())
-                    v = QVariant::fromValue(form->format());
-        }
+        return QVariant::fromValue(form->format());
     }
 
-    return v;
+    if (option == QImageIOHandler::ImageTransformation) {
+        return QVariant::fromValue(form->transformation());
+    }
+
+    return {};
+}
+
+bool IFFHandler::jumpToNextImage()
+{
+    return jumpToImage(d->m_imageNumber + 1);
+}
+
+bool IFFHandler::jumpToImage(int imageNumber)
+{
+    if (imageNumber < 0 || imageNumber >= imageCount()) {
+        return false;
+    }
+    d->m_imageNumber = imageNumber;
+    return true;
+}
+
+int IFFHandler::imageCount() const
+{
+    // NOTE: image count is cached for performance reason
+    auto &&count = d->m_imageCount;
+    if (count > 0) {
+        return count;
+    }
+
+    count = QImageIOHandler::imageCount();
+    if (!d->readStructure(device())) {
+        qCWarning(LOG_IFFPLUGIN) << "IFFHandler::imageCount() invalid IFF structure";
+        return count;
+    }
+
+    auto forms = d->searchForms<FORMChunk>();
+    auto for4s = d->searchForms<FOR4Chunk>();
+    if (!forms.isEmpty())
+        count = forms.size();
+    else if (!for4s.isEmpty())
+        count = for4s.size();
+
+    return count;
+}
+
+int IFFHandler::currentImageNumber() const
+{
+    return d->m_imageNumber;
 }
 
 QImageIOPlugin::Capabilities IFFPlugin::capabilities(QIODevice *device, const QByteArray &format) const
