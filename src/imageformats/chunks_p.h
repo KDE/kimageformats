@@ -55,7 +55,9 @@ Q_DECLARE_LOGGING_CATEGORY(LOG_IFFPLUGIN)
 #define CMYK_CHUNK QByteArray("CMYK") // https://wiki.amigaos.net/wiki/ILBM_IFF_Interleaved_Bitmap#ILBM.CMYK
 #define DPI__CHUNK QByteArray("DPI ")
 
+#define BEAM_CHUNK QByteArray("BEAM") // undocumented (should be the same as CTBL)
 #define CTBL_CHUNK QByteArray("CTBL") // undocumented
+#define RAST_CHUNK QByteArray("RAST") // undocumented (Atari STE)
 #define SHAM_CHUNK QByteArray("SHAM") // undocumented
 
 // FOR4 CIMG IFF (Maya)

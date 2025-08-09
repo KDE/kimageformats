@@ -10,7 +10,6 @@
 
 #include <QBuffer>
 #include <QColor>
-#include <QDebug>
 
 #ifdef QT_DEBUG
 Q_LOGGING_CATEGORY(LOG_IFFPLUGIN, "kf.imageformats.plugins.iff", QtDebugMsg)
@@ -19,6 +18,11 @@ Q_LOGGING_CATEGORY(LOG_IFFPLUGIN, "kf.imageformats.plugins.iff", QtWarningMsg)
 #endif
 
 #define RECURSION_PROTECTION 10
+
+#define BITPLANES_HAM_MAX 8
+#define BITPLANES_HAM_MIN 5
+#define BITPLANES_HALFBRIDE_MAX 8
+#define BITPLANES_HALFBRIDE_MIN 1
 
 static QString dataToString(const IFFChunk *chunk)
 {
@@ -843,13 +847,15 @@ CAMGChunk::ModeIds BODYChunk::safeModeId(const BMHDChunk *header, const CAMGChun
     if (header == nullptr) {
         return CAMGChunk::ModeIds();
     }
-    if (cmap && cmap->count() == (1 << (header->bitplanes() - 1))) {
-        return CAMGChunk::ModeIds(CAMGChunk::ModeId::HalfBrite);
+    auto cmapCount = cmap ? cmap->count() : 0;
+    auto bitplanes = header->bitplanes();
+    if (bitplanes >= BITPLANES_HALFBRIDE_MIN && bitplanes <= BITPLANES_HALFBRIDE_MAX) {
+        if (cmapCount == (1 << (header->bitplanes() - 1)))
+            return CAMGChunk::ModeIds(CAMGChunk::ModeId::HalfBrite);
     }
-    if (header->bitplanes() == 6) {
-        // If no CAMG chunk is present, and image is 6 planes deep,
-        // assume HAM and you'll probably be right.
-        return CAMGChunk::ModeIds(CAMGChunk::ModeId::Ham);
+    if (bitplanes >= BITPLANES_HAM_MIN && bitplanes <= BITPLANES_HAM_MAX) {
+        if (cmapCount == (1 << (header->bitplanes() - 2)))
+            return CAMGChunk::ModeIds(CAMGChunk::ModeId::Ham);
     }
     return CAMGChunk::ModeIds();
 }
@@ -921,7 +927,8 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
     case 6:
     case 7:
     case 8:
-        if ((modeId & CAMGChunk::ModeId::Ham) && (cmap) && (bitplanes >= 5 && bitplanes <= 8)) {
+        if ((modeId & CAMGChunk::ModeId::Ham) && (cmap) &&
+            (bitplanes >= BITPLANES_HAM_MIN && bitplanes <= BITPLANES_HAM_MAX)) {
             // From A Quick Introduction to IFF.txt:
             //
             // Amiga HAM (Hold and Modify) mode lets the Amiga display all 4096 RGB values.
@@ -982,7 +989,8 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, const BMHDChunk *he
                     ba[cnt3 + 2] = char(prev[2]);
                 }
             }
-        } else if ((modeId & CAMGChunk::ModeId::HalfBrite) && (cmap)) {
+        } else if ((modeId & CAMGChunk::ModeId::HalfBrite) && (cmap) &&
+                   (bitplanes >= BITPLANES_HALFBRIDE_MIN && bitplanes <= BITPLANES_HALFBRIDE_MAX)) {
             // From A Quick Introduction to IFF.txt:
             //
             // In HALFBRITE mode, the Amiga interprets the bit in the
@@ -1319,15 +1327,19 @@ QImage::Format FORMChunk::format() const
             return QImage::Format_RGBA64;
         }
         if (h->bitplanes() >= 1 && h->bitplanes() <= 8) {
-            if (!IFFChunk::search(SHAM_CHUNK, chunks()).isEmpty() || !IFFChunk::search(CTBL_CHUNK, chunks()).isEmpty()) {
-                // Images with the SHAM or CTBL chunk do not load correctly: it seems they contains
-                // a color table but I didn't find any specs.
-                qCDebug(LOG_IFFPLUGIN) << "FORMChunk::format(): SHAM/CTBL chunk is not supported";
+            if (!IFFChunk::search(SHAM_CHUNK, chunks()).isEmpty()
+                || !IFFChunk::search(RAST_CHUNK, chunks()).isEmpty()
+                || !IFFChunk::search(CTBL_CHUNK, chunks()).isEmpty()
+                || !IFFChunk::search(BEAM_CHUNK, chunks()).isEmpty()) {
+                // Images with the SHAM, RAST or BEAM/CTBL chunk do not load correctly:
+                // it seems they contains a color table but I didn't find any specs.
+                qCDebug(LOG_IFFPLUGIN) << "FORMChunk::format(): BEAM/CTBL/RAST/SHAM chunk is not supported";
                 return QImage::Format_Invalid;
             }
 
-            if (modeId & CAMGChunk::ModeId::Ham) {
-                return QImage::Format_RGB888;
+            if (h->bitplanes() >= BITPLANES_HAM_MIN && h->bitplanes() <= BITPLANES_HAM_MAX) {
+                if (modeId & CAMGChunk::ModeId::Ham)
+                    return QImage::Format_RGB888;
             }
 
             if (!cmaps.isEmpty()) {
