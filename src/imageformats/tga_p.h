@@ -29,6 +29,8 @@ public:
 private:
     bool writeIndexed(const QImage &image);
 
+    bool writeGrayscale(const QImage &image);
+
     bool writeRGBA(const QImage &image);
 
     const QScopedPointer<TGAHandlerPrivate> d;

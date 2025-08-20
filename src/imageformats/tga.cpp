@@ -2,6 +2,7 @@
     This file is part of the KDE project
     SPDX-FileCopyrightText: 2003 Dominik Seichter <domseichter@web.de>
     SPDX-FileCopyrightText: 2004 Ignacio Castaño <castano@ludicon.com>
+    SPDX-FileCopyrightText: 2025 Mirco Miranda <mircomir@outlook.com>
 
     SPDX-License-Identifier: LGPL-2.0-or-later
 */
@@ -14,6 +15,8 @@
  *     pixel formats 8, 16, 24 and 32.
  * writing:
  *     uncompressed true color tga files
+ *     uncompressed grayscale tga files
+ *     uncompressed indexed tga files
  */
 
 #include "tga_p.h"
@@ -191,11 +194,13 @@ static QImage::Format imageFormat(const TgaHeader &head)
                 format = QImage::Format_ARGB32;
             }
         // Anyway, GIMP also saves gray images with alpha in TGA format
-        } else if((info.grey) && (head.pixel_size == 16) && (numAlphaBits)) {
+        } else if ((info.grey) && (head.pixel_size == 16) && (numAlphaBits)) {
             if (numAlphaBits == 8) {
                 format = QImage::Format_ARGB32;
             }
-        } else if (head.image_type == TGA_TYPE_INDEXED || head.image_type == TGA_TYPE_RLE_INDEXED) {
+        } else if (info.grey) {
+            format = QImage::Format_Grayscale8;
+        } else if (info.pal) {
             format = QImage::Format_Indexed8;
         } else {
             format = QImage::Format_RGB32;
@@ -220,20 +225,101 @@ static bool peekHeader(QIODevice *device, TgaHeader &header)
     return true;
 }
 
-static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
+/*!
+ * \brief readTgaLine
+ * Read a scan line from the raw data.
+ * \param dev The current device.
+ * \param pixel_size The number of bytes per pixel.
+ * \param size The size of the uncompressed TGA raw line
+ * \param rle True if the stream is RLE compressed, otherwise false.
+ * \param cache The cache buffer used to store data (only used when the stream is RLE).
+ * \return The uncompressed raw data of a line or an empty array on error.
+ */
+static QByteArray readTgaLine(QIODevice *dev, qint32 pixel_size, qint32 size, bool rle, QByteArray &cache)
+{
+    // uncompressed stream
+    if (!rle) {
+        auto ba = dev->read(size);
+        if (ba.size() != size)
+            ba.clear();
+        return ba;
+    }
+
+    // RLE compressed stream
+    if (cache.size() < qsizetype(size)) {
+        // Decode image.
+        qint64 num = size;
+
+        while (num > 0) {
+            if (dev->atEnd()) {
+                break;
+            }
+
+            // Get packet header.
+            char cc;
+            if (dev->read(&cc, 1) != 1) {
+                cache.clear();
+                break;
+            }
+            auto c = uchar(cc);
+
+            uint count = (c & 0x7f) + 1;
+            QByteArray tmp(count * pixel_size, char());
+            auto dst = tmp.data();
+            num -= count * pixel_size;
+
+            if (c & 0x80) { // RLE pixels.
+                assert(pixel_size <= 8);
+                char pixel[8];
+                const int dataRead = dev->read(pixel, pixel_size);
+                if (dataRead < (int)pixel_size) {
+                    memset(&pixel[dataRead], 0, pixel_size - dataRead);
+                }
+                do {
+                    memcpy(dst, pixel, pixel_size);
+                    dst += pixel_size;
+                } while (--count);
+            } else { // Raw pixels.
+                count *= pixel_size;
+                const int dataRead = dev->read(dst, count);
+                if (dataRead < 0) {
+                    cache.clear();
+                    break;
+                }
+
+                if ((uint)dataRead < count) {
+                    const size_t toCopy = count - dataRead;
+                    memset(&dst[dataRead], 0, toCopy);
+                }
+                dst += count;
+            }
+
+            cache.append(tmp);
+        }
+    }
+
+    auto data = cache.left(size);
+    cache.remove(0, size);
+    if (data.size() != size)
+        data.clear();
+    return data;
+}
+
+static bool LoadTGA(QIODevice *dev, const TgaHeader &tga, QImage &img)
 {
     img = imageAlloc(tga.width, tga.height, imageFormat(tga));
     if (img.isNull()) {
-        qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(tga.width, tga.height);
+        qWarning() << "LoadTGA: Failed to allocate image, invalid dimensions?" << QSize(tga.width, tga.height);
         return false;
     }
 
     TgaHeaderInfo info(tga);
 
     const int numAlphaBits = tga.flags & 0xf;
-    uint pixel_size = (tga.pixel_size / 8);
-    qint64 size = qint64(tga.width) * qint64(tga.height) * pixel_size;
-
+    bool hasAlpha = img.hasAlphaChannel();
+    qint32 pixel_size = (tga.pixel_size / 8);
+    qint32 line_size = qint32(tga.width) * pixel_size;
+    qint64 size = qint64(tga.height) * line_size;
     if (size < 1) {
         //          qDebug() << "This TGA file is broken with size " << size;
         return false;
@@ -251,7 +337,7 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
         if (tga.colormap_size == 32) { // BGRA.
             char data[4];
             for (QRgb &rgb : colorTable) {
-                const auto dataRead = s.readRawData(data, 4);
+                const auto dataRead = dev->read(data, 4);
                 if (dataRead < 4) {
                     return false;
                 }
@@ -261,7 +347,7 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
         } else if (tga.colormap_size == 24) { // BGR.
             char data[3];
             for (QRgb &rgb : colorTable) {
-                const auto dataRead = s.readRawData(data, 3);
+                const auto dataRead = dev->read(data, 3);
                 if (dataRead < 3) {
                     return false;
                 }
@@ -276,96 +362,8 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
         img.setColorTable(colorTable);
     }
 
-    // Allocate image.
-    uchar *const image = reinterpret_cast<uchar *>(malloc(size));
-    if (!image) {
-        return false;
-    }
-
-    bool valid = true;
-
-    if (info.rle) {
-        // Decode image.
-        char *dst = (char *)image;
-        char *imgEnd = dst + size;
-        qint64 num = size;
-
-        while (num > 0 && valid) {
-            if (s.atEnd()) {
-                valid = false;
-                break;
-            }
-
-            // Get packet header.
-            uchar c;
-            s >> c;
-
-            uint count = (c & 0x7f) + 1;
-            num -= count * pixel_size;
-            if (num < 0) {
-                valid = false;
-                break;
-            }
-
-            if (c & 0x80) {
-                // RLE pixels.
-                assert(pixel_size <= 8);
-                char pixel[8];
-                const int dataRead = s.readRawData(pixel, pixel_size);
-                if (dataRead < (int)pixel_size) {
-                    memset(&pixel[dataRead], 0, pixel_size - dataRead);
-                }
-                do {
-                    if (dst + pixel_size > imgEnd) {
-                        qWarning() << "Trying to write out of bounds!" << ptrdiff_t(dst) << (ptrdiff_t(imgEnd) - ptrdiff_t(pixel_size));
-                        valid = false;
-                        break;
-                    }
-
-                    memcpy(dst, pixel, pixel_size);
-                    dst += pixel_size;
-                } while (--count);
-            } else {
-                // Raw pixels.
-                count *= pixel_size;
-                const int dataRead = s.readRawData(dst, count);
-                if (dataRead < 0) {
-                    free(image);
-                    return false;
-                }
-
-                if ((uint)dataRead < count) {
-                    const size_t toCopy = count - dataRead;
-                    if (&dst[dataRead] + toCopy > imgEnd) {
-                        qWarning() << "Trying to write out of bounds!" << ptrdiff_t(image) << ptrdiff_t(&dst[dataRead]);
-                        ;
-                        valid = false;
-                        break;
-                    }
-
-                    memset(&dst[dataRead], 0, toCopy);
-                }
-                dst += count;
-            }
-        }
-    } else {
-        // Read raw image.
-        const int dataRead = s.readRawData((char *)image, size);
-        if (dataRead < 0) {
-            free(image);
-            return false;
-        }
-        if (dataRead < size) {
-            memset(&image[dataRead], 0, size - dataRead);
-        }
-    }
-
-    if (!valid) {
-        free(image);
-        return false;
-    }
-
     // Convert image to internal format.
+    bool valid = true;
     int y_start;
     int y_step;
     int y_end;
@@ -379,9 +377,15 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
         y_end = -1;
     }
 
-    uchar *src = image;
-
+    QByteArray cache;
     for (int y = y_start; y != y_end; y += y_step) {
+        auto tgaLine = readTgaLine(dev, pixel_size, line_size, info.rle, cache);
+        if (tgaLine.size() != qsizetype(line_size)) {
+            qWarning() << "LoadTGA: Error while decoding a TGA raw line";
+            valid = false;
+            break;
+        }
+        auto src = tgaLine.data();
         if (info.pal) {
             // Paletted.
             auto scanline = img.scanLine(y);
@@ -394,15 +398,16 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
                 scanline[x] = idx;
             }
         } else if (info.grey) {
-            auto scanline = reinterpret_cast<QRgb *>(img.scanLine(y));
-            // Greyscale.
-            for (int x = 0; x < tga.width; x++) {
-                if (tga.pixel_size == 16) {
+            if (tga.pixel_size == 16) { // Greyscale with alpha.
+                auto scanline = reinterpret_cast<QRgb *>(img.scanLine(y));
+                for (int x = 0; x < tga.width; x++) {
                     scanline[x] = qRgba(*src, *src, *src, *(src + 1));
                     src += 2;
                 }
-                else {
-                    scanline[x] = qRgb(*src, *src, *src);
+            } else { // Greyscale.
+                auto scanline = img.scanLine(y);
+                for (int x = 0; x < tga.width; x++) {
+                    scanline[x] = *src;
                     src++;
                 }
             }
@@ -421,9 +426,12 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
                     src += 3;
                 }
             } else if (tga.pixel_size == 32) {
+                auto div = (1 << numAlphaBits) - 1;
+                if (div == 0)
+                    hasAlpha = false;
                 for (int x = 0; x < tga.width; x++) {
                     // ### TODO: verify with images having really some alpha data
-                    const uchar alpha = (src[3] << (8 - numAlphaBits));
+                    const int alpha = hasAlpha ? int((src[3]) << (8 - numAlphaBits)) * 255 / div : 255;
                     scanline[x] = qRgba(src[2], src[1], src[0], alpha);
                     src += 4;
                 }
@@ -431,8 +439,11 @@ static bool LoadTGA(QDataStream &s, const TgaHeader &tga, QImage &img)
         }
     }
 
-    // Free image.
-    free(image);
+#ifdef QT_DEBUG
+    if (!cache.isEmpty() && valid) {
+        qDebug() << "LoadTGA: Found unused image data";
+    }
+#endif
 
     return valid;
 }
@@ -480,19 +491,14 @@ bool TGAHandler::read(QImage *outImage)
         dev->seek(TgaHeader::SIZE + tga.id_length);
     }
 
-    QDataStream s(dev);
-    s.setByteOrder(QDataStream::LittleEndian);
-
     // Check image file format.
-    if (s.atEnd()) {
+    if (dev->atEnd()) {
         //         qDebug() << "This TGA file is not valid.";
         return false;
     }
 
     QImage img;
-    bool result = LoadTGA(s, tga, img);
-
-    if (result == false) {
+    if (!LoadTGA(dev, tga, img)) {
         //         qDebug() << "Error loading TGA file.";
         return false;
     }
@@ -505,6 +511,8 @@ bool TGAHandler::write(const QImage &image)
 {
     if (image.format() == QImage::Format_Indexed8)
         return writeIndexed(image);
+    if (image.format() == QImage::Format_Grayscale8 || image.format() == QImage::Format_Grayscale16)
+        return writeGrayscale(image);
     return writeRGBA(image);
 }
 
@@ -527,7 +535,7 @@ bool TGAHandler::writeIndexed(const QImage &image)
 
     s << quint16(img.width()); // Image Width
     s << quint16(img.height()); // Image Height
-    s << quint8(8); // Pixe Depth
+    s << quint8(8); // Pixel Depth
     s << quint8(TGA_ORIGIN_UPPER + TGA_ORIGIN_LEFT); // Image Descriptor
 
     for (auto &&rgb : ct) {
@@ -536,6 +544,51 @@ bool TGAHandler::writeIndexed(const QImage &image)
         s << quint8(qRed(rgb));
         s << quint8(qAlpha(rgb));
     }
+
+    if (s.status() != QDataStream::Ok) {
+        return false;
+    }
+
+    for (int y = 0; y < img.height(); y++) {
+        auto ptr = img.constScanLine(y);
+        for (int x = 0; x < img.width(); x++) {
+            s << *(ptr + x);
+        }
+        if (s.status() != QDataStream::Ok) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool TGAHandler::writeGrayscale(const QImage &image)
+{
+    QDataStream s(device());
+    s.setByteOrder(QDataStream::LittleEndian);
+
+    QImage img(image);
+    if (img.format() != QImage::Format_Grayscale8) {
+        img = img.convertToFormat(QImage::Format_Grayscale8);
+    }
+    if (img.isNull()) {
+        qCritical() << "TGAHandler::writeGrayscale: image conversion to 8 bits grayscale failed!";
+        return false;
+    }
+
+    s << quint8(0); // ID Length
+    s << quint8(0); // Color Map Type
+    s << quint8(TGA_TYPE_GREY); // Image Type
+    s << quint16(0); // First Entry Index
+    s << quint16(0); // Color Map Length
+    s << quint8(0); // Color map Entry Size
+    s << quint16(0); // X-origin of Image
+    s << quint16(0); // Y-origin of Image
+
+    s << quint16(img.width()); // Image Width
+    s << quint16(img.height()); // Image Height
+    s << quint8(8); // Pixel Depth
+    s << quint8(TGA_ORIGIN_UPPER + TGA_ORIGIN_LEFT); // Image Descriptor
 
     if (s.status() != QDataStream::Ok) {
         return false;
@@ -574,7 +627,7 @@ bool TGAHandler::writeRGBA(const QImage &image)
         img = img.convertToFormat(QImage::Format_RGB32);
     }
     if (img.isNull()) {
-        qDebug() << "TGAHandler::write: image conversion to 32 bits failed!";
+        qCritical() << "TGAHandler::writeRGBA: image conversion to 32 bits failed!";
         return false;
     }
     static constexpr quint8 originTopLeft = TGA_ORIGIN_UPPER + TGA_ORIGIN_LEFT; // 0x20
