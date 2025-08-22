@@ -386,7 +386,7 @@ static bool LoadTGA(QIODevice *dev, const TgaHeader &tga, QImage &img)
             break;
         }
         auto src = tgaLine.data();
-        if (info.pal) {
+        if (info.pal && img.depth() == 8) {
             // Paletted.
             auto scanline = img.scanLine(y);
             for (int x = 0; x < tga.width; x++) {
@@ -398,34 +398,37 @@ static bool LoadTGA(QIODevice *dev, const TgaHeader &tga, QImage &img)
                 scanline[x] = idx;
             }
         } else if (info.grey) {
-            if (tga.pixel_size == 16) { // Greyscale with alpha.
+            if (tga.pixel_size == 16 && img.depth() == 32) { // Greyscale with alpha.
                 auto scanline = reinterpret_cast<QRgb *>(img.scanLine(y));
                 for (int x = 0; x < tga.width; x++) {
                     scanline[x] = qRgba(*src, *src, *src, *(src + 1));
                     src += 2;
                 }
-            } else { // Greyscale.
+            } else if (tga.pixel_size == 8 && img.depth() == 8) { // Greyscale.
                 auto scanline = img.scanLine(y);
                 for (int x = 0; x < tga.width; x++) {
                     scanline[x] = *src;
                     src++;
                 }
+            } else {
+                valid = false;
+                break;
             }
         } else {
             auto scanline = reinterpret_cast<QRgb *>(img.scanLine(y));
             // True Color.
-            if (tga.pixel_size == 16) {
+            if (tga.pixel_size == 16 && img.depth() == 16) {
                 for (int x = 0; x < tga.width; x++) {
                     Color555 c = *reinterpret_cast<Color555 *>(src);
                     scanline[x] = qRgb((c.r << 3) | (c.r >> 2), (c.g << 3) | (c.g >> 2), (c.b << 3) | (c.b >> 2));
                     src += 2;
                 }
-            } else if (tga.pixel_size == 24) {
+            } else if (tga.pixel_size == 24 && img.depth() == 32) {
                 for (int x = 0; x < tga.width; x++) {
                     scanline[x] = qRgb(src[2], src[1], src[0]);
                     src += 3;
                 }
-            } else if (tga.pixel_size == 32) {
+            } else if (tga.pixel_size == 32 && img.depth() == 32) {
                 auto div = (1 << numAlphaBits) - 1;
                 if (div == 0)
                     hasAlpha = false;
@@ -435,6 +438,9 @@ static bool LoadTGA(QIODevice *dev, const TgaHeader &tga, QImage &img)
                     scanline[x] = qRgba(src[2], src[1], src[0], alpha);
                     src += 4;
                 }
+            } else {
+                valid = false;
+                break;
             }
         }
     }
