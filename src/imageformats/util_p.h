@@ -13,6 +13,11 @@
 #include <QImage>
 #include <QImageIOHandler>
 
+// Default maximum width and height for the large image plugins.
+#ifndef KIF_LARGE_IMAGE_PIXEL_LIMIT
+#define KIF_LARGE_IMAGE_PIXEL_LIMIT 300000
+#endif
+
 // Image metadata keys to use in plugins (so they are consistent)
 #define META_KEY_ALTITUDE "Altitude"
 #define META_KEY_AUTHOR "Author"

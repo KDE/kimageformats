@@ -15,6 +15,16 @@
 #include <QDebug>
 #include <QImage>
 
+/* *** RAS_MAX_IMAGE_WIDTH and RAS_MAX_IMAGE_HEIGHT ***
+ * The maximum size in pixel allowed by the plugin.
+ */
+#ifndef RAS_MAX_IMAGE_WIDTH
+#define RAS_MAX_IMAGE_WIDTH KIF_LARGE_IMAGE_PIXEL_LIMIT
+#endif
+#ifndef RAS_MAX_IMAGE_HEIGHT
+#define RAS_MAX_IMAGE_HEIGHT RAS_MAX_IMAGE_WIDTH
+#endif
+
 namespace // Private.
 {
 // format info from http://www.fileformat.info/format/sunraster/egff.htm
@@ -84,9 +94,10 @@ static bool IsSupported(const RasHeader &head)
     if (head.Depth != 1 && head.Depth != 8 && head.Depth != 24 && head.Depth != 32) {
         return false;
     }
-    if (head.Width == 0 || head.Height == 0) {
+    if (head.Width == 0 || head.Height == 0 || head.Width > RAS_MAX_IMAGE_WIDTH || head.Height > RAS_MAX_IMAGE_HEIGHT) {
         return false;
     }
+
     // the Type field adds support for RLE(BGR), RGB and other encodings
     // we support Type 1: Normal(BGR), Type 2: RLE(BGR) and Type 3: Normal(RGB) ONLY!
     // TODO: add support for Type 4,5: TIFF/IFF
@@ -388,7 +399,7 @@ bool RASHandler::read(QImage *outImage)
     s >> ras;
 
     if (ras.ColorMapLength > kMaxQVectorSize) {
-        qWarning() << "LoadRAS() unsupported image color map length in file header" << ras.ColorMapLength;
+        qWarning() << "read() unsupported image color map length in file header" << ras.ColorMapLength;
         return false;
     }
 
