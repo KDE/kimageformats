@@ -20,6 +20,7 @@
  */
 
 #include "rgb_p.h"
+#include "scanlineconverter_p.h"
 #include "util_p.h"
 
 #include <cstring>
@@ -133,8 +134,8 @@ private:
 
     bool writeHeader();
     bool writeRle();
-    bool writeVerbatim(const QImage &);
-    bool scanData(const QImage &);
+    bool writeVerbatim(const QImage &, const QImage::Format&, const QColorSpace&);
+    bool scanData(const QImage &, const QImage::Format&, const QColorSpace&);
     uint compact(uchar *, uchar *);
     uchar intensity(uchar);
 };
@@ -457,7 +458,7 @@ uint SGIImagePrivate::compact(uchar *d, uchar *s)
     return dest - d;
 }
 
-bool SGIImagePrivate::scanData(const QImage &img)
+bool SGIImagePrivate::scanData(const QImage &img, const QImage::Format &tfmt, const QColorSpace &tcs)
 {
     quint32 *start = _starttab;
     QByteArray lineguard(_xsize * 2, 0);
@@ -469,6 +470,8 @@ bool SGIImagePrivate::scanData(const QImage &img)
     unsigned y;
     uint len;
 
+    ScanLineConverter scl(tfmt);
+    scl.setTargetColorSpace(tcs);
     for (y = 0; y < _ysize; y++) {
         const int yPos = _ysize - y - 1; // scanline doesn't do any sanity checking
         if (yPos >= img.height()) {
@@ -476,7 +479,7 @@ bool SGIImagePrivate::scanData(const QImage &img)
             return false;
         }
 
-        c = reinterpret_cast<const QRgb *>(img.scanLine(yPos));
+        c = reinterpret_cast<const QRgb *>(scl.convertedScanLine(img, yPos));
 
         for (x = 0; x < _xsize; x++) {
             buf[x] = intensity(qRed(*c++));
@@ -497,7 +500,7 @@ bool SGIImagePrivate::scanData(const QImage &img)
                 return false;
             }
 
-            c = reinterpret_cast<const QRgb *>(img.scanLine(yPos));
+            c = reinterpret_cast<const QRgb *>(scl.convertedScanLine(img, yPos));
             for (x = 0; x < _xsize; x++) {
                 buf[x] = intensity(qGreen(*c++));
             }
@@ -512,7 +515,7 @@ bool SGIImagePrivate::scanData(const QImage &img)
                 return false;
             }
 
-            c = reinterpret_cast<const QRgb *>(img.scanLine(yPos));
+            c = reinterpret_cast<const QRgb *>(scl.convertedScanLine(img, yPos));
             for (x = 0; x < _xsize; x++) {
                 buf[x] = intensity(qBlue(*c++));
             }
@@ -532,7 +535,7 @@ bool SGIImagePrivate::scanData(const QImage &img)
             return false;
         }
 
-        c = reinterpret_cast<const QRgb *>(img.scanLine(yPos));
+        c = reinterpret_cast<const QRgb *>(scl.convertedScanLine(img, yPos));
         for (x = 0; x < _xsize; x++) {
             buf[x] = intensity(qAlpha(*c++));
         }
@@ -683,7 +686,7 @@ bool SGIImagePrivate::writeRle()
     return _stream.status() == QDataStream::Ok;
 }
 
-bool SGIImagePrivate::writeVerbatim(const QImage &img)
+bool SGIImagePrivate::writeVerbatim(const QImage &img, const QImage::Format &tfmt, const QColorSpace &tcs)
 {
     _rle = 0;
     if (!writeHeader()) {
@@ -694,11 +697,15 @@ bool SGIImagePrivate::writeVerbatim(const QImage &img)
     unsigned x;
     unsigned y;
 
+    ScanLineConverter scl(tfmt);
+    scl.setTargetColorSpace(tcs);
+    QByteArray ba(_xsize, char());
     for (y = 0; y < _ysize; y++) {
-        c = reinterpret_cast<const QRgb *>(img.scanLine(_ysize - y - 1));
+        c = reinterpret_cast<const QRgb *>(scl.convertedScanLine(img, _ysize - y - 1));
         for (x = 0; x < _xsize; x++) {
-            _stream << quint8(qRed(*c++));
+            ba[x] = char(qRed(*c++));
         }
+        _stream.writeRawData(ba.data(), ba.size());
     }
 
     if (_zsize == 1) {
@@ -707,17 +714,19 @@ bool SGIImagePrivate::writeVerbatim(const QImage &img)
 
     if (_zsize != 2) {
         for (y = 0; y < _ysize; y++) {
-            c = reinterpret_cast<const QRgb *>(img.scanLine(_ysize - y - 1));
+            c = reinterpret_cast<const QRgb *>(scl.convertedScanLine(img, _ysize - y - 1));
             for (x = 0; x < _xsize; x++) {
-                _stream << quint8(qGreen(*c++));
+                ba[x] = char(qGreen(*c++));
             }
+            _stream.writeRawData(ba.data(), ba.size());
         }
 
         for (y = 0; y < _ysize; y++) {
-            c = reinterpret_cast<const QRgb *>(img.scanLine(_ysize - y - 1));
+            c = reinterpret_cast<const QRgb *>(scl.convertedScanLine(img, _ysize - y - 1));
             for (x = 0; x < _xsize; x++) {
-                _stream << quint8(qBlue(*c++));
+                ba[x] = char(qBlue(*c++));
             }
+            _stream.writeRawData(ba.data(), ba.size());
         }
 
         if (_zsize == 3) {
@@ -726,10 +735,11 @@ bool SGIImagePrivate::writeVerbatim(const QImage &img)
     }
 
     for (y = 0; y < _ysize; y++) {
-        c = reinterpret_cast<const QRgb *>(img.scanLine(_ysize - y - 1));
+        c = reinterpret_cast<const QRgb *>(scl.convertedScanLine(img, _ysize - y - 1));
         for (x = 0; x < _xsize; x++) {
-            _stream << quint8(qAlpha(*c++));
+            ba[x] = char(qAlpha(*c++));
         }
+        _stream.writeRawData(ba.data(), ba.size());
     }
 
     return _stream.status() == QDataStream::Ok;
@@ -738,37 +748,35 @@ bool SGIImagePrivate::writeVerbatim(const QImage &img)
 bool SGIImagePrivate::writeImage(const QImage &image)
 {
     //     qDebug() << "writing "; // TODO add filename
-    QImage img = image;
-    if (img.allGray()) {
+    if (image.allGray()) {
         _dim = 2, _zsize = 1;
     } else {
         _dim = 3, _zsize = 3;
     }
 
-    auto hasAlpha = img.hasAlphaChannel();
+    auto hasAlpha = image.hasAlphaChannel();
     if (hasAlpha) {
         _dim = 3, _zsize++;
     }
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     auto cs = image.colorSpace();
-    if (cs.isValid() && cs.colorModel() == QColorSpace::ColorModel::Cmyk && image.format() == QImage::Format_CMYK8888) {
-        img = image.convertedToColorSpace(QColorSpace(QColorSpace::SRgb), QImage::Format_RGB32);
-    } else if (hasAlpha && img.format() != QImage::Format_ARGB32) {
+    auto tcs = QColorSpace();
+    auto tfmt = image.format();
+    if (cs.isValid() && cs.colorModel() == QColorSpace::ColorModel::Cmyk && tfmt == QImage::Format_CMYK8888) {
+        tcs = QColorSpace(QColorSpace::SRgb);
+        tfmt = QImage::Format_RGB32;
+    } else if (hasAlpha && tfmt != QImage::Format_ARGB32) {
 #else
-    if (hasAlpha && img.format() != QImage::Format_ARGB32) {
+    if (hasAlpha && tfmt != QImage::Format_ARGB32) {
 #endif
-        img = img.convertToFormat(QImage::Format_ARGB32);
-    } else if (!hasAlpha && img.format() != QImage::Format_RGB32) {
-        img = img.convertToFormat(QImage::Format_RGB32);
-    }
-    if (img.isNull()) {
-        //         qDebug() << "can't convert image to depth 32";
-        return false;
+        tfmt = QImage::Format_ARGB32;
+    } else if (!hasAlpha && tfmt != QImage::Format_RGB32) {
+        tfmt = QImage::Format_RGB32;
     }
 
-    const int w = img.width();
-    const int h = img.height();
+    const int w = image.width();
+    const int h = image.height();
 
     if (w > 65535 || h > 65535) {
         return false;
@@ -785,7 +793,7 @@ bool SGIImagePrivate::writeImage(const QImage &image)
     _starttab = new quint32[_numrows];
     _rlemap.setBaseOffset(512 + _numrows * 2 * sizeof(quint32));
 
-    if (!scanData(img)) {
+    if (!scanData(image, tfmt, tcs)) {
         //         qDebug() << "this can't happen";
         return false;
     }
@@ -799,7 +807,7 @@ bool SGIImagePrivate::writeImage(const QImage &image)
     }
 
     if (verbatim_size <= rle_size) {
-        return writeVerbatim(img);
+        return writeVerbatim(image, tfmt, tcs);
     }
     return writeRle();
 }
