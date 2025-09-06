@@ -1126,7 +1126,11 @@ static QImage readR32F(QDataStream &s, const quint32 width, const quint32 height
     for (quint32 y = 0; y < height; y++) {
         float *line = reinterpret_cast<float *>(image.scanLine(y));
         for (quint32 x = 0; x < width; x++) {
-            line[x * 4] = readFloat32(s);
+            const float f = readFloat32(s);
+            if (std::isnan(f)) {
+                return {};
+            }
+            line[x * 4] = f;
             line[x * 4 + 1] = 0;
             line[x * 4 + 2] = 0;
             line[x * 4 + 3] = 1;
