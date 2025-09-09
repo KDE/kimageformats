@@ -1170,7 +1170,9 @@ bool XCFImageFormat::loadLayer(QDataStream &xcf_io, XCFImage &xcf_image)
     if (!composeTiles(xcf_image)) {
         return false;
     }
-    xcf_io.device()->seek(layer.hierarchy_offset);
+    if (!xcf_io.device()->seek(layer.hierarchy_offset)) {
+        return false;
+    }
 
     // As tiles are loaded, they are copied into the layers tiles by
     // this routine. (loadMask(), below, uses a slightly different
@@ -1188,7 +1190,9 @@ bool XCFImageFormat::loadLayer(QDataStream &xcf_io, XCFImage &xcf_image)
             layer.apply_mask = 1;
         }
 
-        xcf_io.device()->seek(layer.mask_offset);
+        if (!xcf_io.device()->seek(layer.mask_offset)) {
+            return false;
+        }
 
         if (!loadMask(xcf_io, layer, xcf_image.header.precision)) {
             return false;
@@ -1948,12 +1952,15 @@ bool XCFImageFormat::loadHierarchy(QDataStream &xcf_io, Layer &layer, const Gimp
 
     qint64 saved_pos = xcf_io.device()->pos();
 
-    xcf_io.device()->seek(offset);
+    if (!xcf_io.device()->seek(offset)) {
+        return false;
+    }
     if (!loadLevel(xcf_io, layer, bpp, precision)) {
         return false;
     }
-
-    xcf_io.device()->seek(saved_pos);
+    if (!xcf_io.device()->seek(saved_pos)) {
+        return false;
+    }
     return true;
 }
 
@@ -2056,7 +2063,9 @@ bool XCFImageFormat::loadLevel(QDataStream &xcf_io, Layer &layer, qint32 bpp, co
                 offset2 = offset + blockSize;
             }
 
-            xcf_io.device()->seek(offset);
+            if (!xcf_io.device()->seek(offset)) {
+                return false;
+            }
             qint64 bytesParsed = 0;
 
             switch (layer.compression) {
@@ -2163,7 +2172,9 @@ bool XCFImageFormat::loadLevel(QDataStream &xcf_io, Layer &layer, qint32 bpp, co
                 return false;
             }
 
-            xcf_io.device()->seek(saved_pos);
+            if (!xcf_io.device()->seek(saved_pos)) {
+                return false;
+            }
             offset = readOffsetPtr(xcf_io);
 
             if (offset < 0) {
@@ -2203,7 +2214,9 @@ bool XCFImageFormat::loadMask(QDataStream &xcf_io, Layer &layer, const GimpPreci
         return false;
     }
 
-    xcf_io.device()->seek(hierarchy_offset);
+    if (!xcf_io.device()->seek(hierarchy_offset)) {
+        return false;
+    }
     layer.assignBytes = assignMaskBytes;
 
     if (!loadHierarchy(xcf_io, layer, precision)) {
@@ -4235,7 +4248,9 @@ bool XCFHandler::canRead(QIODevice *device)
     bool failed = !XCFImageFormat::readXCFHeader(ds, &header);
     ds.setDevice(nullptr);
 
-    device->seek(oldPos);
+    if (!device->seek(oldPos)) {
+        return false;
+    }
     if (failed) {
         return false;
     }
