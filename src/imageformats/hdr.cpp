@@ -126,6 +126,7 @@ public:
     {
         Header h;
 
+        int cnt = 0;
         int len;
         QByteArray line(MAXLINE + 1, Qt::Uninitialized);
         QByteArray format;
@@ -167,7 +168,7 @@ public:
                 }
             }
 
-        } while ((len > 0) && (line[0] != '\n'));
+        } while ((len > 0) && (line[0] != '\n') && (cnt++ < 128));
 
         if (format != "32-bit_rle_rgbe") {
             qCDebug(HDRPLUGIN) << "Unknown HDR format:" << format;
