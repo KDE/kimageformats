@@ -370,7 +370,7 @@ bool IFFHandler::readStandardImage(QImage *image)
     }
     if (ipal) {
         auto pal = img.colorTable();
-        if (pal.isEmpty())
+        if (pal.isEmpty() && cmap)
             pal = cmap->palette();
         if (!ipal->initialize(pal, img.height())) {
             qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readStandardImage(): unable to initialize palette changer";
