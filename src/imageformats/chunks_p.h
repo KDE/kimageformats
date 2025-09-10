@@ -84,6 +84,7 @@ Q_DECLARE_LOGGING_CATEGORY(LOG_IFFPLUGIN)
 #define FVER_CHUNK QByteArray("FVER")
 #define HIST_CHUNK QByteArray("HIST")
 #define NAME_CHUNK QByteArray("NAME")
+#define VDAT_CHUNK QByteArray("VDAT")
 #define VERS_CHUNK QByteArray("VERS")
 #define XMP0_CHUNK QByteArray("XMP0") // https://aminet.net/package/docs/misc/IFF-metadata
 
@@ -431,7 +432,8 @@ public:
     enum Compression {
         Uncompressed = 0, /**< Image data are uncompressed. */
         Rle = 1, /**< Image data are RLE compressed. */
-        RgbN8 = 4 /**< RGB8/RGBN compresson. */
+        Vdat = 2, /**< Image data are VDAT compressed. */
+        RgbN8 = 4 /**< Image data are RGB8/RGBN compressed. */
     };
     enum Masking {
         None = 0, /**< Designates an opaque rectangular image. */
@@ -814,6 +816,8 @@ protected:
     QByteArray rgb8(const QByteArray &planes, qint32 y, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr, const IPALChunk *ipal = nullptr) const;
 
     QByteArray rgbN(const QByteArray &planes, qint32 y, const BMHDChunk *header, const CAMGChunk *camg = nullptr, const CMAPChunk *cmap = nullptr, const IPALChunk *ipal = nullptr) const;
+
+    virtual bool innerReadStructure(QIODevice *d) override;
 
 private:
     mutable QByteArray _readBuffer;
@@ -1368,6 +1372,32 @@ public:
 protected:
     virtual bool innerReadStructure(QIODevice *d) override;
 };
+
+
+/*!
+ * \brief The VDATChunk class
+ */
+class VDATChunk : public IFFChunk
+{
+public:
+    virtual ~VDATChunk() override;
+    VDATChunk();
+    VDATChunk(const VDATChunk& other) = default;
+    VDATChunk& operator =(const VDATChunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    CHUNKID_DEFINE(VDAT_CHUNK)
+
+    const QByteArray &uncompressedData(const BMHDChunk *header) const;
+
+protected:
+    virtual bool innerReadStructure(QIODevice *d) override;
+
+private:
+    mutable QByteArray uncompressed;
+};
+
 
 /*!
  * \brief The VERSChunk class

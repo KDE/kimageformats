@@ -331,6 +331,8 @@ IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, IFFChunk *
             chunk = QSharedPointer<IFFChunk>(new SHAMChunk());
         } else if (cid == TBHD_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new TBHDChunk());
+        } else if (cid == VDAT_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new VDATChunk());
         } else if (cid == VERS_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new VERSChunk());
         } else if (cid == XBMI_CHUNK) {
@@ -853,6 +855,23 @@ inline qint64 rgbNDecompress(QIODevice *input, char *output, qint64 olen)
     return j;
 }
 
+
+inline qint64 vdatDecompress(const IFFChunk *chunk, const BMHDChunk *header, qint32 y, char *output, qint64 olen)
+{
+    auto vdats = IFFChunk::searchT<VDATChunk>(chunk);
+    auto rowLen = header->rowLen();
+    if (olen < rowLen * vdats.size()) {
+        return -1;
+    }
+    for (qint32 i = 0, n = vdats.size(); i < n; ++i) {
+        auto&& uc = vdats.at(i)->uncompressedData(header);
+        if (y * rowLen > uc.size() - rowLen)
+            return -1;
+        std::memcpy(output + (i * rowLen), uc.data() + (y * rowLen), rowLen);
+    }
+    return vdats.size() * rowLen;
+}
+
 QByteArray BODYChunk::strideRead(QIODevice *d, qint32 y, const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap, const IPALChunk *ipal, const QByteArray& formType) const
 {
     if (!isValid() || header == nullptr || d == nullptr) {
@@ -878,6 +897,8 @@ QByteArray BODYChunk::strideRead(QIODevice *d, qint32 y, const BMHDChunk *header
             // WARNING: The online spec says it's the same as TIFF but that's
             // not accurate: the RLE -128 code is not a noop.
             rr = packbitsDecompress(d, buf.data(), buf.size(), true);
+        } else if (header->compression() == BMHDChunk::Compression::Vdat) {
+            rr = vdatDecompress(this, header, y, buf.data(), buf.size());
         } else if (header->compression() == BMHDChunk::Compression::RgbN8) {
             if (isRgb8)
                 rr = rgb8Decompress(d, buf.data(), buf.size());
@@ -982,6 +1003,15 @@ QByteArray BODYChunk::rgbN(const QByteArray &planes, qint32, const BMHDChunk *he
         return {};
     }
     return planes;
+}
+
+bool BODYChunk::innerReadStructure(QIODevice *d)
+{
+    auto ok = true;
+    if (d->peek(4) == VDAT_CHUNK) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
+    }
+    return ok;
 }
 
 QByteArray BODYChunk::deinterleave(const QByteArray &planes, qint32 y, const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap, const IPALChunk *ipal) const
@@ -2372,6 +2402,123 @@ bool NAMEChunk::innerReadStructure(QIODevice *d)
 
 
 /* ******************
+ * *** VDAT Chunk ***
+ * ****************** */
+
+VDATChunk::~VDATChunk()
+{
+
+}
+
+VDATChunk::VDATChunk()
+{
+
+}
+
+bool VDATChunk::isValid() const
+{
+    return chunkId() == VDATChunk::defaultChunkId();
+}
+
+static QByteArray decompressVdat(const QByteArray &comp)
+{
+    QByteArray out;
+    auto ok = true;
+    auto cpos = 0;
+
+    auto readU16BE = [&](const QByteArray &src, int &pos, bool *ok) -> quint16 {
+        if (pos + 2 > src.size()) {
+            *ok = false;
+            return 0;
+        }
+        auto v = quint16((quint8(src[pos]) << 8) | quint8(src[pos + 1]));
+        pos += 2;
+        return v;
+    };
+
+    auto readI8 = [&](const QByteArray &src, int &pos, bool *ok) -> qint8 {
+        if (pos >= src.size()) {
+            *ok = false;
+            return 0;
+        }
+        return qint8(src[pos++]);
+    };
+
+    auto emitWord = [&](quint16 w) {
+        out.append(char(w & 0xFF));
+        out.append(char(w >> 8));
+    };
+
+    auto cmdCnt = readU16BE(comp, cpos, &ok);
+    if (!ok) {
+        return{};
+    }
+
+    // decode command stream
+    auto dpos = cmdCnt + (cmdCnt & 1);
+    for (auto n = cmdCnt; cpos < n && dpos < comp.size() && ok;) {
+        auto cmd = readI8(comp, cpos, &ok);
+        if (cmd == 0) {
+            auto count = readU16BE(comp, dpos, &ok);
+            for (auto i = 0; i < count; ++i)
+                emitWord(readU16BE(comp, dpos, &ok));
+        } else if (cmd == 1) {
+            auto count = readU16BE(comp, dpos, &ok);
+            auto value = readU16BE(comp, dpos, &ok);
+            for (auto i = 0; i < count; ++i)
+                emitWord(value);
+        } else if (cmd < 0) {
+            auto count = -qint32(cmd);
+            for (auto i = 0; i < count; ++i)
+                emitWord(readU16BE(comp, dpos, &ok));
+        } else {
+            auto count = quint16(cmd);
+            auto value = readU16BE(comp, dpos, &ok);
+            for (auto i = 0; i < count; ++i)
+                emitWord(value);
+        }
+        if (!ok) {
+            return{};
+        }
+    }
+    return out;
+}
+
+static QByteArray vdatToIlbmPlane(const QByteArray &vdatData, const BMHDChunk *header)
+{
+    QByteArray ba(vdatData.size(), char());
+    auto rowLen = header->rowLen();
+    for (auto x = 0, n = 0; x < rowLen; x += 2) {
+        for (auto y = 0, off = x, h = header->height(); y < h; y++, off += rowLen) {
+            if ((off + 1 >= ba.size()) || n + 1 >= vdatData.size()) {
+                return{};
+            }
+            ba[off + 1] = vdatData.at(n++);
+            ba[off] = vdatData.at(n++);
+        }
+    }
+    return ba;
+}
+
+const QByteArray &VDATChunk::uncompressedData(const BMHDChunk *header) const
+{
+    if (uncompressed.isEmpty()) {
+        auto tmp = decompressVdat(data());
+        if (tmp.size() == header->rowLen() * header->height()) {
+            uncompressed = vdatToIlbmPlane(tmp, header);
+        }
+    }
+    return uncompressed;
+}
+
+
+bool VDATChunk::innerReadStructure(QIODevice *d)
+{
+    return cacheData(d);
+}
+
+
+/* ******************
  * *** VERS Chunk ***
  * ****************** */
 
@@ -2785,7 +2932,7 @@ QByteArray IDATChunk::strideRead(QIODevice *d, qint32 y, const IHDRChunk *header
         }
 
         if (header->model() == IHDRChunk::Rgb555) {
-            for(qint32 x = 0, w = rr.size() - 1; x < w; x += 2) {
+            for (qint32 x = 0, w = rr.size() - 1; x < w; x += 2) {
                 std::swap(rr[x], rr[x + 1]);
             }
         }
