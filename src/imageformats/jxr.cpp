@@ -32,6 +32,7 @@
 #include <QTemporaryDir>
 
 #include <JXRGlue.h>
+#include <cfenv>
 #include <cstring>
 
 Q_DECLARE_LOGGING_CATEGORY(LOG_JXRPLUGIN)
@@ -977,8 +978,15 @@ bool JXRHandler::read(QImage *outImage)
     if (auto err = d->pDecoder->GetResolution(d->pDecoder, &hres, &vres)) {
         qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() error while reading resolution:" << err;
     } else {
-        img.setDotsPerMeterX(qRound(hres * 1000 / 25.4));
-        img.setDotsPerMeterY(qRound(vres * 1000 / 25.4));
+        std::feclearexcept(FE_ALL_EXCEPT);
+        const int hdpm = std::lround(hres * 1000 / 25.4);
+        const int vdpm = std::lround(vres * 1000 / 25.4);
+        if (std::fetestexcept(FE_INVALID)) {
+            qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() resolution is out of range:" << hres << vres;
+        } else {
+            img.setDotsPerMeterX(hdpm);
+            img.setDotsPerMeterY(vdpm);
+        }
     }
 
     // alpha copy mode

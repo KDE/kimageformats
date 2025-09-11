@@ -15,6 +15,8 @@
 #include <QStringDecoder>
 #include <QTimeZone>
 
+#include <cfenv>
+
 // TIFF 6 specs
 #define TIFF_IMAGEWIDTH 0x100
 #define TIFF_IMAGEHEIGHT 0x101
@@ -1193,13 +1195,30 @@ void MicroExif::updateImageMetadata(QImage &targetImage, bool replaceExisting) c
     }
 }
 
+static std::optional<int> convertToDotsPerMeter(const double value)
+{
+    if (value <= 0) {
+        return {};
+    }
+    std::feclearexcept(FE_ALL_EXCEPT);
+    const int rounded = std::lround(value / 25.4 * 1000);
+    if (std::fetestexcept(FE_INVALID)) {
+        return {};
+    }
+    return rounded;
+}
+
 bool MicroExif::updateImageResolution(QImage &targetImage)
 {
-    if (horizontalResolution() > 0)
-        targetImage.setDotsPerMeterX(qRound(horizontalResolution() / 25.4 * 1000));
-    if (verticalResolution() > 0)
-        targetImage.setDotsPerMeterY(qRound(verticalResolution() / 25.4 * 1000));
-    return (horizontalResolution() > 0) || (verticalResolution() > 0);
+    const std::optional<int> hdpm = convertToDotsPerMeter(horizontalResolution());
+    const std::optional<int> vdpm = convertToDotsPerMeter(verticalResolution());
+    if (hdpm) {
+        targetImage.setDotsPerMeterX(*hdpm);
+    }
+    if (vdpm) {
+        targetImage.setDotsPerMeterY(*vdpm);
+    }
+    return hdpm || vdpm;
 }
 
 MicroExif MicroExif::fromByteArray(const QByteArray &ba, bool searchHeader)
