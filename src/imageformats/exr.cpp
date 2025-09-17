@@ -288,8 +288,14 @@ static void readMetadata(const Imf::Header &header, QImage &image)
         if (auto pixelAspectRatio = header.findTypedAttribute<Imf::FloatAttribute>("pixelAspectRatio")) {
             par = pixelAspectRatio->value();
         }
-        image.setDotsPerMeterX(qRound(xDensity->value() * 100.0 / 2.54));
-        image.setDotsPerMeterY(qRound(xDensity->value() * par * 100.0 / 2.54));
+        auto hres = dpi2ppm(xDensity->value());
+        if (hres > 0) {
+            image.setDotsPerMeterX(hres);
+        }
+        auto vres = dpi2ppm(xDensity->value() * par);
+        if (vres > 0) {
+            image.setDotsPerMeterY(vres);
+        }
     }
 
     // Non-standard attribute

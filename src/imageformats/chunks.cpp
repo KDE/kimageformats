@@ -7,6 +7,7 @@
 
 #include "chunks_p.h"
 #include "packbits_p.h"
+#include "util_p.h"
 
 #include <QBuffer>
 #include <QColor>
@@ -656,7 +657,7 @@ quint16 DPIChunk::dpiX() const
     if (bytes() < 4) {
         return 0;
     }
-    return i16(data().at(1), data().at(0));
+    return ui16(data().at(1), data().at(0));
 }
 
 quint16 DPIChunk::dpiY() const
@@ -664,17 +665,17 @@ quint16 DPIChunk::dpiY() const
     if (bytes() < 4) {
         return 0;
     }
-    return i16(data().at(3), data().at(2));
+    return ui16(data().at(3), data().at(2));
 }
 
 qint32 DPIChunk::dotsPerMeterX() const
 {
-    return qRound(dpiX() / 25.4 * 1000);
+    return dpi2ppm(dpiX());
 }
 
 qint32 DPIChunk::dotsPerMeterY() const
 {
-    return qRound(dpiY() / 25.4 * 1000);
+    return dpi2ppm(dpiY());
 }
 
 bool DPIChunk::innerReadStructure(QIODevice *d)
@@ -708,7 +709,7 @@ quint16 XBMIChunk::dpiX() const
     if (bytes() < 6) {
         return 0;
     }
-    return i16(data().at(3), data().at(2));
+    return ui16(data().at(3), data().at(2));
 }
 
 quint16 XBMIChunk::dpiY() const
@@ -716,7 +717,7 @@ quint16 XBMIChunk::dpiY() const
     if (bytes() < 6) {
         return 0;
     }
-    return i16(data().at(5), data().at(4));
+    return ui16(data().at(5), data().at(4));
 }
 
 XBMIChunk::PictureType XBMIChunk::pictureType() const
@@ -2886,6 +2887,7 @@ static QByteArray pchgFastDecomp(const QByteArray& input, int treeSize, int orig
 
 bool PCHGChunk::initialize(const QList<QRgb> &cmapPalette, qint32 height)
 {
+    Q_UNUSED(height)
     auto dt = data().mid(20);
     if (compression() == PCHGChunk::Compression::Huffman) {
         QDataStream ds(dt);

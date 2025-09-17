@@ -596,17 +596,21 @@ static bool setResolution(QImage &img, const PSDImageResourceSection &irs)
     s >> i32;                               // Horizontal resolution in pixels per inch.
     if (i32 <= 0)
         return false;
-    auto hres = fixedPointToDouble(i32);
+    auto hres = dpi2ppm(fixedPointToDouble(i32));
 
     s.skipRawData(4);                       // Display data (not used here)
 
     s >> i32;                               // Vertial resolution in pixels per inch.
     if (i32 <= 0)
         return false;
-    auto vres = fixedPointToDouble(i32);
+    auto vres = dpi2ppm(fixedPointToDouble(i32));
 
-    img.setDotsPerMeterX(hres * 1000 / 25.4);
-    img.setDotsPerMeterY(vres * 1000 / 25.4);
+    if (hres > 0) {
+        img.setDotsPerMeterX(hres);
+    }
+    if (vres > 0) {
+        img.setDotsPerMeterY(vres);
+    }
     return true;
 }
 

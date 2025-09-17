@@ -32,7 +32,6 @@
 #include <QTemporaryDir>
 
 #include <JXRGlue.h>
-#include <cfenv>
 #include <cstring>
 
 Q_DECLARE_LOGGING_CATEGORY(LOG_JXRPLUGIN)
@@ -978,13 +977,12 @@ bool JXRHandler::read(QImage *outImage)
     if (auto err = d->pDecoder->GetResolution(d->pDecoder, &hres, &vres)) {
         qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() error while reading resolution:" << err;
     } else {
-        std::feclearexcept(FE_ALL_EXCEPT);
-        const int hdpm = std::lround(hres * 1000 / 25.4);
-        const int vdpm = std::lround(vres * 1000 / 25.4);
-        if (std::fetestexcept(FE_INVALID)) {
-            qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() resolution is out of range:" << hres << vres;
-        } else {
+        const qint32 hdpm = dpi2ppm(hres);
+        if (hdpm > 0) {
             img.setDotsPerMeterX(hdpm);
+        }
+        const qint32 vdpm = dpi2ppm(vres);
+        if (vdpm > 0) {
             img.setDotsPerMeterY(vdpm);
         }
     }
@@ -1132,7 +1130,7 @@ bool JXRHandler::write(const QImage &image)
         qCWarning(LOG_JXRPLUGIN) << "JXRHandler::write() error while setting the image size:" << err;
         return false;
     }
-    if (auto err = d->pEncoder->SetResolution(d->pEncoder, qi.dotsPerMeterX() * 25.4 / 1000, qi.dotsPerMeterY() * 25.4 / 1000)) {
+    if (auto err = d->pEncoder->SetResolution(d->pEncoder, dppm2dpi(qi.dotsPerMeterX()), dppm2dpi(qi.dotsPerMeterY()))) {
         qCWarning(LOG_JXRPLUGIN) << "JXRHandler::write() error while setting the image resolution:" << err;
         return false;
     }

@@ -888,8 +888,14 @@ bool PCXHandler::read(QImage *outImage)
         return false;
     }
 
-    img.setDotsPerMeterX(qRound(header.HDpi / 25.4 * 1000));
-    img.setDotsPerMeterY(qRound(header.YDpi / 25.4 * 1000));
+    auto hres = dpi2ppm(header.HDpi);
+    if (hres > 0) {
+        img.setDotsPerMeterX(hres);
+    }
+    auto vres = dpi2ppm(header.YDpi);
+    if (vres > 0) {
+        img.setDotsPerMeterY(vres);
+    }
     *outImage = img;
     return true;
 }
@@ -915,8 +921,8 @@ bool PCXHandler::write(const QImage &image)
     header.YMin = 0;
     header.XMax = w - 1;
     header.YMax = h - 1;
-    header.HDpi = qRound(image.dotsPerMeterX() * 25.4 / 1000);
-    header.YDpi = qRound(image.dotsPerMeterY() * 25.4 / 1000);
+    header.HDpi = qRoundOrZero_T<quint16>(dppm2dpi(image.dotsPerMeterX()));
+    header.YDpi = qRoundOrZero_T<quint16>(dppm2dpi(image.dotsPerMeterY()));
     header.Reserved = 0;
     header.PaletteInfo = 1;
 

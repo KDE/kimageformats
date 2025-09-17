@@ -55,8 +55,6 @@ Q_LOGGING_CATEGORY(XCFPLUGIN, "kf.imageformats.plugins.xcf", QtWarningMsg)
 #define DISABLE_TILE_PROFILE_CONV // default uncommented (comment to use the conversion as intended by Martin)
 #define DISABLE_IMAGE_PROFILE_CONV // default uncommented (comment to use the conversion as intended by Martin)
 
-const float INCHESPERMETER = (100.0f / 2.54f);
-
 namespace
 {
 struct RandomTable {
@@ -2722,17 +2720,13 @@ bool XCFImageFormat::initializeImage(XCFImage &xcf_image)
     }
 #endif
 
-    if (xcf_image.x_resolution > 0 && xcf_image.y_resolution > 0) {
-        const float dpmx = xcf_image.x_resolution * INCHESPERMETER;
-        if (dpmx > float(std::numeric_limits<int>::max())) {
-            return false;
-        }
-        const float dpmy = xcf_image.y_resolution * INCHESPERMETER;
-        if (dpmy > float(std::numeric_limits<int>::max())) {
-            return false;
-        }
-        image.setDotsPerMeterX((int)dpmx);
-        image.setDotsPerMeterY((int)dpmy);
+    const qint32 dpmx = dpi2ppm(xcf_image.x_resolution);
+    if (dpmx > 0) {
+        image.setDotsPerMeterX(dpmx);
+    }
+    const qint32 dpmy = dpi2ppm(xcf_image.y_resolution);
+    if (dpmy > 0) {
+        image.setDotsPerMeterY(dpmy);
     }
     return true;
 }
