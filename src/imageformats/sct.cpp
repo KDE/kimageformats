@@ -330,7 +330,7 @@ bool ScitexHandler::canRead() const
 bool ScitexHandler::canRead(QIODevice *device)
 {
     if (!device) {
-        qWarning("ScitexHandler::canRead() called with no device");
+        qCWarning(LOG_SCTPLUGIN) << "ScitexHandler::canRead() called with no device";
         return false;
     }
     ScitexHandlerPrivate hp;
@@ -344,7 +344,7 @@ bool ScitexHandler::read(QImage *image)
 {
     auto dev = device();
     if (dev == nullptr) {
-        qWarning("ScitexHandler::read() called with no device");
+        qCWarning(LOG_SCTPLUGIN) << "ScitexHandler::read() called with no device";
         return false;
     }
     if (!d->loadHeader(dev)) {

@@ -12,8 +12,14 @@
 #include <QColor>
 #include <QColorSpace>
 #include <QDataStream>
-#include <QDebug>
 #include <QImage>
+#include <QLoggingCategory>
+
+#ifdef QT_DEBUG
+Q_LOGGING_CATEGORY(LOG_PCXPLUGIN, "kf.imageformats.plugins.pcx", QtDebugMsg)
+#else
+Q_LOGGING_CATEGORY(LOG_PCXPLUGIN, "kf.imageformats.plugins.pcx", QtWarningMsg)
+#endif
 
 #pragma pack(push, 1)
 class RGB
@@ -325,7 +331,7 @@ static bool readImage1(QImage &img, QDataStream &s, const PCXHEADER &header)
     img.setColorCount(2);
 
     if (img.isNull()) {
-        qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
+        qCWarning(LOG_PCXPLUGIN) << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
         return false;
     }
 
@@ -360,12 +366,12 @@ static bool readImage4(QImage &img, QDataStream &s, const PCXHEADER &header)
     img = imageAlloc(header.width(), header.height(), header.format());
     img.setColorCount(16);
     if (img.isNull()) {
-        qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
+        qCWarning(LOG_PCXPLUGIN) << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
         return false;
     }
 
     if (header.BytesPerLine < (header.width() + 7) / 8) {
-        qWarning() << "PCX image has invalid BytesPerLine value";
+        qCWarning(LOG_PCXPLUGIN) << "PCX image has invalid BytesPerLine value";
         return false;
     }
 
@@ -390,7 +396,7 @@ static bool readImage4(QImage &img, QDataStream &s, const PCXHEADER &header)
 
         uchar *p = img.scanLine(y);
         if (!p) {
-            qWarning() << "Failed to get scanline for" << y << "might be out of bounds";
+            qCWarning(LOG_PCXPLUGIN) << "Failed to get scanline for" << y << "might be out of bounds";
         }
         for (int x = 0; x < header.width(); ++x) {
             p[x] = pixbuf[x];
@@ -413,7 +419,7 @@ static bool readImage2(QImage &img, QDataStream &s, const PCXHEADER &header)
     img.setColorCount(4);
 
     if (img.isNull()) {
-        qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
+        qCWarning(LOG_PCXPLUGIN) << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
         return false;
     }
 
@@ -456,7 +462,7 @@ static bool readImage4v2(QImage &img, QDataStream &s, const PCXHEADER &header)
     img.setColorCount(16);
 
     if (img.isNull()) {
-        qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
+        qCWarning(LOG_PCXPLUGIN) << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
         return false;
     }
 
@@ -497,7 +503,7 @@ static bool readImage8(QImage &img, QDataStream &s, const PCXHEADER &header)
     img.setColorCount(256);
 
     if (img.isNull()) {
-        qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
+        qCWarning(LOG_PCXPLUGIN) << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
         return false;
     }
 
@@ -535,7 +541,6 @@ static bool readImage8(QImage &img, QDataStream &s, const PCXHEADER &header)
         }
     }
 
-    //   qDebug() << "Palette Flag: " << flag;
     if (flag == 12 && (header.Version == 5 || header.Version == 2)) {
         // Read the palette
         quint8 r;
@@ -560,7 +565,7 @@ static bool readImage24(QImage &img, QDataStream &s, const PCXHEADER &header)
     img = imageAlloc(header.width(), header.height(), header.format());
 
     if (img.isNull()) {
-        qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
+        qCWarning(LOG_PCXPLUGIN) << "Failed to allocate image, invalid dimensions?" << QSize(header.width(), header.height());
         return false;
     }
 
@@ -983,7 +988,7 @@ QVariant PCXHandler::option(ImageOption option) const
 bool PCXHandler::canRead(QIODevice *device)
 {
     if (!device) {
-        qWarning("PCXHandler::canRead() called with no device");
+        qCWarning(LOG_PCXPLUGIN) << "PCXHandler::canRead() called with no device";
         return false;
     }
 

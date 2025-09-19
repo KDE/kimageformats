@@ -12,6 +12,7 @@
 #include <QColorSpace>
 #include <QDateTime>
 #include <QImage>
+#include <QLoggingCategory>
 #include <QSet>
 #include <QTimeZone>
 
@@ -39,6 +40,12 @@
  *          scanf_one() function (e.g. *.MOS files). See also raw_scanf_one().
  */
 // #define EXCLUDE_LibRaw_QIODevice // Uncomment this code if you think that the problem is LibRaw_QIODevice (default commented)
+#endif
+
+#ifdef QT_DEBUG
+Q_LOGGING_CATEGORY(LOG_RAWPLUGIN, "kf.imageformats.plugins.raw", QtDebugMsg)
+#else
+Q_LOGGING_CATEGORY(LOG_RAWPLUGIN, "kf.imageformats.plugins.raw", QtWarningMsg)
 #endif
 
 namespace // Private.
@@ -1010,7 +1017,7 @@ int RAWHandler::currentImageNumber() const
 bool RAWHandler::canRead(QIODevice *device)
 {
     if (!device) {
-        qWarning("RAWHandler::canRead() called with no device");
+        qCWarning(LOG_RAWPLUGIN) << "RAWHandler::canRead() called with no device";
         return false;
     }
     if (device->isSequential()) {

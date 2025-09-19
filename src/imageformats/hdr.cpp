@@ -16,8 +16,6 @@
 #include <QLoggingCategory>
 #include <QRegularExpressionMatch>
 
-#include <QDebug>
-
 /* *** HDR_HALF_QUALITY ***
  * If defined, a 16-bits float image is created, otherwise a 32-bits float ones (default).
  */
@@ -425,7 +423,7 @@ bool HDRHandler::read(QImage *outImage)
 
     QImage img;
     if (!LoadHDR(s, h, img)) {
-        // qDebug() << "Error loading HDR file.";
+        // qCWarning(HDRPLUGIN) << "Error loading HDR file.";
         return false;
     }
 
@@ -502,7 +500,7 @@ bool HDRHandler::canRead() const
 bool HDRHandler::canRead(QIODevice *device)
 {
     if (!device) {
-        qWarning("HDRHandler::canRead() called with no device");
+        qCWarning(HDRPLUGIN) << "HDRHandler::canRead() called with no device";
         return false;
     }
 

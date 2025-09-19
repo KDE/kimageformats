@@ -26,10 +26,16 @@
 #include <cstring>
 
 #include <QColorSpace>
-#include <QDebug>
 #include <QImage>
 #include <QList>
+#include <QLoggingCategory>
 #include <QMap>
+
+#ifdef QT_DEBUG
+Q_LOGGING_CATEGORY(LOG_RGBPLUGIN, "kf.imageformats.plugins.rgb", QtDebugMsg)
+#else
+Q_LOGGING_CATEGORY(LOG_RGBPLUGIN, "kf.imageformats.plugins.rgb", QtWarningMsg)
+#endif
 
 class RLEData : public QList<uchar>
 {
@@ -296,12 +302,12 @@ bool SGIImagePrivate::readImage(QImage &img)
 
     img = imageAlloc(size(), format());
     if (img.isNull()) {
-        qWarning() << "Failed to allocate image, invalid dimensions?" << QSize(_xsize, _ysize);
+        qCWarning(LOG_RGBPLUGIN) << "Failed to allocate image, invalid dimensions?" << QSize(_xsize, _ysize);
         return false;
     }
 
     if (_zsize > 4) {
-        //         qDebug() << "using first 4 of " << _zsize << " channels";
+        //         qCDebug(LOG_RGBPLUGIN) << "using first 4 of " << _zsize << " channels";
         // Only let this continue if it won't cause a int overflow later
         // this is most likely a broken file anyway
         if (_ysize > std::numeric_limits<int>::max() / _zsize) {
@@ -345,14 +351,14 @@ bool SGIImagePrivate::readImage(QImage &img)
         for (uint o = 0; o < _numrows; o++) {
             // don't change to greater-or-equal!
             if (_starttab[o] + _lengthtab[o] > (uint)_data.size()) {
-                //                 qDebug() << "image corrupt (sanity check failed)";
+                //                 qCDebug(LOG_RGBPLUGIN) << "image corrupt (sanity check failed)";
                 return false;
             }
         }
     }
 
     if (!readData(img)) {
-        //         qDebug() << "image corrupt (incomplete scanline)";
+        //         qCDebug(LOG_RGBPLUGIN) << "image corrupt (incomplete scanline)";
         return false;
     }
 
@@ -475,7 +481,7 @@ bool SGIImagePrivate::scanData(const QImage &img, const QImage::Format &tfmt, co
     for (y = 0; y < _ysize; y++) {
         const int yPos = _ysize - y - 1; // scanline doesn't do any sanity checking
         if (yPos >= img.height()) {
-            qWarning() << "Failed to get scanline for" << yPos;
+            qCWarning(LOG_RGBPLUGIN) << "Failed to get scanline for" << yPos;
             return false;
         }
 
@@ -496,7 +502,7 @@ bool SGIImagePrivate::scanData(const QImage &img, const QImage::Format &tfmt, co
         for (y = 0; y < _ysize; y++) {
             const int yPos = _ysize - y - 1;
             if (yPos >= img.height()) {
-                qWarning() << "Failed to get scanline for" << yPos;
+                qCWarning(LOG_RGBPLUGIN) << "Failed to get scanline for" << yPos;
                 return false;
             }
 
@@ -511,7 +517,7 @@ bool SGIImagePrivate::scanData(const QImage &img, const QImage::Format &tfmt, co
         for (y = 0; y < _ysize; y++) {
             const int yPos = _ysize - y - 1;
             if (yPos >= img.height()) {
-                qWarning() << "Failed to get scanline for" << yPos;
+                qCWarning(LOG_RGBPLUGIN) << "Failed to get scanline for" << yPos;
                 return false;
             }
 
@@ -531,7 +537,7 @@ bool SGIImagePrivate::scanData(const QImage &img, const QImage::Format &tfmt, co
     for (y = 0; y < _ysize; y++) {
         const int yPos = _ysize - y - 1;
         if (yPos >= img.height()) {
-            qWarning() << "Failed to get scanline for" << yPos;
+            qCWarning(LOG_RGBPLUGIN) << "Failed to get scanline for" << yPos;
             return false;
         }
 
@@ -661,7 +667,7 @@ bool SGIImagePrivate::writeHeader()
 bool SGIImagePrivate::writeRle()
 {
     _rle = 1;
-    //     qDebug() << "writing RLE data";
+    //     qCDebug(LOG_RGBPLUGIN) << "writing RLE data";
     if (!writeHeader()) {
         return false;
     }
@@ -747,7 +753,6 @@ bool SGIImagePrivate::writeVerbatim(const QImage &img, const QImage::Format &tfm
 
 bool SGIImagePrivate::writeImage(const QImage &image)
 {
-    //     qDebug() << "writing "; // TODO add filename
     if (image.allGray()) {
         _dim = 2, _zsize = 1;
     } else {
@@ -794,7 +799,7 @@ bool SGIImagePrivate::writeImage(const QImage &image)
     _rlemap.setBaseOffset(512 + _numrows * 2 * sizeof(quint32));
 
     if (!scanData(image, tfmt, tcs)) {
-        //         qDebug() << "this can't happen";
+        //         qCDebug(LOG_RGBPLUGIN) << "this can't happen";
         return false;
     }
 
@@ -884,7 +889,7 @@ QVariant RGBHandler::option(ImageOption option) const
 bool RGBHandler::canRead(QIODevice *device)
 {
     if (!device) {
-        qWarning("RGBHandler::canRead() called with no device");
+        qCWarning(LOG_RGBPLUGIN) << "RGBHandler::canRead() called with no device";
         return false;
     }
 

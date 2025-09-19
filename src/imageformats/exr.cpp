@@ -75,13 +75,19 @@
 
 #include <QColorSpace>
 #include <QDataStream>
-#include <QDebug>
 #include <QFloat16>
 #include <QImage>
 #include <QImageIOPlugin>
 #include <QLocale>
+#include <QLoggingCategory>
 #include <QThread>
 #include <QTimeZone>
+
+#ifdef QT_DEBUG
+Q_LOGGING_CATEGORY(LOG_EXRPLUGIN, "kf.imageformats.plugins.exr", QtDebugMsg)
+#else
+Q_LOGGING_CATEGORY(LOG_EXRPLUGIN, "kf.imageformats.plugins.exr", QtWarningMsg)
+#endif
 
 class K_IStream : public Imf::IStream
 {
@@ -236,10 +242,10 @@ static QStringList viewList(const Imf::Header &h)
 }
 
 #ifdef QT_DEBUG
-void printAttributes(const Imf::Header &h)
+static void printAttributes(const Imf::Header &h)
 {
     for (auto i = h.begin(); i != h.end(); ++i) {
-        qDebug() << i.name();
+        qCDebug(LOG_EXRPLUGIN) << i.name();
     }
 }
 #endif
@@ -385,14 +391,14 @@ bool EXRHandler::read(QImage *outImage)
 
         // limiting the maximum image size on a reasonable size (as done in other plugins)
         if (width > EXR_MAX_IMAGE_WIDTH || height > EXR_MAX_IMAGE_HEIGHT) {
-            qWarning() << "The maximum image size is limited to" << EXR_MAX_IMAGE_WIDTH << "x" << EXR_MAX_IMAGE_HEIGHT << "px";
+            qCWarning(LOG_EXRPLUGIN) << "The maximum image size is limited to" << EXR_MAX_IMAGE_WIDTH << "x" << EXR_MAX_IMAGE_HEIGHT << "px";
             return false;
         }
 
         // creating the image
         QImage image = imageAlloc(width, height, imageFormat(file));
         if (image.isNull()) {
-            qWarning() << "Failed to allocate image, invalid size?" << QSize(width, height);
+            qCWarning(LOG_EXRPLUGIN) << "Failed to allocate image, invalid size?" << QSize(width, height);
             return false;
         }
 
@@ -560,7 +566,7 @@ bool EXRHandler::write(const QImage &image)
 
         // limiting the maximum image size on a reasonable size (as done in other plugins)
         if (width > EXR_MAX_IMAGE_WIDTH || height > EXR_MAX_IMAGE_HEIGHT) {
-            qWarning() << "The maximum image size is limited to" << EXR_MAX_IMAGE_WIDTH << "x" << EXR_MAX_IMAGE_HEIGHT << "px";
+            qCWarning(LOG_EXRPLUGIN) << "The maximum image size is limited to" << EXR_MAX_IMAGE_WIDTH << "x" << EXR_MAX_IMAGE_HEIGHT << "px";
             return false;
         }
 
@@ -776,7 +782,7 @@ int EXRHandler::currentImageNumber() const
 bool EXRHandler::canRead(QIODevice *device)
 {
     if (!device) {
-        qWarning("EXRHandler::canRead() called with no device");
+        qCWarning(LOG_EXRPLUGIN) << "EXRHandler::canRead() called with no device";
         return false;
     }
 

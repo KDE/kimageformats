@@ -10,7 +10,6 @@
 #include "xcf_p.h"
 
 #include <QColorSpace>
-#include <QDebug>
 #include <QIODevice>
 #include <QImage>
 #include <QImageReader>
