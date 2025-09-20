@@ -779,10 +779,10 @@ static bool writeImage24(const QImage &image, QDataStream &s, PCXHEADER &header)
         return false;
     }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
-    auto cs = image.colorSpace();
     auto tcs = QColorSpace();
     auto tfmt = image.format();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    auto cs = image.colorSpace();
     if (cs.isValid() && cs.colorModel() == QColorSpace::ColorModel::Cmyk && tfmt == QImage::Format_CMYK8888) {
         tcs = QColorSpace(QColorSpace::SRgb);
         tfmt = QImage::Format_RGB32;

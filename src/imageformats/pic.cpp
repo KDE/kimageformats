@@ -273,10 +273,10 @@ bool SoftimagePICHandler::read(QImage *image)
 bool SoftimagePICHandler::write(const QImage &image)
 {
     bool alpha = image.hasAlphaChannel();
+    auto tcs = QColorSpace();
+    auto tfmt = image.format();
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     auto cs = image.colorSpace();
-    auto tfmt = image.format();
-    auto tcs = QColorSpace();
     if (cs.isValid() && cs.colorModel() == QColorSpace::ColorModel::Cmyk && tfmt == QImage::Format_CMYK8888) {
         tcs = QColorSpace(QColorSpace::SRgb);
         tfmt = QImage::Format_RGB32;
