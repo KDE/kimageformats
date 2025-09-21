@@ -229,7 +229,7 @@ Below are the maximum sizes for each plugin ('n/a' means no limit, i.e. the
 limit depends on the format encoding).
 - ANI: n/a
 - AVIF: 32,768 x 32,768 pixels, in any case no larger than 256 megapixels
-- DDS: n/a
+- DDS: 300,000 x 300,000 pixels
 - EXR: 300,000 x 300,000 pixels
 - EPS: same size as Qt's JPG plugin
 - HDR: 300,000 x 300,000 pixels

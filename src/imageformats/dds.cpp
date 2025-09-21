@@ -24,6 +24,16 @@
 // #define DDS_DISABLE_STRIDE_ALIGNMENT
 #endif
 
+/* *** DDS_MAX_IMAGE_WIDTH and DDS_MAX_IMAGE_HEIGHT ***
+ * The maximum size in pixel allowed by the plugin.
+ */
+#ifndef DDS_MAX_IMAGE_WIDTH
+#define DDS_MAX_IMAGE_WIDTH KIF_LARGE_IMAGE_PIXEL_LIMIT
+#endif
+#ifndef DDS_MAX_IMAGE_HEIGHT
+#define DDS_MAX_IMAGE_HEIGHT DDS_MAX_IMAGE_WIDTH
+#endif
+
 #ifdef QT_DEBUG
 Q_LOGGING_CATEGORY(LOG_DDSPLUGIN, "kf.imageformats.plugins.dds", QtDebugMsg)
 #else
@@ -2543,8 +2553,8 @@ bool QDDSHandler::verifyHeader(const DDSHeader &dds) const
         return false;
     }
 
-    if (dds.width > INT_MAX || dds.height > INT_MAX) {
-        qCWarning(LOG_DDSPLUGIN) << "Can't read image with w/h bigger than INT_MAX";
+    if (dds.width > DDS_MAX_IMAGE_WIDTH || dds.height > DDS_MAX_IMAGE_HEIGHT) {
+        qCWarning(LOG_DDSPLUGIN) << "Can't read image with size bigger than" << DDS_MAX_IMAGE_WIDTH << "x" << DDS_MAX_IMAGE_HEIGHT << "pixels";
         return false;
     }
 
