@@ -247,7 +247,7 @@ limit depends on the format encoding).
 - PXR: 65,535 x 65,535 pixels
 - QOI: 300,000 x 300,000 pixels
 - RAS: 300,000 x 300,000 pixels
-- RAW: n/a (depends on the RAW format loaded)
+- RAW: 65,535 x 65,535 pixels
 - RGB: 65,535 x 65,535 pixels
 - SCT: 300,000 x 300,000 pixels
 - TGA: 65,535 x 65,535 pixels
