@@ -1801,6 +1801,9 @@ bool XCFImageFormat::assignImageBytes(Layer &layer, uint i, uint j, const GimpPr
                 dataPtr[x + 1] = qFromBigEndian(src[x + 1]);
                 dataPtr[x + 2] = qFromBigEndian(src[x + 2]);
                 dataPtr[x + 3] = qfloat16(1);
+                if (dataPtr[x + 0].isNaN() || dataPtr[x + 1].isNaN() || dataPtr[x + 2].isNaN()) {
+                    return false;
+                }
             }
         }
         break;
@@ -1829,6 +1832,9 @@ bool XCFImageFormat::assignImageBytes(Layer &layer, uint i, uint j, const GimpPr
                 dataPtr[x + 1] = qFromBigEndian(src[x + 1]);
                 dataPtr[x + 2] = qFromBigEndian(src[x + 2]);
                 dataPtr[x + 3] = 1.f;
+                if (std::isnan(dataPtr[x + 0]) || std::isnan(dataPtr[x + 1]) || std::isnan(dataPtr[x + 2])) {
+                    return false;
+                }
             }
         }
         break;
