@@ -3204,7 +3204,7 @@ void XCFImageFormat::mergeLayerIntoImage(XCFImage &xcf_image)
                 for (uint i = 0; i < layer.ncols; i++) {
                     qint32 x = qint32(i * TILE_WIDTH);
 
-                    QImage &tile = layer.image_tiles[j][i];
+                    const QImage &tile = layer.image_tiles[j][i];
                     if (x + layer.x_offset < XCF_MAX_IMAGE_WIDTH && y + layer.y_offset < XCF_MAX_IMAGE_HEIGHT) {
                         painter.drawImage(x + layer.x_offset, y + layer.y_offset, tile);
                     }
