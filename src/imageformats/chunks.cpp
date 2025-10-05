@@ -545,8 +545,12 @@ bool CMAPChunk::innerReadStructure(QIODevice *d)
 QList<QRgb> CMAPChunk::innerPalette() const
 {
     QList<QRgb> l;
-    auto &&d = data();
-    for (qint32 i = 0, n = count(); i < n; ++i) {
+    const QByteArray &d = data();
+    const qint32 n = count();
+    if (n * 3 > d.size()) {
+        return {};
+    }
+    for (qint32 i = 0; i < n; ++i) {
         auto i3 = i * 3;
         l << qRgb(d.at(i3), d.at(i3 + 1), d.at(i3 + 2));
     }
