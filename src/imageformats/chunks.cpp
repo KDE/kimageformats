@@ -235,6 +235,11 @@ void IFFChunk::setRecursionCounter(qint32 cnt)
     _recursionCnt = cnt;
 }
 
+quint32 IFFChunk::dataBytes() const
+{
+    return std::min(bytes(), quint32(data().size()));
+}
+
 IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, IFFChunk *parent)
 {
     auto tmp = false;
@@ -521,7 +526,7 @@ qint32 CMAPChunk::count() const
     if (!isValid()) {
         return 0;
     }
-    return bytes() / 3;
+    return dataBytes() / 3;
 }
 
 QList<QRgb> CMAPChunk::palette(bool halfbride) const
@@ -578,7 +583,7 @@ qint32 CMYKChunk::count() const
     if (!isValid()) {
         return 0;
     }
-    return bytes() / 4;
+    return dataBytes() / 4;
 }
 
 QList<QRgb> CMYKChunk::innerPalette() const
@@ -654,7 +659,7 @@ bool DPIChunk::isValid() const
 
 quint16 DPIChunk::dpiX() const
 {
-    if (bytes() < 4) {
+    if (dataBytes() < 4) {
         return 0;
     }
     return ui16(data().at(1), data().at(0));
@@ -662,7 +667,7 @@ quint16 DPIChunk::dpiX() const
 
 quint16 DPIChunk::dpiY() const
 {
-    if (bytes() < 4) {
+    if (dataBytes() < 4) {
         return 0;
     }
     return ui16(data().at(3), data().at(2));
@@ -706,7 +711,7 @@ bool XBMIChunk::isValid() const
 
 quint16 XBMIChunk::dpiX() const
 {
-    if (bytes() < 6) {
+    if (dataBytes() < 6) {
         return 0;
     }
     return ui16(data().at(3), data().at(2));
@@ -714,7 +719,7 @@ quint16 XBMIChunk::dpiX() const
 
 quint16 XBMIChunk::dpiY() const
 {
-    if (bytes() < 6) {
+    if (dataBytes() < 6) {
         return 0;
     }
     return ui16(data().at(5), data().at(4));
@@ -722,7 +727,7 @@ quint16 XBMIChunk::dpiY() const
 
 XBMIChunk::PictureType XBMIChunk::pictureType() const
 {
-    if (bytes() < 6) {
+    if (dataBytes() < 6) {
         return PictureType(-1);
     }
     return PictureType(i16(data().at(1), data().at(0)));
@@ -2466,7 +2471,7 @@ SHAMChunk::SHAMChunk()
 
 bool SHAMChunk::isValid() const
 {
-    if (bytes() < 2) {
+    if (dataBytes() < 2) {
         return false;
     }
     auto &&dt = data();
