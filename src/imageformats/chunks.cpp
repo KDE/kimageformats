@@ -385,7 +385,7 @@ BMHDChunk::BMHDChunk() : IFFChunk()
 
 bool BMHDChunk::isValid() const
 {
-    if (bytes() < 20) {
+    if (dataBytes() < 20) {
         return false;
     }
     return chunkId() == BMHDChunk::defaultChunkId();
@@ -2687,7 +2687,7 @@ bool PCHGChunk::hasAlpha() const
 
 bool PCHGChunk::isValid() const
 {
-    if (bytes() < 20) {
+    if (dataBytes() < 20) {
         return false;
     }
     return chunkId() == PCHGChunk::defaultChunkId();
