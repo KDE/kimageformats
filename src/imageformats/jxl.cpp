@@ -26,12 +26,8 @@ Q_LOGGING_CATEGORY(LOG_JXLPLUGIN, "kf.imageformats.plugins.jxl", QtDebugMsg)
 Q_LOGGING_CATEGORY(LOG_JXLPLUGIN, "kf.imageformats.plugins.jxl", QtWarningMsg)
 #endif
 
-
-// Avoid rotation on buggy Qts (see also https://bugreports.qt.io/browse/QTBUG-126575)
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 3)
 #ifndef JXL_QT_AUTOTRANSFORM
 #define JXL_QT_AUTOTRANSFORM
-#endif
 #endif
 
 #ifndef JXL_HDR_PRESERVATION_DISABLED
@@ -414,7 +410,6 @@ bool QJpegXLHandler::countALLFrames()
         m_framedelays[0] = 0;
     }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     // CMYK detection
     if ((m_basicinfo.uses_original_profile == JXL_TRUE) && (m_basicinfo.num_color_channels == 3) && (m_colorspace.isValid())) {
         bool alpha_found = false;
@@ -471,7 +466,6 @@ bool QJpegXLHandler::countALLFrames()
             qCWarning(LOG_JXLPLUGIN, "JXL has CMYK colorspace but BLACK channel was not found!");
         }
     }
-#endif
 
 #ifndef JXL_DECODE_BOXES_DISABLED
     if (!decodeContainer()) {
@@ -498,7 +492,6 @@ bool QJpegXLHandler::decode_one_frame()
     }
 
     if (m_isCMYK) { // CMYK decoding
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         uchar *pixels_cmy = nullptr;
         uchar *pixels_black = nullptr;
 
@@ -739,11 +732,6 @@ bool QJpegXLHandler::decode_one_frame()
             free(pixels_cmy);
             pixels_cmy = nullptr;
         }
-#else
-        // CMYK not supported in older Qt
-        m_parseState = ParseJpegXLError;
-        return false;
-#endif
     } else { // RGB or GRAY
         m_current_image = imageAlloc(m_basicinfo.xsize, m_basicinfo.ysize, m_input_image_format);
         if (m_current_image.isNull()) {
@@ -921,11 +909,9 @@ bool QJpegXLHandler::write(const QImage &image)
     }
 
     bool save_cmyk = false;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     if (image.format() == QImage::Format_CMYK8888 && image.colorSpace().isValid() && image.colorSpace().colorModel() == QColorSpace::ColorModel::Cmyk) {
         save_cmyk = true;
     }
-#endif
 
     JxlEncoderStatus status;
     JxlPixelFormat pixel_format;
@@ -936,7 +922,6 @@ bool QJpegXLHandler::write(const QImage &image)
     auto xmp_data = image.text(QStringLiteral(META_KEY_XMP_ADOBE)).toUtf8();
 
     if (save_cmyk) { // CMYK is always lossless
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         output_info.uses_original_profile = JXL_TRUE;
         output_info.xsize = image.width();
         output_info.ysize = image.height();
@@ -1109,13 +1094,6 @@ bool QJpegXLHandler::write(const QImage &image)
             JxlEncoderDestroy(encoder);
             return false;
         }
-#else
-        if (runner) {
-            JxlThreadParallelRunnerDestroy(runner);
-        }
-        JxlEncoderDestroy(encoder);
-        return false;
-#endif
     } else { // RGB or GRAY saving
         int save_depth = 8; // 8 / 16 / 32
         bool save_fp = false;
@@ -1154,9 +1132,7 @@ bool QJpegXLHandler::write(const QImage &image)
         case QImage::Format_RGBX8888:
         case QImage::Format_RGBA8888:
         case QImage::Format_RGBA8888_Premultiplied:
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         case QImage::Format_CMYK8888:
-#endif
             save_depth = 8;
             break;
         case QImage::Format_Grayscale16:
@@ -1251,7 +1227,6 @@ bool QJpegXLHandler::write(const QImage &image)
             }
         }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         QImage tmpimage;
         if (image.colorSpace().isValid()) {
             if (is_gray && image.colorSpace().colorModel() != QColorSpace::ColorModel::Gray) {
@@ -1304,9 +1279,6 @@ bool QJpegXLHandler::write(const QImage &image)
         } else { // no ColorSpace or invalid
             tmpimage = image.convertToFormat(tmpformat);
         }
-#else
-        QImage tmpimage = image.convertToFormat(tmpformat);
-#endif
 
         output_info.xsize = tmpimage.width();
         output_info.ysize = tmpimage.height();
@@ -1332,10 +1304,7 @@ bool QJpegXLHandler::write(const QImage &image)
             output_info.uses_original_profile = JXL_FALSE;
 
             if (tmpimage.colorSpace().isValid()) {
-                QPointF whiteP(0.3127f, 0.329f);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
-                whiteP = image.colorSpace().whitePoint();
-#endif
+                const QPointF whiteP = image.colorSpace().whitePoint();
 
                 switch (tmpimage.colorSpace().primaries()) {
                 case QColorSpace::Primaries::SRgb:
@@ -1364,9 +1333,6 @@ bool QJpegXLHandler::write(const QImage &image)
                     break;
                 case QColorSpace::Primaries::ProPhotoRgb:
                     color_profile.white_point = JXL_WHITE_POINT_CUSTOM;
-#if QT_VERSION < QT_VERSION_CHECK(6, 8, 0)
-                    whiteP = QPointF(0.3457f, 0.3585f);
-#endif
                     color_profile.white_point_xy[0] = whiteP.x();
                     color_profile.white_point_xy[1] = whiteP.y();
                     color_profile.primaries = JXL_PRIMARIES_CUSTOM;
@@ -1377,7 +1343,6 @@ bool QJpegXLHandler::write(const QImage &image)
                     color_profile.primaries_blue_xy[0] = 0.0366;
                     color_profile.primaries_blue_xy[1] = 0.0001;
                     break;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
                 case QColorSpace::Primaries::Bt2020:
                     color_profile.white_point = JXL_WHITE_POINT_D65;
                     color_profile.primaries = JXL_PRIMARIES_2100;
@@ -1388,7 +1353,6 @@ bool QJpegXLHandler::write(const QImage &image)
                     color_profile.primaries_blue_xy[0] = 0.131;
                     color_profile.primaries_blue_xy[1] = 0.046;
                     break;
-#endif
                 default:
                     if (is_gray && !whiteP.isNull()) {
                         color_profile.white_point = JXL_WHITE_POINT_CUSTOM;

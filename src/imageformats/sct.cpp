@@ -177,12 +177,10 @@ public:
     QImage::Format format() const
     {
         auto format = QImage::Format_Invalid;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         if (m_pb.colorCount() == 4) {
             if (m_pb.bitMask() == 15)
                 format = QImage::Format_CMYK8888;
         }
-#endif
         if (m_pb.colorCount() == 3) {
             if (m_pb.bitMask() == 7)
                 format = QImage::Format_RGB888;

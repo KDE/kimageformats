@@ -391,7 +391,6 @@ public:
                     prec = 0;
             }
             auto jp2cs = m_jp2_image->color_space;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
             if (jp2cs == OPJ_CLRSPC_UNKNOWN || jp2cs == OPJ_CLRSPC_UNSPECIFIED) {
                 auto cs = colorSpace();
                 if (cs.colorModel() == QColorSpace::ColorModel::Cmyk)
@@ -401,7 +400,6 @@ public:
                 else if (cs.colorModel() == QColorSpace::ColorModel::Gray)
                     jp2cs = OPJ_CLRSPC_GRAY;
             }
-#endif
             if (jp2cs == OPJ_CLRSPC_UNKNOWN || jp2cs == OPJ_CLRSPC_UNSPECIFIED) {
                 if (m_jp2_image->numcomps == 1)
                     jp2cs = OPJ_CLRSPC_GRAY;
@@ -431,10 +429,8 @@ public:
                 }
             } else if (jp2cs == OPJ_CLRSPC_CMYK) {
                 if (m_jp2_image->numcomps == 4) {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
                     if (prec == 8 || prec == 16)
                         fmt = QImage::Format_CMYK8888;
-#endif
                 }
             }
         }
@@ -579,7 +575,6 @@ public:
             prec = 16;
             convFormat = QImage::Format_RGBA64;
             break;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         case QImage::Format_CMYK8888: // requires OpenJPEG 2.5.3+
             if (opjVersion() >= QT_VERSION_CHECK(2, 5, 3)) {
                 ncomp = 4;
@@ -588,7 +583,6 @@ public:
             } else {
                 Q_FALLTHROUGH();
             }
-#endif
         default:
             if (image.depth() > 32) {
                 qCWarning(LOG_JP2PLUGIN) << "The image is saved losing precision!";

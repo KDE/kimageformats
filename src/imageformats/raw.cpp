@@ -841,11 +841,9 @@ bool LoadRAW(QImageIOHandler *handler, QImage &img)
         if (params.output_color == 7) {
             img.setColorSpace(QColorSpace(QColorSpace::DisplayP3));
         }
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         if (params.output_color == 8) {
             img.setColorSpace(QColorSpace(QColorSpace::Bt2020));
         }
-#endif
     }
 
     // *** Set the metadata

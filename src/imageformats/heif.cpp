@@ -189,7 +189,6 @@ bool HEIFHandler::write_helper(const QImage &image)
         }
     }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     QImage tmpimage;
     auto cs = image.colorSpace();
     if (cs.isValid() && cs.colorModel() == QColorSpace::ColorModel::Cmyk && image.format() == QImage::Format_CMYK8888) {
@@ -205,9 +204,6 @@ bool HEIFHandler::write_helper(const QImage &image)
     } else {
         tmpimage = image.convertToFormat(tmpformat);
     }
-#else
-    QImage tmpimage = image.convertToFormat(tmpformat);
-#endif
 
     struct heif_context *context = heif_context_alloc();
     struct heif_error err;
@@ -868,9 +864,7 @@ bool HEIFHandler::ensureDecoder()
                 QColorSpace colorspace = QColorSpace::fromIccProfile(ba);
                 if (!colorspace.isValid()) {
                     qCWarning(LOG_HEIFPLUGIN) << "HEIC image has Qt-unsupported or invalid ICC profile!";
-                }
-#if (QT_VERSION >= QT_VERSION_CHECK(6, 8, 0))
-                else if (colorspace.colorModel() == QColorSpace::ColorModel::Cmyk) {
+                } else if (colorspace.colorModel() == QColorSpace::ColorModel::Cmyk) {
                     qCWarning(LOG_HEIFPLUGIN) << "CMYK ICC profile is not expected for HEIF, discarding the ICCprofile!";
                     colorspace = QColorSpace();
                 } else if (colorspace.colorModel() == QColorSpace::ColorModel::Gray) {
@@ -897,7 +891,6 @@ bool HEIFHandler::ensureDecoder()
                         m_current_image.convertTo(bit_depth > 8 ? QImage::Format_Grayscale16 : QImage::Format_Grayscale8);
                     }
                 }
-#endif
                 m_current_image.setColorSpace(colorspace);
             }
         } else {
@@ -934,14 +927,12 @@ bool HEIFHandler::ensureDecoder()
             case 13:
                 q_trc = QColorSpace::TransferFunction::SRgb;
                 break;
-#if (QT_VERSION >= QT_VERSION_CHECK(6, 8, 0))
             case 16:
                 q_trc = QColorSpace::TransferFunction::St2084;
                 break;
             case 18:
                 q_trc = QColorSpace::TransferFunction::Hlg;
                 break;
-#endif
             default:
                 qCWarning(LOG_HEIFPLUGIN) << "CICP color_primaries: %d, transfer_characteristics: %d\nThe colorspace is unsupported by this plug-in yet."
                                           << nclx->color_primaries

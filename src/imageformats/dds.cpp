@@ -2120,10 +2120,8 @@ bool writeL8(const QImage &outImage, QDataStream &s)
     }
 
     ScanLineConverter slc(QImage::Format_Grayscale8);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     if(outImage.colorSpace().isValid())
         slc.setTargetColorSpace(QColorSpace(QPointF(0.3127, 0.3291), QColorSpace::TransferFunction::SRgb));
-#endif
 
     for (int y = 0, h = outImage.height(); y < h; ++y) {
         const quint8 *scanLine = reinterpret_cast<const quint8*>(slc.convertedScanLine(outImage, y));

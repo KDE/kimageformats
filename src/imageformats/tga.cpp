@@ -610,11 +610,7 @@ static bool LoadTGA(QIODevice *dev, const TgaHeader &tga, QImage &img)
     // Read palette.
     if (info.pal) {
         QList<QRgb> colorTable;
-#if QT_VERSION < QT_VERSION_CHECK(6, 8, 0)
-        colorTable.resize(tga.colormap_length);
-#else
         colorTable.resizeForOverwrite(tga.colormap_length);
-#endif
 
         if (tga.colormap_size == 32) {
             char data[4]; // BGRA
@@ -989,15 +985,11 @@ bool TGAHandler::writeRGBA(const QImage &image)
     auto format = image.format();
     const bool hasAlpha = image.hasAlphaChannel();
     auto tcs = QColorSpace();
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     auto cs = image.colorSpace();
     if (cs.isValid() && cs.colorModel() == QColorSpace::ColorModel::Cmyk && image.format() == QImage::Format_CMYK8888) {
         format = QImage::Format_RGB32;
         tcs = QColorSpace(QColorSpace::SRgb);
     } else if (hasAlpha && image.format() != QImage::Format_ARGB32) {
-#else
-    if (hasAlpha && image.format() != QImage::Format_ARGB32) {
-#endif
         format = QImage::Format_ARGB32;
     } else if (!hasAlpha && image.format() != QImage::Format_RGB32) {
         format = QImage::Format_RGB32;

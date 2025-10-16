@@ -91,7 +91,7 @@ typedef quint8 uchar;
 namespace // Private.
 {
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 8, 0) || defined(PSD_NATIVE_CMYK_SUPPORT_DISABLED)
+#if defined(PSD_NATIVE_CMYK_SUPPORT_DISABLED)
 #   define CMYK_FORMAT QImage::Format_Invalid
 #else
 #   define CMYK_FORMAT QImage::Format_CMYK8888
@@ -1336,7 +1336,7 @@ bool PSDHandler::read(QImage *image)
         // CMYK with spots (e.g. CMYKA) ICC conversion to RGBA/RGBX
         QImage tmpCmyk;
         ScanLineConverter iccConv(img.format());
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0) && !defined(PSD_NATIVE_CMYK_SUPPORT_DISABLED)
+#if !defined(PSD_NATIVE_CMYK_SUPPORT_DISABLED)
         if (header.color_mode == CM_CMYK && img.format() != QImage::Format_CMYK8888) {
             auto tmpi = QImage(header.width, 1, QImage::Format_CMYK8888);
             if (setColorSpace(tmpi, irs))
@@ -1488,13 +1488,11 @@ bool PSDHandler::read(QImage *image)
         if (header.color_mode == CM_RGB && header.depth == 32) {
             img.setColorSpace(QColorSpace(QColorSpace::SRgbLinear));
         }
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         if (header.color_mode == CM_GRAYSCALE && header.depth == 32) {
             auto qs = QColorSpace(QPointF(0.3127, 0.3291), QColorSpace::TransferFunction::Linear);
             qs.setDescription(QStringLiteral("Linear grayscale"));
             img.setColorSpace(qs);
         }
-#endif
     }
 
     // XMP data

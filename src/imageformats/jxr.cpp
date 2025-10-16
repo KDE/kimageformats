@@ -579,9 +579,7 @@ public:
         // IMPORTANT: these values must be in exactMatchingFormat()
         // clang-format off
         auto valid = QSet<QImage::Format>()
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
             << QImage::Format_CMYK8888
-#endif
 #ifndef JXR_DENY_FLOAT_IMAGE
             << QImage::Format_RGBA16FPx4
             << QImage::Format_RGBX16FPx4
@@ -671,10 +669,8 @@ public:
         wmiSCP->bVerbose = FALSE;
         if (fmt == QImage::Format_Grayscale8 || fmt == QImage::Format_Grayscale16 || fmt == QImage::Format_Mono)
             wmiSCP->cfColorFormat = Y_ONLY;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         else if (fmt == QImage::Format_CMYK8888)
             wmiSCP->cfColorFormat = CMYK;
-#endif
         else
             wmiSCP->cfColorFormat = YUV_444;
         wmiSCP->bdBitDepth = BD_LONG;
@@ -812,10 +808,8 @@ private:
             << std::pair<QImage::Format, PKPixelFormatGUID>(QImage::Format_RGBA32FPx4_Premultiplied, GUID_PKPixelFormat128bppPRGBAFloat)
             << std::pair<QImage::Format, PKPixelFormatGUID>(QImage::Format_RGBX32FPx4, GUID_PKPixelFormat128bppRGBFloat)
 #endif // JXR_DENY_FLOAT_IMAGE
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
             << std::pair<QImage::Format, PKPixelFormatGUID>(QImage::Format_CMYK8888, GUID_PKPixelFormat32bppCMYK)
             << std::pair<QImage::Format, PKPixelFormatGUID>(QImage::Format_CMYK8888, GUID_PKPixelFormat32bppCMYKDIRECT)
-#endif
             << std::pair<QImage::Format, PKPixelFormatGUID>(QImage::Format_Mono, GUID_PKPixelFormatBlackWhite)
             << std::pair<QImage::Format, PKPixelFormatGUID>(QImage::Format_Grayscale8, GUID_PKPixelFormat8bppGray)
             << std::pair<QImage::Format, PKPixelFormatGUID>(QImage::Format_Grayscale16, GUID_PKPixelFormat16bppGray)

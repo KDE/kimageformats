@@ -766,15 +766,11 @@ bool SGIImagePrivate::writeImage(const QImage &image)
 
     auto tcs = QColorSpace();
     auto tfmt = image.format();
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     auto cs = image.colorSpace();
     if (cs.isValid() && cs.colorModel() == QColorSpace::ColorModel::Cmyk && tfmt == QImage::Format_CMYK8888) {
         tcs = QColorSpace(QColorSpace::SRgb);
         tfmt = QImage::Format_RGB32;
     } else if (hasAlpha && tfmt != QImage::Format_ARGB32) {
-#else
-    if (hasAlpha && tfmt != QImage::Format_ARGB32) {
-#endif
         tfmt = QImage::Format_ARGB32;
     } else if (!hasAlpha && tfmt != QImage::Format_RGB32) {
         tfmt = QImage::Format_RGB32;
