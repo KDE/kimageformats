@@ -608,13 +608,13 @@ bool EXRHandler::write(const QImage &image)
         pixels.resizeErase(EXR_LINES_PER_BLOCK, width);
 
         // convert the image and write into the stream
-        auto convFormat = image.hasAlphaChannel() ? QImage::Format_RGBA16FPx4 : QImage::Format_RGBX16FPx4;
+        auto convFormat = image.hasAlphaChannel() ? QImage::Format_RGBA32FPx4 : QImage::Format_RGBX32FPx4;
         ScanLineConverter slc(convFormat);
         slc.setDefaultSourceColorSpace(QColorSpace(QColorSpace::SRgb));
         slc.setTargetColorSpace(QColorSpace(QColorSpace::SRgbLinear));
         for (int y = 0, n = 0; y < height; y += n) {
             for (n = 0; n < std::min(EXR_LINES_PER_BLOCK, height - y); ++n) {
-                auto scanLine = reinterpret_cast<const qfloat16 *>(slc.convertedScanLine(image, y + n));
+                auto scanLine = reinterpret_cast<const float *>(slc.convertedScanLine(image, y + n));
                 if (scanLine == nullptr) {
                     return false;
                 }
