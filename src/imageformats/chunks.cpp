@@ -1019,7 +1019,7 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, qint32 y, const BMH
             auto pal = cmap->palette();
             if (ipal) {
                 auto tmp = ipal->palette(y);
-                if (tmp.size() == pal.size())
+                if (!tmp.isEmpty())
                     pal = tmp;
             }
             // HAM 6: 2 control bits+4 bits of data, 16-color palette
