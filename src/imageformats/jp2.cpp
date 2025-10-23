@@ -73,7 +73,7 @@ static void info_callback(const char *msg, void *client_data)
 static OPJ_SIZE_T jp2_read(void *p_buffer, OPJ_SIZE_T p_nb_bytes, void *p_user_data)
 {
     auto dev = (QIODevice*)p_user_data;
-    if (dev == nullptr) {
+    if (dev == nullptr || dev->atEnd()) {
         return OPJ_SIZE_T(-1);
     }
     return OPJ_SIZE_T(dev->read((char*)p_buffer, (qint64)p_nb_bytes));
