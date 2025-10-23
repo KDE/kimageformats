@@ -2795,10 +2795,6 @@ static QByteArray pchgFastDecomp(const QByteArray& input, int treeSize, int orig
         return {};
     }
 
-    QByteArray out;
-    out.resize(originalSize);
-    char* outPtr = out.data();
-
     // Emulate a3 pointer to words:
     // a2 points to the *last word* => word index (0..treeWords-1)
     auto resetA3 = [&]() {
@@ -2823,10 +2819,9 @@ static QByteArray pchgFastDecomp(const QByteArray& input, int treeSize, int orig
         return true;
     };
 
-    int produced = 0;
-
     // Main decode loop: produce exactly originalSize bytes
-    while (produced < originalSize) {
+    QByteArray out;
+    while (out.size() < qsizetype(originalSize)) {
         if (bits == 0) {
             if (!refill()) {
                 // Not enough bits to complete output
@@ -2862,7 +2857,7 @@ static QByteArray pchgFastDecomp(const QByteArray& input, int treeSize, int orig
                 a3_word = next;
             } else {
                 // Leaf: emit low 8 bits, reset a3
-                outPtr[produced++] = static_cast<char>(w & 0xFF);
+                out.append(static_cast<char>(w & 0xFF));
                 a3_word = resetA3();
             }
         } else {
@@ -2882,7 +2877,7 @@ static QByteArray pchgFastDecomp(const QByteArray& input, int treeSize, int orig
 
             // Non-negative: check bit #8; if set -> leaf
             if ((w & 0x0100) != 0) {
-                outPtr[produced++] = static_cast<char>(w & 0xFF);
+                out.append(static_cast<char>(w & 0xFF));
                 a3_word = resetA3();
             } else {
                 // Not a leaf: continue scanning
