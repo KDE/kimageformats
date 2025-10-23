@@ -2419,10 +2419,12 @@ QList<QRgb> BEAMChunk::palette(qint32 y) const
     for (auto c = 0; c < col; ++c) {
         // 2 bytes per color (0x0R 0xGB)
         auto idx = bpp * y + c * 2;
-        auto r = quint8(dt[idx] & 0x0F);
-        auto g = quint8(dt[idx + 1] & 0xF0);
-        auto b = quint8(dt[idx + 1] & 0x0F);
-        pal << qRgb(r | (r << 4), (g >> 4) | g, b | (b << 4));
+        if (idx + 1 < dt.size()) {
+            auto r = quint8(dt[idx] & 0x0F);
+            auto g = quint8(dt[idx + 1] & 0xF0);
+            auto b = quint8(dt[idx + 1] & 0x0F);
+            pal << qRgb(r | (r << 4), (g >> 4) | g, b | (b << 4));
+        }
     }
     return pal;
 }
@@ -2510,10 +2512,12 @@ QList<QRgb> SHAMChunk::palette(qint32 y) const
     for (auto c = 0, col = bpp / 2, idx0 = y / div * bpp + 2; c < col; ++c) {
         // 2 bytes per color (0x0R 0xGB)
         auto idx = idx0 + c * 2;
-        auto r = quint8(dt[idx] & 0x0F);
-        auto g = quint8(dt[idx + 1] & 0xF0);
-        auto b = quint8(dt[idx + 1] & 0x0F);
-        pal << qRgb(r | (r << 4), (g >> 4) | g, b | (b << 4));
+        if (idx + 1 < dt.size()) {
+            auto r = quint8(dt[idx] & 0x0F);
+            auto g = quint8(dt[idx + 1] & 0xF0);
+            auto b = quint8(dt[idx + 1] & 0x0F);
+            pal << qRgb(r | (r << 4), (g >> 4) | g, b | (b << 4));
+        }
     }
     return pal;
 }
@@ -2570,16 +2574,18 @@ QList<QRgb> RASTChunk::palette(qint32 y) const
     QList<QRgb> pal;
     for (auto c = 0; c < col; ++c) {
         auto idx = bpp * y + 2 + c * 2;
-        // The Atari ST uses 3 bits per color (512 colors) while the Atari STE
-        // uses 4 bits per color (4096 colors). This strange encoding with the
-        // least significant bit set as MSB is, I believe, to ensure hardware
-        // compatibility between the two machines.
-        #define H1L(a) ((quint8(a) & 0x7) << 1) | ((quint8(a) >> 3) & 1)
-        auto r = H1L(dt[idx]);
-        auto g = H1L(dt[idx + 1] >> 4);
-        auto b = H1L(dt[idx + 1]);
-        #undef H1L
-        pal << qRgb(r | (r << 4), (g << 4) | g, b | (b << 4));
+        if (idx + 1 < dt.size()) {
+            // The Atari ST uses 3 bits per color (512 colors) while the Atari STE
+            // uses 4 bits per color (4096 colors). This strange encoding with the
+            // least significant bit set as MSB is, I believe, to ensure hardware
+            // compatibility between the two machines.
+            #define H1L(a) ((quint8(a) & 0x7) << 1) | ((quint8(a) >> 3) & 1)
+            auto r = H1L(dt[idx]);
+            auto g = H1L(dt[idx + 1] >> 4);
+            auto b = H1L(dt[idx + 1]);
+            #undef H1L
+            pal << qRgb(r | (r << 4), (g << 4) | g, b | (b << 4));
+        }
     }
     return pal;
 }
