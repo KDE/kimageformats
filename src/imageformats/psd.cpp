@@ -332,6 +332,12 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
 
     // Reading Image resource block
     for (auto size = sectioSize; size > 0;) {
+
+#define DEC_SIZE(value) \
+        if ((size -= (value)) < 0) { \
+            *ok = false; \
+            break; }
+
         // Length      Description
         // -------------------------------------------------------------------
         // 4           Signature: '8BIM'
@@ -346,7 +352,7 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
 
         quint32 signature;
         s >> signature;
-        size -= sizeof(signature);
+        DEC_SIZE(sizeof(signature))
         // NOTE: MeSa signature is not documented but found in some old PSD take from Photoshop 7.0 CD.
         if (signature != S_8BIM && signature != S_MeSa) { // 8BIM and MeSa
             qCDebug(LOG_PSDPLUGIN) << "Invalid Image Resource Block Signature!";
@@ -357,7 +363,7 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
         // id
         quint16 id;
         s >> id;
-        size -= sizeof(id);
+        DEC_SIZE(sizeof(id))
 
         // getting data
         PSDImageResourceBlock irb;
@@ -365,19 +371,20 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
         // name
         qint32 bytes = 0;
         irb.name = readPascalString(s, 2, &bytes);
-        size -= bytes;
+        DEC_SIZE(bytes)
 
         // data read
         quint32 dataSize;
         s >> dataSize;
-        size -= sizeof(dataSize);
+        DEC_SIZE(sizeof(dataSize))
         // NOTE: Qt device::read() and QDataStream::readRawData() could read less data than specified.
         //       The read code should be improved.
         if (auto dev = s.device())
             irb.data = dev->read(dataSize);
         auto read = irb.data.size();
-        if (read > 0)
-            size -= read;
+        if (read > 0) {
+            DEC_SIZE(read)
+        }
         if (quint32(read) != dataSize) {
             qCDebug(LOG_PSDPLUGIN) << "Image Resource Block Read Error!";
             *ok = false;
@@ -386,12 +393,15 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
 
         if (auto pad = dataSize % 2) {
             auto skipped = s.skipRawData(pad);
-            if (skipped > 0)
-                size -= skipped;
+            if (skipped > 0) {
+                DEC_SIZE(skipped);
+            }
         }
 
         // insert IRB
         irs.insert(id, irb);
+
+#undef DEC_SIZE
     }
 
     return irs;
@@ -489,7 +499,13 @@ PSDColorModeDataSection readColorModeDataSection(QDataStream &s, bool *ok = null
 
     qint32 size;
     s >> size;
-    if (size != 768) {  // read the duotone data (524 bytes)
+    if (size < 0) {
+        *ok = false;
+    } else if (size > 8 * 1024 * 1024) {
+        // The known color sections are all in the order of a few hundred bytes.
+        // I skip the ones that are too big, I don't know what to do with them.
+        *ok = s.skipRawData(size) == size;
+    } else if (size != 768) {  // read the duotone data (524 bytes)
         // NOTE: A RGB/Gray float image has a 112 bytes ColorModeData that could be
         //       the "32-bit Toning Options" of Photoshop (starts with 'hdrt').
         //       Official Adobe specification tells "Only indexed color and duotone
