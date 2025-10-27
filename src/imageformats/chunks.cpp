@@ -617,7 +617,7 @@ CAMGChunk::CAMGChunk() : IFFChunk()
 
 bool CAMGChunk::isValid() const
 {
-    if (bytes() != 4) {
+    if (dataBytes() != 4) {
         return false;
     }
     return chunkId() == CAMGChunk::defaultChunkId();
