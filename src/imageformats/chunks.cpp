@@ -1603,7 +1603,7 @@ TBHDChunk::TBHDChunk()
 
 bool TBHDChunk::isValid() const
 {
-    if (bytes() != 24 && bytes() != 32) {
+    if (dataBytes() != 24 && dataBytes() != 32) {
         return false;
     }
     return chunkId() == TBHDChunk::defaultChunkId();
@@ -1637,7 +1637,7 @@ QSize TBHDChunk::size() const
 
 qint32 TBHDChunk::left() const
 {
-    if (bytes() != 32) {
+    if (dataBytes() != 32) {
         return 0;
     }
     return i32(data().at(27), data().at(26), data().at(25), data().at(24));
@@ -1645,7 +1645,7 @@ qint32 TBHDChunk::left() const
 
 qint32 TBHDChunk::top() const
 {
-    if (bytes() != 32) {
+    if (dataBytes() != 32) {
         return 0;
     }
     return i32(data().at(31), data().at(30), data().at(29), data().at(28));
