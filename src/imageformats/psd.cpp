@@ -327,14 +327,15 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
     *ok = true;
 
     // Section size
-    qint32 sectioSize;
-    s >> sectioSize;
+    quint32 tmpSize;
+    s >> tmpSize;
+    qint64 sectioSize = tmpSize;
 
     // Reading Image resource block
     for (auto size = sectioSize; size > 0;) {
 
 #define DEC_SIZE(value) \
-        if ((size -= (value)) < 0) { \
+        if ((size -= qint64(value)) < 0) { \
             *ok = false; \
             break; }
 
@@ -377,15 +378,21 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
         quint32 dataSize;
         s >> dataSize;
         DEC_SIZE(sizeof(dataSize))
-        // NOTE: Qt device::read() and QDataStream::readRawData() could read less data than specified.
-        //       The read code should be improved.
-        if (auto dev = s.device())
+        if (auto dev = s.device()) {
+            if (dataSize > size) {
+                qCDebug(LOG_PSDPLUGIN) << "Invalid Image Resource Block Data Size!";
+                *ok = false;
+                break;
+            }
+            // NOTE: Qt device::read() and QDataStream::readRawData() could read less data than specified.
+            //       The read code should be improved.
             irb.data = dev->read(dataSize);
+        }
         auto read = irb.data.size();
         if (read > 0) {
             DEC_SIZE(read)
         }
-        if (quint32(read) != dataSize) {
+        if (read != qint64(dataSize)) {
             qCDebug(LOG_PSDPLUGIN) << "Image Resource Block Read Error!";
             *ok = false;
             break;
@@ -714,7 +721,7 @@ static bool IsValid(const PSDHeader &header)
         qCDebug(LOG_PSDPLUGIN) << "PSD header: invalid number of channels" << header.channel_count;
         return false;
     }
-    if (header.width > std::min(300000, PSD_MAX_IMAGE_WIDTH) || header.height > std::min(300000, PSD_MAX_IMAGE_HEIGHT)) {
+    if (header.width > uint(std::min(300000, PSD_MAX_IMAGE_WIDTH)) || header.height > uint(std::min(300000, PSD_MAX_IMAGE_HEIGHT))) {
         qCDebug(LOG_PSDPLUGIN) << "PSD header: invalid image size" << header.width << "x" << header.height;
         return false;
     }
