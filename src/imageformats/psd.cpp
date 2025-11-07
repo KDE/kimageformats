@@ -384,9 +384,7 @@ static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok
                 *ok = false;
                 break;
             }
-            // NOTE: Qt device::read() and QDataStream::readRawData() could read less data than specified.
-            //       The read code should be improved.
-            irb.data = dev->read(dataSize);
+            irb.data = deviceRead(dev, dataSize);
         }
         auto read = irb.data.size();
         if (read > 0) {

@@ -12,6 +12,7 @@
 
 #include <QImage>
 #include <QImageIOHandler>
+#include <QIODevice>
 
 // Default maximum width and height for the large image plugins.
 #ifndef KIF_LARGE_IMAGE_PIXEL_LIMIT
@@ -130,6 +131,50 @@ inline double dppm2dpi(qint32 ppm, bool *ok = nullptr)
 inline float fppm2dpi(qint32 ppm, bool *ok = nullptr)
 {
     return ppm2dpi_T<float>(ppm, ok);
+}
+
+/*!
+ * \brief deviceRead
+ * A function for reading from devices.
+ *
+ * Similar to QIODevice::read(qint64) but limits the initial memory allocation. Useful for reading corrupted streams.
+ * \param d The device.
+ * \param maxSize The maximum size to read.
+ * \return The byte array read.
+ */
+static QByteArray deviceRead(QIODevice *d, qint64 maxSize)
+{
+    if (d == nullptr) {
+        return{};
+    }
+
+    const qint64 blockSize = 32 * 1024 * 1024;
+    auto devSize = d->isSequential() ? qint64() : d->size();
+
+    if (devSize > 0) {
+        // random access device
+        maxSize = std::min(maxSize, devSize - d->pos());
+        return d->read(maxSize);
+    } else if (maxSize < blockSize) {
+        // small read
+        return d->read(maxSize);
+    }
+
+    // sequential device
+    QByteArray ba;
+    while (ba.size() < maxSize) {
+        auto toRead = std::min(blockSize, maxSize - ba.size());
+        if (toRead + ba.size() > QByteArray::maxSize()) {
+            break;
+        }
+        auto tmp = d->read(toRead);
+        if (tmp.isEmpty()) {
+            break;
+        }
+        ba.append(tmp);
+    }
+
+    return ba;
 }
 
 #endif // UTIL_P_H
