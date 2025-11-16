@@ -546,8 +546,21 @@ static bool setColorSpace(QImage &img, const PSDImageResourceSection &irs)
     auto cs = QColorSpace::fromIccProfile(irb.data);
     if (!cs.isValid())
         return false;
+
+    if (cs.colorModel() == QColorSpace::ColorModel::Gray && img.pixelFormat().colorModel() != QPixelFormat::Grayscale) {
+        // I created an RGB from a grayscale without using color profile conversion (fast).
+        // I'll try to create an RGB profile that looks the same.
+        if (cs.transferFunction() != QColorSpace::TransferFunction::Custom) {
+            auto tmp = QColorSpace(QColorSpace::Primaries::SRgb, cs.transferFunction(), cs.gamma());
+            tmp.setWhitePoint(cs.whitePoint());
+            tmp.setDescription(QStringLiteral("RGB emulation of \"%1\"").arg(cs.description()));
+            if (tmp.isValid())
+                cs = tmp;
+        }
+    }
+
     img.setColorSpace(cs);
-    return true;
+    return img.colorSpace().isValid();
 }
 
 /*!
@@ -800,6 +813,14 @@ static QImage::Format imageFormat(const PSDHeader &header, bool alpha)
         }
         break;
     case CM_GRAYSCALE:
+        if (header.depth == 32) {
+            format = !alpha ? QImage::Format_RGBX32FPx4 : QImage::Format_RGBA32FPx4_Premultiplied;
+        } else if (header.depth == 16) {
+            format = !alpha ? QImage::Format_Grayscale16 : QImage::Format_RGBA64_Premultiplied;
+        } else {
+            format = !alpha ? QImage::Format_Grayscale8 : QImage::Format_RGBA8888_Premultiplied;
+        }
+        break;
     case CM_DUOTONE:
         format = header.depth == 8 ? QImage::Format_Grayscale8 : QImage::Format_Grayscale16;
         break;
@@ -1309,7 +1330,6 @@ bool PSDHandler::read(QImage *image)
     }
 
     auto imgChannels = imageChannels(img.format());
-    auto channel_num = std::min(qint32(header.channel_count), imgChannels);
     auto raw_count = qsizetype(header.width * header.depth + 7) / 8;
     auto native_cmyk = img.format() == CMYK_FORMAT;
 
@@ -1417,6 +1437,14 @@ bool PSDHandler::read(QImage *image)
                     else if (header.depth == 32)
                         premulConversion<float>(scanLine, header.width, 3, header.channel_count, PremulConversion::PS2P);
                 }
+                if (header.color_mode == CM_GRAYSCALE) {
+                    if (header.depth == 8)
+                        premulConversion<quint8>(scanLine, header.width, 1, header.channel_count, PremulConversion::PS2P);
+                    else if (header.depth == 16)
+                        premulConversion<quint16>(scanLine, header.width, 1, header.channel_count, PremulConversion::PS2P);
+                    else if (header.depth == 32)
+                        premulConversion<float>(scanLine, header.width, 1, header.channel_count, PremulConversion::PS2P);
+                }
             }
 
             // Conversion to RGB
@@ -1454,9 +1482,21 @@ bool PSDHandler::read(QImage *image)
                 else if (header.depth == 32)
                     rawChannelsCopy<float>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width);
             }
+            if (header.color_mode == CM_GRAYSCALE) {
+                for (auto c = 0; c < imgChannels; ++c) { // GRAYA to RGBA
+                    auto sc = qBound(0, c - 2, int(header.channel_count));
+                    if (header.depth == 8)
+                        rawChannelCopy<quint8>(img.scanLine(y), imgChannels, c, psdScanline.data(), header.channel_count, sc, header.width);
+                    else if (header.depth == 16)
+                        rawChannelCopy<quint16>(img.scanLine(y), imgChannels, c, psdScanline.data(), header.channel_count, sc, header.width);
+                    else if (header.depth == 32)
+                        rawChannelCopy<float>(img.scanLine(y), imgChannels, c, psdScanline.data(), header.channel_count, sc, header.width);
+                }
+            }
         }
     } else {
         // Linear read (no position jumps): optimized code usable only for the colorspaces supported by QImage
+        auto channel_num = std::min(qint32(header.channel_count), header.color_mode == CM_GRAYSCALE ? 1 : imgChannels);
         for (qint32 c = 0; c < channel_num; ++c) {
             for (qint32 y = 0, h = header.height; y < h; ++y) {
                 auto&& strideSize = strides.at(c * qsizetype(h) + y);
@@ -1485,8 +1525,13 @@ bool PSDHandler::read(QImage *image)
                     // 32-bits float images: RGB/RGBA
                     planarToChunchy<float>(scanLine, rawStride.data(), header.width, c, imgChannels);
                 } else if (header.depth == 32 && header.color_mode == CM_GRAYSCALE) {
-                    // 32-bits float images: Grayscale (coverted to equivalent integer 16-bits)
-                    planarToChunchyFloatToUInt16<float>(scanLine, rawStride.data(), header.width, c, imgChannels);
+                    if (imgChannels >= 3) { // GRAY to RGB
+                        planarToChunchy<float>(scanLine, rawStride.data(), header.width, 0, imgChannels);
+                        planarToChunchy<float>(scanLine, rawStride.data(), header.width, 1, imgChannels);
+                        planarToChunchy<float>(scanLine, rawStride.data(), header.width, 2, imgChannels);
+                    } else { // 32-bits float images: Grayscale (coverted to equivalent integer 16-bits)
+                        planarToChunchyFloatToUInt16<float>(scanLine, rawStride.data(), header.width, c, imgChannels);
+                    }
                 }
             }
         }
@@ -1620,6 +1665,9 @@ bool PSDHandler::canRead(QIODevice *device)
             return false;
         }
         if (header.color_mode == CM_RGB && header.channel_count > 3) {
+            return false; // supposing extra channel as alpha
+        }
+        if (header.color_mode == CM_GRAYSCALE && (header.channel_count > 1 || header.depth == 32)) {
             return false; // supposing extra channel as alpha
         }
     }

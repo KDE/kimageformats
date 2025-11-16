@@ -414,6 +414,8 @@ PSD support has the following limitations:
 - Multichannel images are treated as CMYK if they have 2 or more channels.
 - Multichannel images are treated as Grayscale if they have 1 channel.
 - Duotone images are treated as grayscale images.
+- Grayscale images with alpha channel or at 32 bit depth are converted to 
+  RGBA due to the lack of the appropriate Qt grayscale container.
 - Extra channels other than alpha are discarded.
 
 The following defines can be defined in cmake to modify the behavior of the 
