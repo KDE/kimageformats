@@ -1102,7 +1102,7 @@ bool readChannel(QByteArray &target, QDataStream &stream, quint32 compressedSize
         if (stream.readRawData(tmp.data(), tmp.size()) != tmp.size()) {
             return false;
         }
-        if (packbitsDecompress(tmp.data(), tmp.size(), target.data(), target.size()) < 0) {
+        if (packbitsDecompress(tmp.data(), tmp.size(), target.data(), target.size()) != target.size()) {
             return false;
         }
     } else if (stream.readRawData(target.data(), target.size()) != target.size()) {
