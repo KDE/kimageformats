@@ -125,14 +125,16 @@ public:
         Header h;
 
         int cnt = 0;
-        int len;
-        QByteArray line(MAXLINE + 1, Qt::Uninitialized);
+        int len = 0;
+        QByteArray line(MAXLINE, char());
         QByteArray format;
 
         // Parse header
         do {
-            len = device->readLine(line.data(), MAXLINE);
-
+            len = device->readLine(line.data(), line.size());
+            if (len < 0) {
+                break;
+            }
             if (line.startsWith("FORMAT=")) {
                 format = line.mid(7, len - 7).trimmed();
             }
@@ -173,7 +175,11 @@ public:
             return h;
         }
 
-        len = device->readLine(line.data(), MAXLINE);
+        len = device->readLine(line.data(), line.size());
+        if (len < 0) {
+            qCDebug(HDRPLUGIN) << "Invalid HDR file, error while reading the first line after the header";
+            return h;
+        }
         line.resize(len);
 
         /*
