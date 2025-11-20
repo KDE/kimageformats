@@ -1360,8 +1360,10 @@ bool PSDHandler::read(QImage *image)
 #if !defined(PSD_NATIVE_CMYK_SUPPORT_DISABLED)
         if (header.color_mode == CM_CMYK && img.format() != QImage::Format_CMYK8888) {
             auto tmpi = QImage(header.width, 1, QImage::Format_CMYK8888);
-            if (setColorSpace(tmpi, irs))
+            if (setColorSpace(tmpi, irs)) {
+                tmpi.fill(0);
                 tmpCmyk = tmpi;
+            }
             iccConv.setTargetColorSpace(QColorSpace(QColorSpace::SRgb));
         }
 #endif
