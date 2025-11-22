@@ -1437,6 +1437,7 @@ bool XCFImageFormat::composeTiles(XCFImage &xcf_image)
                     return false;
                 }
                 layer.image_tiles[j][i].setColorCount(0);
+                layer.image_tiles[j][i].fill(0);
                 break;
 
             case GRAY_GIMAGE:
@@ -1445,15 +1446,17 @@ bool XCFImageFormat::composeTiles(XCFImage &xcf_image)
                     return false;
                 }
                 layer.image_tiles[j][i].setColorCount(256);
+                layer.image_tiles[j][i].fill(0);
                 setGrayPalette(layer.image_tiles[j][i]);
                 break;
 
             case GRAYA_GIMAGE:
                 layer.image_tiles[j][i] = QImage(tile_width, tile_height, QImage::Format_Indexed8);
-                layer.image_tiles[j][i].setColorCount(256);
                 if (layer.image_tiles[j][i].isNull()) {
                     return false;
                 }
+                layer.image_tiles[j][i].setColorCount(256);
+                layer.image_tiles[j][i].fill(0);
                 setGrayPalette(layer.image_tiles[j][i]);
 
                 layer.alpha_tiles[j][i] = QImage(tile_width, tile_height, QImage::Format_Indexed8);
@@ -1461,15 +1464,17 @@ bool XCFImageFormat::composeTiles(XCFImage &xcf_image)
                     return false;
                 }
                 layer.alpha_tiles[j][i].setColorCount(256);
+                layer.alpha_tiles[j][i].fill(0);
                 setGrayPalette(layer.alpha_tiles[j][i]);
                 break;
 
             case INDEXED_GIMAGE:
                 layer.image_tiles[j][i] = QImage(tile_width, tile_height, QImage::Format_Indexed8);
-                layer.image_tiles[j][i].setColorCount(xcf_image.num_colors);
                 if (layer.image_tiles[j][i].isNull()) {
                     return false;
                 }
+                layer.image_tiles[j][i].setColorCount(xcf_image.num_colors);
+                layer.image_tiles[j][i].fill(0);
                 setPalette(xcf_image, layer.image_tiles[j][i]);
                 break;
 
@@ -1479,6 +1484,7 @@ bool XCFImageFormat::composeTiles(XCFImage &xcf_image)
                     return false;
                 }
                 layer.image_tiles[j][i].setColorCount(xcf_image.num_colors);
+                layer.image_tiles[j][i].fill(0);
                 setPalette(xcf_image, layer.image_tiles[j][i]);
 
                 layer.alpha_tiles[j][i] = QImage(tile_width, tile_height, QImage::Format_Indexed8);
@@ -1486,6 +1492,7 @@ bool XCFImageFormat::composeTiles(XCFImage &xcf_image)
                     return false;
                 }
                 layer.alpha_tiles[j][i].setColorCount(256);
+                layer.alpha_tiles[j][i].fill(0);
                 setGrayPalette(layer.alpha_tiles[j][i]);
             }
             if (layer.type != GRAYA_GIMAGE && layer.image_tiles[j][i].format() != format) {
@@ -1523,10 +1530,11 @@ bool XCFImageFormat::composeTiles(XCFImage &xcf_image)
 #endif
             if (layer.mask_offset != 0) {
                 layer.mask_tiles[j][i] = QImage(tile_width, tile_height, QImage::Format_Indexed8);
-                layer.mask_tiles[j][i].setColorCount(256);
                 if (layer.mask_tiles[j][i].isNull()) {
                     return false;
                 }
+                layer.mask_tiles[j][i].setColorCount(256);
+                layer.mask_tiles[j][i].fill(0);
                 setGrayPalette(layer.mask_tiles[j][i]);
             }
         }
@@ -2063,6 +2071,7 @@ bool XCFImageFormat::loadLevel(QDataStream &xcf_io, Layer &layer, qint32 bpp, co
     QList<uchar> buffer;
     if (needConvert) {
         buffer.resize(blockSize * (bpp == 2 ? 2 : 1));
+        buffer.fill(uchar());
     }
     for (uint j = 0; j < layer.nrows; j++) {
         for (uint i = 0; i < layer.ncols; i++) {
