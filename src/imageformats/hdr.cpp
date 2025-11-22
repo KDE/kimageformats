@@ -328,8 +328,7 @@ static bool LoadHDR(QDataStream &s, const Header& h, QImage &img)
         return false;
     }
 
-    QByteArray lineArray;
-    lineArray.resize(4 * width);
+    QByteArray lineArray(4 * width, char());
     uchar *image = reinterpret_cast<uchar *>(lineArray.data());
 
     for (int cline = 0; cline < height; cline++) {
