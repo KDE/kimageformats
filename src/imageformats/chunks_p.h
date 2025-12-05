@@ -36,7 +36,7 @@ Q_DECLARE_LOGGING_CATEGORY(LOG_IFFPLUGIN)
 #define LIST_CHUNK QByteArray("LIST")
 #define PROP_CHUNK QByteArray("PROP")
 
-// Main chuncks (Maya)
+// Main chunks (Maya)
 #define CAT4_CHUNK QByteArray("CAT4") // 4 byte alignment
 #define FOR4_CHUNK QByteArray("FOR4")
 #define LIS4_CHUNK QByteArray("LIS4")
@@ -145,7 +145,7 @@ public:
 
     /*!
      * \brief bytes
-     * \return The size (in bytes) of the chunck data.
+     * \return The size (in bytes) of the chunk data.
      */
 
     quint32 bytes() const;
@@ -870,7 +870,7 @@ public:
     /*!
      * \brief transformation
      * \return The image transformation.
-     * \note The Default implentation returns the trasformation of EXIF chunk (if any).
+     * \note The Default implementation returns the transformation of EXIF chunk (if any).
      */
     virtual QImageIOHandler::Transformation transformation() const;
 

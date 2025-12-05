@@ -640,7 +640,7 @@ static bool setResolution(QImage &img, const PSDImageResourceSection &irs)
 
     s.skipRawData(4);                       // Display data (not used here)
 
-    s >> i32;                               // Vertial resolution in pixels per inch.
+    s >> i32;                               // Vertical resolution in pixels per inch.
     if (i32 <= 0)
         return false;
     auto vres = dpi2ppm(fixedPointToDouble(i32));
@@ -1529,7 +1529,7 @@ bool PSDHandler::read(QImage *image)
                         planarToChunchy<float>(scanLine, rawStride.data(), header.width, 0, imgChannels);
                         planarToChunchy<float>(scanLine, rawStride.data(), header.width, 1, imgChannels);
                         planarToChunchy<float>(scanLine, rawStride.data(), header.width, 2, imgChannels);
-                    } else { // 32-bits float images: Grayscale (coverted to equivalent integer 16-bits)
+                    } else { // 32-bits float images: Grayscale (converted to equivalent integer 16-bits)
                         planarToChunchyFloatToUInt16<float>(scanLine, rawStride.data(), header.width, c, imgChannels);
                     }
                 }

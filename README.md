@@ -290,7 +290,7 @@ in your cmake options.**
 
 The following defines can be defined in cmake to modify the behavior of the 
 plugin:
-- `DDS_DISABLE_STRIDE_ALIGNMENT`: disable the stride aligment based on DDS 
+- `DDS_DISABLE_STRIDE_ALIGNMENT`: disable the stride alignment based on DDS 
   pitch: it is known that some writers do not set it correctly.
 
 ### The HEIF plugin
@@ -382,7 +382,7 @@ The following defines can be defined in cmake to modify the behavior of the
 plugin:
 - `JXR_DENY_FLOAT_IMAGE`: disables the use of float images and consequently 
   any HDR data will be lost.
-- `JXR_DISABLE_DEPTH_CONVERSION`: remove the neeeds of additional memory by 
+- `JXR_DISABLE_DEPTH_CONVERSION`: remove the needs of additional memory by 
   disabling the conversion between different color depths (e.g. RGBA64bpp to 
   RGBA32bpp) at the cost of reduced compatibility.
 - `JXR_DISABLE_BGRA_HACK`: Windows displays and opens JXR files correctly out 

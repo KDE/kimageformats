@@ -514,7 +514,7 @@ bool HDRHandler::canRead(QIODevice *device)
         return true;
     }
 
-    // allow to load offical test cases: https://radsite.lbl.gov/radiance/framed.html
+    // allow to load official test cases: https://radsite.lbl.gov/radiance/framed.html
     device->startTransaction();
     auto h = HDRHandlerPrivate::readHeader(device);
     device->rollbackTransaction();

@@ -1379,13 +1379,13 @@ bool XCFImageFormat::composeTiles(XCFImage &xcf_image)
     // SANITY CHECK: Avoid to load XCF with a layer grater than 10 times the final image
     if (qint64(layer.width) * layer.height / 10 > qint64(xcf_image.header.width) * xcf_image.header.height) {
         if (qint64(layer.width) * layer.height > 16384 * 16384) { // large layers only
-            qCWarning(XCFPLUGIN) << "Euristic sanity check: the image may be corrupted!";
+            qCWarning(XCFPLUGIN) << "Heuristic sanity check: the image may be corrupted!";
             return false;
         }
     }
 
 #ifndef XCF_QT5_SUPPORT
-    // Qt 6 image allocation limit calculation: we have to check the limit here because the image is splitted in
+    // Qt 6 image allocation limit calculation: we have to check the limit here because the image is split in
     // tiles of 64x64 pixels. The required memory to build the image is at least doubled because tiles are loaded
     // and then the final image is created by copying the tiles inside it.
     // NOTE: on Windows to open a 10GiB image the plugin uses 28GiB of RAM
