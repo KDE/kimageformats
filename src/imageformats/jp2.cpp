@@ -352,11 +352,15 @@ public:
         }
 
         // OpenJPEG uses a shadow copy @32-bit/channel so we need to do a check
-        auto maxBytes = qint64(QImageReader::allocationLimit()) * 1024 * 1024;
-        auto neededBytes = qint64(width) * height * nchannels * 4;
-        if (maxBytes > 0 && neededBytes > maxBytes) {
-            qCCritical(LOG_JP2PLUGIN) << "Allocation limit set to" << (maxBytes / 1024 / 1024) << "MiB but" << (neededBytes / 1024 / 1024) << "MiB are needed!";
-            return false;
+        const int allocationLimit = QImageReader::allocationLimit();
+        if (allocationLimit > 0) {
+            auto maxBytes = qint64(allocationLimit) * 1024 * 1024;
+            auto neededBytes = qint64(width) * height * nchannels * 4;
+            if (maxBytes > 0 && neededBytes > maxBytes) {
+                qCCritical(LOG_JP2PLUGIN) << "Allocation limit set to" << (maxBytes / 1024 / 1024) << "MiB but" << (neededBytes / 1024 / 1024)
+                                          << "MiB are needed!";
+                return false;
+            }
         }
 
         return true;

@@ -1389,10 +1389,13 @@ bool XCFImageFormat::composeTiles(XCFImage &xcf_image)
     // tiles of 64x64 pixels. The required memory to build the image is at least doubled because tiles are loaded
     // and then the final image is created by copying the tiles inside it.
     // NOTE: on Windows to open a 10GiB image the plugin uses 28GiB of RAM
-    qint64 channels = 1 + (layer.type == RGB_GIMAGE ? 2 : 0) + (layer.type == RGBA_GIMAGE ? 3 : 0);
-    if (qint64(layer.width) * qint64(layer.height) * channels * 2ll / 1024ll / 1024ll > QImageReader::allocationLimit()) {
-        qCDebug(XCFPLUGIN) << "Rejecting image as it exceeds the current allocation limit of" << QImageReader::allocationLimit() << "megabytes";
-        return false;
+    const qint64 channels = 1 + (layer.type == RGB_GIMAGE ? 2 : 0) + (layer.type == RGBA_GIMAGE ? 3 : 0);
+    const int allocationLimit = QImageReader::allocationLimit();
+    if (allocationLimit > 0) {
+        if (qint64(layer.width) * qint64(layer.height) * channels * 2ll / 1024ll / 1024ll > allocationLimit) {
+            qCDebug(XCFPLUGIN) << "Rejecting image as it exceeds the current allocation limit of" << allocationLimit << "megabytes";
+            return false;
+        }
     }
 #endif
 
