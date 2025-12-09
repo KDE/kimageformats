@@ -268,12 +268,17 @@ int main(int argc, char **argv)
     }
 
     const QFileInfoList lstImgDir = imgdir.entryInfoList();
-    // Launch 2 runs for each test: first run on a random access device, second run on a sequential access device
-    for (int seq = 0; seq < 2; ++seq) {
+    // Launch 3 runs for each test:
+    // - first run on a random access device with allocation limit set to 256 MiB.
+    // - second run on a random access device with allocation limit set to 0 MiB.
+    // - third run on a sequential access device.
+    for (int run = 0; run < 3; ++run) {
+        QImageReader::setAllocationLimit(run == 1 ? 0 : 256);
+        bool seq = run == 2;
         if (seq) {
             QTextStream(stdout) << "* Run on SEQUENTIAL ACCESS device\n";
         } else {
-            QTextStream(stdout) << "* Run on RANDOM ACCESS device\n";
+            QTextStream(stdout) << "* Run on RANDOM ACCESS device (allocation limit: " << QImageReader::allocationLimit() << " MiB)\n";
         }
         for (const QFileInfo &fi : lstImgDir) {
             TemplateImage timg(fi);
