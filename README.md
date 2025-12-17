@@ -303,6 +303,15 @@ distributions. In particular, it is necessary that the HEIF library has
 support for HEVC codec. If HEVC codec is not available the plugin
 will compile but will fail the tests.
 
+**If you are interested in compiling the plugin without running the tests, 
+also use the following string options:**
+- `KIMAGEFORMATS_HEIF_TEST` to change the behaviour of HEIF tests. Set to 
+`"OFF"` (no test at all) or `"READ_ONLY"` (run read tests only).
+- `KIMAGEFORMATS_HEJ2_TEST` to change the behaviour of HEJ2 tests. Set to 
+`"OFF"` (no test at all) or `"READ_ONLY"` (run read tests only)..
+- `KIMAGEFORMATS_AVCI_TEST` to change the behaviour of AVCI tests. Set to 
+`"OFF"` (no test at all).
+
 ### The EXR plugin
 
 The following defines can be defined in cmake to modify the behavior of the 

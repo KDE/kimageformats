@@ -258,13 +258,12 @@ int main(int argc, char **argv)
     });
     QTextStream(stdout) << "QImageReader::supportedImageFormats: " << formatStrings.join(", ") << "\n";
 
+    // checks if the format has read capability
     if (!formats.contains(format)) {
-        if (format == "avci" || format == "heif" || format == "hej2") {
-            QTextStream(stdout) << "WARNING : " << suffix << " is not supported with current libheif configuration!\n"
-                                << "********* "
-                                << "Finished basic read tests for " << suffix << " images *********\n";
-            return 0;
-        }
+        QTextStream(stdout) << "FAIL : current configuration is missing necessary decoder(s) for " << suffix << "!\n"
+                            << "********* "
+                            << "Finished basic read tests for " << suffix << " images *********\n";
+        return 1;
     }
 
     const QFileInfoList lstImgDir = imgdir.entryInfoList();
@@ -343,12 +342,7 @@ int main(int argc, char **argv)
             OptionTest optionTest;
             if (!optionTest.store(&inputReader)) {
                 QTextStream(stdout) << "FAIL : " << fi.fileName() << ": error while reading options\n";
-                if (format == "heif") {
-                    // libheif + ffmpeg decoder is unable to load all HEIF files.
-                    ++skipped;
-                } else {
-                    ++failed;
-                }
+                ++failed;
                 continue;
             }
 
