@@ -102,9 +102,15 @@ if (KF6Archive_FOUND)
 endif()
 
 if (TARGET avif)
-    kimageformats_read_tests(
-        avif
-    )
+    if(${libavif_VERSION} VERSION_GREATER_EQUAL "1.2.0")
+        kimageformats_read_tests(
+            avif
+        )
+    else()
+        message(WARNING "libavif ${libavif_VERSION} doesn't support decoding new AVIF files!\n"
+                        "AVIF read tests are disabled, consider updating libavif.")
+    endif()
+
     kimageformats_write_tests(
         avif-nodatacheck-lossless
     )
