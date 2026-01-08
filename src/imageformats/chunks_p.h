@@ -55,6 +55,10 @@ Q_DECLARE_LOGGING_CATEGORY(LOG_IFFPLUGIN)
 #define CMAP_CHUNK QByteArray("CMAP")
 #define CMYK_CHUNK QByteArray("CMYK") // https://wiki.amigaos.net/wiki/ILBM_IFF_Interleaved_Bitmap#ILBM.CMYK
 #define DPI__CHUNK QByteArray("DPI ")
+#define IDAT_CHUNK QByteArray("IDAT")
+#define IHDR_CHUNK QByteArray("IHDR")
+#define IPAR_CHUNK QByteArray("IPAR")
+#define PLTE_CHUNK QByteArray("PLTE")
 #define XBMI_CHUNK QByteArray("XBMI")
 
 // Different palette for scanline
@@ -82,11 +86,13 @@ Q_DECLARE_LOGGING_CATEGORY(LOG_IFFPLUGIN)
 #define VERS_CHUNK QByteArray("VERS")
 #define XMP0_CHUNK QByteArray("XMP0") // https://aminet.net/package/docs/misc/IFF-metadata
 
+// FORM types
 #define ACBM_FORM_TYPE QByteArray("ACBM")
 #define ILBM_FORM_TYPE QByteArray("ILBM")
 #define PBM__FORM_TYPE QByteArray("PBM ")
 #define RGB8_FORM_TYPE QByteArray("RGB8")
 #define RGBN_FORM_TYPE QByteArray("RGBN")
+#define IMAG_FORM_TYPE QByteArray("IMAG")
 
 #define CIMG_FOR4_TYPE QByteArray("CIMG")
 #define TBMP_FOR4_TYPE QByteArray("TBMP")
@@ -756,10 +762,11 @@ public:
     /*!
      * \brief readStride
      * \param d The device.
-     * \param header The bitmap header.
      * \param y The current scanline.
+     * \param header The bitmap header.
      * \param camg The CAMG chunk (optional)
      * \param cmap The CMAP chunk (optional)
+     * \param ipal The per-line palette chunk (optional)
      * \param formType The type of the current form chunk.
      * \return The scanline as requested for QImage.
      * \warning Call resetStrideRead() once before this one.
@@ -776,8 +783,6 @@ public:
      * \brief resetStrideRead
      * Reset the stride read set the position at the beginning of the data and reset all buffers.
      * \param d The device.
-     * \param header The BMHDChunk chunk (mandatory)
-     * \param camg The CAMG chunk (optional)
      * \return True on success, otherwise false.
      * \sa strideRead
      * \note Must be called once before strideRead().
@@ -788,6 +793,7 @@ public:
      * \brief safeModeId
      * \param header The header.
      * \param camg The CAMG chunk.
+     * \param cmap The CMAP chunk.
      * \return The most likely ModeId if not explicitly specified.
      */
     static CAMGChunk::ModeIds safeModeId(const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap = nullptr);
@@ -921,6 +927,11 @@ public:
 
 protected:
     virtual bool innerReadStructure(QIODevice *d) override;
+
+private:
+    QImage::Format iffFormat() const;
+
+    QImage::Format cdiFormat() const;
 };
 
 
@@ -1400,6 +1411,267 @@ protected:
     virtual bool innerReadStructure(QIODevice *d) override;
 };
 
+/*!
+ * *** I-CD IFF CHUNKS ***
+ */
+
+/*!
+ * \brief The IHDRChunk class
+ * Image Header
+ */
+class IHDRChunk: public IFFChunk
+{
+public:
+    enum Model {
+        Invalid = 0, /**< Invalid model. */
+        Rgb888 = 1, /**< red, green, blue - 8 bits per color. */
+        Rgb555 = 2, /**< Green Book absolute RGB. */
+        DYuv = 3, /**< Green Book Delta YUV. */
+        CLut8 = 4, /**< Green Book 8 bit CLUT. */
+        CLut7 = 5, /**< Green Book 7 bit CLUT. */
+        CLut4 = 6, /**< Green Book 4 bit CLUT. */
+        CLut3 = 7, /**< Green Book 3 bit CLUT. */
+        Rle7 = 8, /**< Green Book runlength coded 7 bit CLUT. */
+        Rle3 = 9, /**< Green Book runlength coded 3 bit CLUT. */
+        PaletteOnly = 10 /**< color palette only. */
+    };
+
+    enum DYuvKind {
+        One = 0,
+        Each = 1
+    };
+
+    struct Yuv {
+        Yuv(quint8 y0 = 0, quint8 u0 = 0, quint8 v0 = 0) : y(y0), u(u0), v(v0) {}
+        quint8 y;
+        quint8 u;
+        quint8 v;
+    };
+
+    virtual ~IHDRChunk() override;
+
+    IHDRChunk();
+    IHDRChunk(const IHDRChunk& other) = default;
+    IHDRChunk& operator =(const IHDRChunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    /*!
+     * \brief width
+     * \return Width of the bitmap in pixels.
+     */
+    qint32 width() const;
+
+    /*!
+     * \brief height
+     * \return Height of the bitmap in pixels.
+     */
+    qint32 height() const;
+
+    /*!
+     * \brief size
+     * \return Size in pixels.
+     */
+    QSize size() const;
+
+    /*!
+     * \brief lineSize
+     * Physical width of image (number of bytes in each scan line, including any data required at
+     * the end of each scan line for padding [see description of each model’s IDAT chunk for padding
+     * rules]) This field is not used when model() = Rle7 or Rle3.
+     * When model() = Rgb555, this field defines the size of one scan line of the upper
+     * or lower portion of the pixel data, but not the size of them both together.
+     */
+    qint32 lineSize() const;
+
+    /*!
+     * \brief model
+     * Image model (coding method)
+     */
+    Model model() const;
+
+    /*!
+     * \brief depth
+     * Physical size of pixel (number of bits per pixel used in storing image data) When
+     * model() = Rle7 or Rle3, this value only represents the size of a
+     * single pixel; the size of a run of pixels is indeterminate.
+     */
+    quint16 depth() const;
+
+    /*!
+     * \brief yuvKind
+     * if model() = DYuv, indicates whether there is one DYUV start value for all
+     * scan lines (in yuvStart()), or whether each scan line has its own start value in the
+     * YUVS chunk which follows.
+     */
+    DYuvKind yuvKind() const;
+
+    /*!
+     * \brief yuvStart
+     * Start values for DYUV image if model() = DYuv and dYuvKind() = One
+     */
+    Yuv yuvStart() const;
+
+    CHUNKID_DEFINE(IHDR_CHUNK)
+
+protected:
+    virtual bool innerReadStructure(QIODevice *d) override;
+};
+
+
+/*!
+ * \brief The IHDRChunk class
+ */
+class IPARChunk: public IFFChunk
+{
+public:
+    struct Rgb {
+        Rgb(quint8 r0 = 0, quint8 g0 = 0, quint8 b0 = 0) : r(r0), g(g0), b(b0) {}
+        quint8 r;
+        quint8 g;
+        quint8 b;
+    };
+
+    virtual ~IPARChunk() override;
+
+    IPARChunk();
+    IPARChunk(const IPARChunk& other) = default;
+    IPARChunk& operator =(const IPARChunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    /*!
+     * \brief xOffset
+     * X offset of origin in source image [0 < xOffset() < xPage()]
+     */
+    qint32 xOffset() const;
+
+    /*!
+     * \brief yOffset
+     * \returnX offset of origin in source image [0 < yOffset() < yPage()]
+     */
+    qint32 yOffset() const;
+
+    /*!
+     * \brief aspectRatio
+     * Aspect ratio of pixels in source image.
+     */
+    double aspectRatio() const;
+
+    /*!
+     * \brief xPage
+     * X size of source image.
+     */
+    qint32 xPage() const;
+
+    /*!
+     * \brief yPage
+     * Y size of source image.
+     */
+    qint32 yPage() const;
+
+    /*!
+     * \brief xGrub
+     * X location of hot spot within image.
+     */
+    qint32 xGrub() const;
+
+    /*!
+     * \brief yGrub
+     * Y location of hot spot within image.
+     */
+    qint32 yGrub() const;
+
+    /*!
+     * \brief transparency
+     * Transparent color.
+     */
+    Rgb transparency() const;
+
+    /*!
+     * \brief mask
+     * Mask color.
+     */
+    Rgb mask() const;
+
+    CHUNKID_DEFINE(IPAR_CHUNK)
+
+protected:
+    virtual bool innerReadStructure(QIODevice *d) override;
+};
+
+
+/*!
+ * \brief The PLTEChunk class
+ */
+class PLTEChunk : public CMAPChunk
+{
+public:
+    virtual ~PLTEChunk() override;
+    PLTEChunk();
+    PLTEChunk(const PLTEChunk& other) = default;
+    PLTEChunk& operator =(const PLTEChunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    /*!
+     * \brief count
+     * \return The number of color in the palette.
+     */
+    virtual qint32 count() const override;
+
+    CHUNKID_DEFINE(PLTE_CHUNK)
+
+protected:
+    qint32 offset() const;
+
+    qint32 total() const;
+
+    virtual QList<QRgb> innerPalette() const override;
+};
+
+/*!
+ * \brief The IDATChunk class
+ */
+class IDATChunk : public IFFChunk
+{
+public:
+    virtual ~IDATChunk() override;
+    IDATChunk();
+    IDATChunk(const IDATChunk& other) = default;
+    IDATChunk& operator =(const IDATChunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    CHUNKID_DEFINE(IDAT_CHUNK)
+
+    /*!
+     * \brief readStride
+     * \param d The device.
+     * \param y The current scanline.
+     * \param header The bitmap header.
+     * \param params The additional parameters (optional)
+     * \return The scanline as requested for QImage.
+     * \warning Call resetStrideRead() once before this one.
+     */
+    QByteArray strideRead(QIODevice *d,
+                          qint32 y,
+                          const IHDRChunk *header,
+                          const IPARChunk *params = nullptr) const;
+
+    /*!
+     * \brief resetStrideRead
+     * Reset the stride read set the position at the beginning of the data and reset all buffers.
+     * \param d The device.
+     * \return True on success, otherwise false.
+     * \sa strideRead
+     * \note Must be called once before strideRead().
+     */
+    bool resetStrideRead(QIODevice *d) const;
+
+protected:
+    quint32 strideSize(const IHDRChunk *header) const;
+};
 
 /*!
  * *** UNDOCUMENTED CHUNKS ***

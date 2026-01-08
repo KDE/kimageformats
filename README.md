@@ -357,6 +357,8 @@ The plugin supports the following image data:
   type 4.
 - FORM PBM: PBM is a chunky version of IFF pictures. It supports 8-bit images 
   with color map only.
+- FORM IMAG (Compact Disc-Interactive): It supports CLut4, CLut8 and DYuv
+  formats.
 - FOR4 CIMG (Maya Image File Format): It supports 24/48-bit RGB and 32/64-bit 
   RGBA images.
 

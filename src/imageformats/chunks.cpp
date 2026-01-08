@@ -311,10 +311,18 @@ IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, IFFChunk *
             chunk = QSharedPointer<IFFChunk>(new ICCNChunk());
         } else if (cid == ICCP_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new ICCPChunk());
+        } else if (cid == IDAT_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new IDATChunk());
+        } else if (cid == IHDR_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new IHDRChunk());
+        } else if (cid == IPAR_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new IPARChunk());
         } else if (cid == NAME_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new NAMEChunk());
         } else if (cid == PCHG_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new PCHGChunk());
+        } else if (cid == PLTE_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new PLTEChunk());
         } else if (cid == RAST_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new RASTChunk());
         } else if (cid == RGBA_CHUNK) {
@@ -1406,16 +1414,13 @@ bool FORMChunk::innerReadStructure(QIODevice *d)
         setChunks(IFFChunk::innerFromDevice(d, &ok, this));
     } else if (_type == RGBN_FORM_TYPE) {
         setChunks(IFFChunk::innerFromDevice(d, &ok, this));
+    } else if (_type == IMAG_FORM_TYPE) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
     }
     return ok;
 }
 
-QByteArray FORMChunk::formType() const
-{
-    return _type;
-}
-
-QImage::Format FORMChunk::format() const
+QImage::Format FORMChunk::iffFormat() const
 {
     auto headers = IFFChunk::searchT<BMHDChunk>(chunks());
     if (headers.isEmpty()) {
@@ -1464,13 +1469,67 @@ QImage::Format FORMChunk::format() const
     return QImage::Format_Invalid;
 }
 
+QImage::Format FORMChunk::cdiFormat() const
+{
+    auto headers = IFFChunk::searchT<IHDRChunk>(chunks());
+    if (headers.isEmpty()) {
+        return QImage::Format_Invalid;
+    }
+
+    if (auto &&h = headers.first()) {
+        if (h->model() == IHDRChunk::Rgb555 && h->depth() == 16) { // no test case
+            return QImage::Format_RGB555;
+        }
+
+        if (h->depth() == 4) {
+            if (h->model() == IHDRChunk::CLut4 || h->model() == IHDRChunk::CLut3) { // CLut3: no test case
+                return QImage::Format_Indexed8;
+            }
+        }
+
+        if (h->depth() == 8) {
+            if (h->model() == IHDRChunk::CLut8 || h->model() == IHDRChunk::CLut7) { // CLut7: no test case
+                return QImage::Format_Indexed8;
+            }
+            if (h->model() == IHDRChunk::Rgb888) { // no test case
+                return FORMAT_RGB_8BIT;
+            }
+            if (h->model() == IHDRChunk::DYuv && h->yuvKind() == IHDRChunk::One) {
+                return FORMAT_RGB_8BIT;
+            }
+        }
+    }
+
+    return QImage::Format_Invalid;
+}
+
+QByteArray FORMChunk::formType() const
+{
+    return _type;
+}
+
+QImage::Format FORMChunk::format() const
+{
+    if (formType() == IMAG_FORM_TYPE) {
+        return cdiFormat();
+    }
+    return iffFormat();
+}
+
 QSize FORMChunk::size() const
 {
-    auto headers = IFFChunk::searchT<BMHDChunk>(chunks());
-    if (headers.isEmpty()) {
-        return {};
+    if (formType() == IMAG_FORM_TYPE) {
+        auto ihdrs = IFFChunk::searchT<IHDRChunk>(chunks());
+        if (!ihdrs.isEmpty()) {
+            return ihdrs.first()->size();
+        }
+    } else {
+        auto bmhds = IFFChunk::searchT<BMHDChunk>(chunks());
+        if (!bmhds.isEmpty()) {
+            return bmhds.first()->size();
+        }
     }
-    return headers.first()->size();
+    return {};
 }
 
 /* ******************
@@ -1582,6 +1641,8 @@ bool CATChunk::innerReadStructure(QIODevice *d)
     } else if (_type == RGB8_FORM_TYPE) {
         setChunks(IFFChunk::innerFromDevice(d, &ok, this));
     } else if (_type == RGBN_FORM_TYPE) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
+    } else if (_type == IMAG_FORM_TYPE) {
         setChunks(IFFChunk::innerFromDevice(d, &ok, this));
     }
     return ok;
@@ -2368,6 +2429,398 @@ QString XMP0Chunk::value() const
 bool XMP0Chunk::innerReadStructure(QIODevice *d)
 {
     return cacheData(d);
+}
+
+
+/* ******************
+ * *** IHDR Chunk ***
+ * ****************** */
+
+IHDRChunk::~IHDRChunk()
+{
+
+}
+
+IHDRChunk::IHDRChunk()
+{
+
+}
+
+bool IHDRChunk::isValid() const
+{
+    if (dataBytes() < 14) {
+        return false;
+    }
+    return chunkId() == IHDRChunk::defaultChunkId();
+}
+
+qint32 IHDRChunk::width() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return qint32(ui16(data().at(1), data().at(0)));
+}
+
+qint32 IHDRChunk::height() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return qint32(ui16(data().at(5), data().at(4)));
+}
+
+QSize IHDRChunk::size() const
+{
+    return QSize(width(), height());
+}
+
+qint32 IHDRChunk::lineSize() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return qint32(ui16(data().at(3), data().at(2)));
+}
+
+quint16 IHDRChunk::depth() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return qint32(ui16(data().at(9), data().at(8)));
+}
+
+IHDRChunk::Model IHDRChunk::model() const
+{
+    if (!isValid()) {
+        return IHDRChunk::Model::Invalid;
+    }
+    return IHDRChunk::Model(ui16(data().at(7), data().at(6)));
+}
+
+IHDRChunk::DYuvKind IHDRChunk::yuvKind() const
+{
+    if (!isValid()) {
+        return IHDRChunk::DYuvKind::One;
+    }
+    return IHDRChunk::DYuvKind(data().at(10));
+}
+
+IHDRChunk::Yuv IHDRChunk::yuvStart() const
+{
+    if (!isValid()) {
+        return{};
+    }
+    return(Yuv(data().at(11), data().at(12), data().at(13)));
+}
+
+bool IHDRChunk::innerReadStructure(QIODevice *d)
+{
+    return cacheData(d);
+}
+
+
+/* ******************
+ * *** IPAR Chunk ***
+ * ****************** */
+
+IPARChunk::~IPARChunk()
+{
+
+}
+
+IPARChunk::IPARChunk()
+{
+
+}
+
+bool IPARChunk::isValid() const
+{
+    if (dataBytes() < 22) {
+        return false;
+    }
+    return chunkId() == IPARChunk::defaultChunkId();
+}
+
+qint32 IPARChunk::xOffset() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return qint32(ui16(data().at(1), data().at(0)));
+}
+
+qint32 IPARChunk::yOffset() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return qint32(ui16(data().at(3), data().at(2)));
+}
+
+double IPARChunk::aspectRatio() const
+{
+    if (!isValid()) {
+        return 1;
+    }
+    if (auto xr = ui16(data().at(5), data().at(4))) {
+        auto yr = double(ui16(data().at(7), data().at(6)));
+        return yr / xr;
+    }
+    return 1;
+}
+
+qint32 IPARChunk::xPage() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return qint32(ui16(data().at(9), data().at(8)));
+}
+
+qint32 IPARChunk::yPage() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return qint32(ui16(data().at(11), data().at(10)));
+}
+
+qint32 IPARChunk::xGrub() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return qint32(ui16(data().at(13), data().at(12)));
+}
+
+qint32 IPARChunk::yGrub() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return qint32(ui16(data().at(15), data().at(14)));
+}
+
+IPARChunk::Rgb IPARChunk::mask() const
+{
+    if (!isValid()) {
+        return {};
+    }
+    return Rgb(data().at(16), data().at(17), data().at(18));
+}
+
+IPARChunk::Rgb IPARChunk::transparency() const
+{
+    if (!isValid()) {
+        return {};
+    }
+    return Rgb(data().at(19), data().at(20), data().at(21));
+}
+
+bool IPARChunk::innerReadStructure(QIODevice *d)
+{
+    return cacheData(d);
+}
+
+
+/* ******************
+ * *** PLTE Chunk ***
+ * ****************** */
+
+PLTEChunk::~PLTEChunk()
+{
+
+}
+
+PLTEChunk::PLTEChunk()
+{
+
+}
+
+bool PLTEChunk::isValid() const
+{
+    if (dataBytes() < 4) {
+        return false;
+    }
+    if (dataBytes() - 4 < total() * 3) {
+        return false;
+    }
+    return chunkId() == PLTEChunk::defaultChunkId();
+}
+
+qint32 PLTEChunk::count() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return total() - count();
+}
+
+qint32 PLTEChunk::offset() const
+{
+    return qint32(ui16(data().at(1), data().at(0)));
+}
+
+qint32 PLTEChunk::total() const
+{
+    return qint32(ui16(data().at(3), data().at(2)));
+}
+
+QList<QRgb> PLTEChunk::innerPalette() const
+{
+    if (!isValid()) {
+        return{};
+    }
+    QList<QRgb> l;
+    auto &&d = data();
+    for (qint32 i = offset(), n = total(); i < n; ++i) {
+        auto i3 = 4 + i * 3;
+        l << qRgb(d.at(i3), d.at(i3 + 1), d.at(i3 + 2));
+    }
+    return l;
+}
+
+
+/* ******************
+ * *** IDAT Chunk ***
+ * ****************** */
+
+IDATChunk::~IDATChunk()
+{
+
+}
+
+IDATChunk::IDATChunk()
+{
+
+}
+
+bool IDATChunk::isValid() const
+{
+    return chunkId() == IDATChunk::defaultChunkId();
+}
+
+/*!
+ * Converts a YUV pixel to RGB.
+ */
+inline IPARChunk::Rgb yuvToRgb(IHDRChunk::Yuv yuv) {
+    IPARChunk::Rgb rgb;
+
+    // Green Book Cap. V Par. 4.4.2.2
+    const auto b = yuv.y + (yuv.u - 128.) * 1.733;
+    const auto r = yuv.y + (yuv.v - 128.) * 1.371;
+    const auto g = (yuv.y - 0.299 * r - 0.114 * b) / 0.587;
+
+    rgb.r = quint8(std::clamp(r + 0.5, 0., 255.));
+    rgb.g = quint8(std::clamp(g + 0.5, 0., 255.));
+    rgb.b = quint8(std::clamp(b + 0.5, 0., 255.));
+
+    return rgb;
+}
+
+
+QByteArray IDATChunk::strideRead(QIODevice *d, qint32 y, const IHDRChunk *header, const IPARChunk *params) const
+{
+    Q_UNUSED(y)
+    Q_UNUSED(params)
+    if (!isValid() || header == nullptr || d == nullptr) {
+        return {};
+    }
+
+    auto read = strideSize(header);
+    for (auto nextPos = nextChunkPos(); !d->atEnd() && d->pos() < nextPos;) {
+        auto rr = d->read(read);
+
+        if (header->model() == IHDRChunk::CLut4) {
+            if (rr.size() < header->width() / 2) {
+                return {};
+            }
+            QByteArray tmp(header->width(), char());
+            for (auto x = 0, w = header->width(); x < w; ++x) {
+                auto i8 = quint8(rr.at(x / 2));
+                tmp[x] = x & 1 ? i8 & 0xF : (i8 >> 4) & 0xF;
+            }
+            rr = tmp;
+        }
+
+        if (header->model() == IHDRChunk::Rgb555) {
+            for(qint32 x = 0, w = rr.size() - 1; x < w; x += 2) {
+                std::swap(rr[x], rr[x + 1]);
+            }
+        }
+
+        if (header->model() == IHDRChunk::DYuv) {
+            if (rr.size() < header->width()) {
+                return {};
+            }
+
+            // delta table: Green Book Cap. V Par. 3.4.1.3
+            // NOTE 1: using the wrong delta table creates visible artifacts on the image.
+            // NOTE 2: using { 0, 1, 4, 9, 16, 27, 44, 79, -128, -79, -44, -27, -16, -9, -4, -1 }
+            //         table gives the same result (when assigned to an uint8).
+            static const qint32 deltaTable[16] = {
+                0, 1, 4, 9, 16, 27, 44, 79, 128, 177, 212, 229, 240, 247, 252, 255
+            };
+
+            auto yuv = header->yuvStart();
+            QByteArray tmp(header->width() * 3, char());
+            for (auto x = 0, w = header->width() - 1; x < w; x += 2) {
+                // nibble order from Green Book Cap. V Par. 6.5.1.1
+                // NOTE: using the wrong nibble order creates visible artifacts on the image.
+                const auto du = deltaTable[(rr.at(x) >> 4) & 0x0F];
+                const auto d1 = deltaTable[rr.at(x) & 0x0F];
+                const auto dv = deltaTable[(rr.at(x + 1) >> 4) & 0x0F];
+                const auto d2 = deltaTable[rr.at(x + 1) & 0x0F];
+
+                // pixel 1
+                yuv.y = d1 + yuv.y;
+                yuv.u = du + yuv.u;
+                yuv.v = dv + yuv.v;
+                auto rgb = yuvToRgb(yuv);
+                tmp[x * 3] = rgb.r;
+                tmp[x * 3 + 1] = rgb.g;
+                tmp[x * 3 + 2] = rgb.b;
+
+                // pixel 2
+                yuv.y = d2 + yuv.y;
+                rgb = yuvToRgb(yuv);
+                tmp[(x + 1) * 3] = rgb.r;
+                tmp[(x + 1) * 3 + 1] = rgb.g;
+                tmp[(x + 1) * 3 + 2] = rgb.b;
+            }
+            rr = tmp;
+        }
+
+        return rr;
+    }
+
+    return {};
+}
+
+bool IDATChunk::resetStrideRead(QIODevice *d) const
+{
+    return seek(d);
+}
+
+quint32 IDATChunk::strideSize(const IHDRChunk *header) const
+{
+    if (header == nullptr) {
+        return 0;
+    }
+
+    auto rs = (header->width() * header->depth() + 7) / 8;
+
+    // No padding bytes are inserted in the data.
+    if (header->model() == IHDRChunk::Rgb888) {
+        return rs;
+    }
+
+    // The first pixel of each scan line must begin in a longword boundary.
+    if (auto mod = rs % 4)
+        rs += (4 - mod);
+    return rs;
 }
 
 

@@ -35,6 +35,8 @@ private:
 
     bool readMayaImage(QImage *image);
 
+    bool readCDIImage(QImage *image);
+
 private:
     const QScopedPointer<IFFHandlerPrivate> d;
 };
