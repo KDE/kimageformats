@@ -337,6 +337,8 @@ IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, IFFChunk *
             chunk = QSharedPointer<IFFChunk>(new XBMIChunk());
         } else if (cid == XMP0_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new XMP0Chunk());
+        } else if (cid == YUVS_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new YUVSChunk());
         } else { // unknown chunk
             chunk = QSharedPointer<IFFChunk>(new IFFChunk());
             qCDebug(LOG_IFFPLUGIN) << "IFFChunk::innerFromDevice(): unknown chunk" << cid;
@@ -922,11 +924,11 @@ CAMGChunk::ModeIds BODYChunk::safeModeId(const BMHDChunk *header, const CAMGChun
     auto cmapCount = cmap ? cmap->count() : 0;
     auto bitplanes = header->bitplanes();
     if (bitplanes >= BITPLANES_HALFBRIDE_MIN && bitplanes <= BITPLANES_HALFBRIDE_MAX) {
-        if (cmapCount == (1 << (header->bitplanes() - 1)))
+        if (cmapCount == (1 << (bitplanes - 1)))
             return CAMGChunk::ModeIds(CAMGChunk::ModeId::HalfBrite);
     }
     if (bitplanes >= BITPLANES_HAM_MIN && bitplanes <= BITPLANES_HAM_MAX) {
-        if (cmapCount == (1 << (header->bitplanes() - 2)))
+        if (cmapCount == (1 << (bitplanes - 2)))
             return CAMGChunk::ModeIds(CAMGChunk::ModeId::Ham);
     }
     return CAMGChunk::ModeIds();
@@ -1488,13 +1490,13 @@ QImage::Format FORMChunk::cdiFormat() const
         }
 
         if (h->depth() == 8) {
-            if (h->model() == IHDRChunk::CLut8 || h->model() == IHDRChunk::CLut7) { // CLut7: no test case
+            if (h->model() == IHDRChunk::CLut8 || h->model() == IHDRChunk::CLut7) {
                 return QImage::Format_Indexed8;
             }
             if (h->model() == IHDRChunk::Rgb888) { // no test case
                 return FORMAT_RGB_8BIT;
             }
-            if (h->model() == IHDRChunk::DYuv && h->yuvKind() == IHDRChunk::One) {
+            if (h->model() == IHDRChunk::DYuv) {
                 return FORMAT_RGB_8BIT;
             }
         }
@@ -1938,7 +1940,7 @@ QImage RGBAChunk::compressedTile(QIODevice *d, const TBHDChunk *header) const
             }
         }
     } else if (bpc == 2) {
-        auto cs = header->channels();
+        auto cs = std::max(1, header->channels());
         if (cs < 4) { // alpha on 64-bit images must be 0xFF
             std::memset(img.bits(), 0xFF, img.sizeInBytes());
         }
@@ -2512,7 +2514,7 @@ IHDRChunk::Yuv IHDRChunk::yuvStart() const
     if (!isValid()) {
         return{};
     }
-    return(Yuv(data().at(11), data().at(12), data().at(13)));
+    return Yuv(data().at(11), data().at(12), data().at(13));
 }
 
 bool IHDRChunk::innerReadStructure(QIODevice *d)
@@ -2684,6 +2686,44 @@ QList<QRgb> PLTEChunk::innerPalette() const
 
 
 /* ******************
+ * *** YUVS Chunk ***
+ * ****************** */
+
+YUVSChunk::~YUVSChunk()
+{
+
+}
+
+YUVSChunk::YUVSChunk()
+{
+
+}
+
+bool YUVSChunk::isValid() const
+{
+    return chunkId() == YUVSChunk::defaultChunkId();
+}
+
+qint32 YUVSChunk::count() const
+{
+    return dataBytes() / 3;
+}
+
+IHDRChunk::Yuv YUVSChunk::yuvStart(qint32 y) const
+{
+    if (!isValid() || y >= count()) {
+        return{};
+    }
+    return IHDRChunk::Yuv(data().at(y * 3), data().at(y * 3 + 1), data().at(y * 3 + 2));
+}
+
+bool YUVSChunk::innerReadStructure(QIODevice *d)
+{
+    return cacheData(d);
+}
+
+
+/* ******************
  * *** IDAT Chunk ***
  * ****************** */
 
@@ -2721,9 +2761,8 @@ inline IPARChunk::Rgb yuvToRgb(IHDRChunk::Yuv yuv) {
 }
 
 
-QByteArray IDATChunk::strideRead(QIODevice *d, qint32 y, const IHDRChunk *header, const IPARChunk *params) const
+QByteArray IDATChunk::strideRead(QIODevice *d, qint32 y, const IHDRChunk *header, const IPARChunk *params, const YUVSChunk *yuvs) const
 {
-    Q_UNUSED(y)
     Q_UNUSED(params)
     if (!isValid() || header == nullptr || d == nullptr) {
         return {};
@@ -2765,6 +2804,10 @@ QByteArray IDATChunk::strideRead(QIODevice *d, qint32 y, const IHDRChunk *header
             };
 
             auto yuv = header->yuvStart();
+            if (header->yuvKind() == IHDRChunk::Each && yuvs) {
+                yuv = yuvs->yuvStart(y);
+            }
+
             QByteArray tmp(header->width() * 3, char());
             for (auto x = 0, w = header->width() - 1; x < w; x += 2) {
                 // nibble order from Green Book Cap. V Par. 6.5.1.1

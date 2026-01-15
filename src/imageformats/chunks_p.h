@@ -60,6 +60,7 @@ Q_DECLARE_LOGGING_CATEGORY(LOG_IFFPLUGIN)
 #define IPAR_CHUNK QByteArray("IPAR")
 #define PLTE_CHUNK QByteArray("PLTE")
 #define XBMI_CHUNK QByteArray("XBMI")
+#define YUVS_CHUNK QByteArray("YUVS")
 
 // Different palette for scanline
 #define BEAM_CHUNK QByteArray("BEAM")
@@ -1630,6 +1631,31 @@ protected:
     virtual QList<QRgb> innerPalette() const override;
 };
 
+
+/*!
+ * \brief The YUVSChunk class
+ */
+class YUVSChunk : public IFFChunk
+{
+public:
+    virtual ~YUVSChunk() override;
+    YUVSChunk();
+    YUVSChunk(const YUVSChunk& other) = default;
+    YUVSChunk& operator =(const YUVSChunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    qint32 count() const;
+
+    IHDRChunk::Yuv yuvStart(qint32 y) const;
+
+    CHUNKID_DEFINE(YUVS_CHUNK)
+
+protected:
+    virtual bool innerReadStructure(QIODevice *d) override;
+};
+
+
 /*!
  * \brief The IDATChunk class
  */
@@ -1657,7 +1683,8 @@ public:
     QByteArray strideRead(QIODevice *d,
                           qint32 y,
                           const IHDRChunk *header,
-                          const IPARChunk *params = nullptr) const;
+                          const IPARChunk *params = nullptr,
+                          const YUVSChunk *yuvs = nullptr) const;
 
     /*!
      * \brief resetStrideRead

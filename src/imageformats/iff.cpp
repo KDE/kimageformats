@@ -334,7 +334,6 @@ bool IFFHandler::readStandardImage(QImage *image)
     // show the first one (I don't have a sample with many images)
     auto headers = IFFChunk::searchT<BMHDChunk>(form);
     if (headers.isEmpty()) {
-        qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readStandardImage(): no supported image found";
         return false;
     }
 
@@ -433,7 +432,6 @@ bool IFFHandler::readMayaImage(QImage *image)
     // show the first one (I don't have a sample with many images)
     auto headers = IFFChunk::searchT<TBHDChunk>(form);
     if (headers.isEmpty()) {
-        qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readMayaImage(): no supported image found";
         return false;
     }
 
@@ -494,7 +492,6 @@ bool IFFHandler::readCDIImage(QImage *image)
     // show the first one (I don't have a sample with many images)
     auto headers = IFFChunk::searchT<IHDRChunk>(form);
     if (headers.isEmpty()) {
-        qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readCDIImage(): no supported image found";
         return false;
     }
 
@@ -525,9 +522,12 @@ bool IFFHandler::readCDIImage(QImage *image)
             return false;
         }
         auto pars = IFFChunk::searchT<IPARChunk>(form);
+        auto yuvs = IFFChunk::searchT<YUVSChunk>(form);
         for (auto y = 0, h = img.height(); y < h; ++y) {
             auto line = reinterpret_cast<char*>(img.scanLine(y));
-            auto ba = body->strideRead(device(), y, header, pars.isEmpty() ? nullptr : pars.first());
+            auto ba = body->strideRead(device(), y, header,
+                                       pars.isEmpty() ? nullptr : pars.first(),
+                                       yuvs.isEmpty() ? nullptr : yuvs.first());
             if (ba.isEmpty()) {
                 qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readCDIImage(): error while reading image scanline";
                 return false;
