@@ -1520,7 +1520,7 @@ QImage::Format FORMChunk::cdiFormat() const
         }
 
         if (h->depth() == 8) {
-            if (h->model() == IHDRChunk::CLut8 || h->model() == IHDRChunk::CLut7) {
+            if (h->model() == IHDRChunk::CLut8 || h->model() == IHDRChunk::CLut7 || h->model() == IHDRChunk::Rle7) {
                 return QImage::Format_Indexed8;
             }
             if (h->model() == IHDRChunk::Rgb888) { // no test case
@@ -2907,6 +2907,34 @@ inline IPARChunk::Rgb yuvToRgb(IHDRChunk::Yuv yuv) {
     return rgb;
 }
 
+static QByteArray decompressRL7Row(QIODevice *device, int width) {
+    QByteArray row;
+    for (auto x = 0; x < width;) {
+        char b;
+        if (!device->getChar(&b)) {
+            return{};
+        }
+        if (b & 0x80) {
+            auto color = b & 0x7F;
+            if (!device->getChar(&b)) {
+                return{};
+            }
+            auto length = quint8(b);
+            if (length == 0) {
+                row.append(width - x, char(color));
+                x = width;
+            } else {
+                auto count = std::min(int(length), width - x);
+                row.append(count, char(color));
+                x += count;
+            }
+        } else {
+            row.append(b);
+            x++;
+        }
+    }
+    return row;
+}
 
 QByteArray IDATChunk::strideRead(QIODevice *d, qint32 y, const IHDRChunk *header, const IPARChunk *params, const YUVSChunk *yuvs) const
 {
@@ -2917,7 +2945,12 @@ QByteArray IDATChunk::strideRead(QIODevice *d, qint32 y, const IHDRChunk *header
 
     auto read = strideSize(header);
     for (auto nextPos = nextChunkPos(); !d->atEnd() && d->pos() < nextPos;) {
-        auto rr = d->read(read);
+        QByteArray rr;
+        if (header->model() == IHDRChunk::Rle7) {
+            rr = decompressRL7Row(d, header->width());
+        } else {
+            rr = d->read(read);
+        }
 
         if (header->model() == IHDRChunk::CLut4) {
             if (rr.size() < header->width() / 2) {
@@ -3370,41 +3403,38 @@ QList<QRgb> PCHGChunk::palette(qint32 y) const
 //   [ tree (treeSize bytes, even) | compressed bitstream (... bytes) ]
 //
 // On any error, logs with qCCritical(LOG_IFFPLUGIN) and returns {}.
-// Comments are in English as requested.
 // ----------------------------------------------------------------------------
 //
 // NOTE: Sebastiano Vigna, the author of the PCHG specification and the ASM
 //       decompression code for the Motorola 68K, gave us permission to use his
 //       code and recommended that we convert it with AI.
 
-// Read a big-endian 16-bit signed word from a byte buffer
-static inline qint16 read_be16(const char* base, int byteIndex, int size)
-{
-    if (byteIndex + 1 >= size)
-        return 0; // caller must bounds-check; we keep silent here
-    const quint8 b0 = static_cast<quint8>(base[byteIndex]);
-    const quint8 b1 = static_cast<quint8>(base[byteIndex + 1]);
-    return static_cast<qint16>((b0 << 8) | b1);
-}
-
-// Read a big-endian 32-bit unsigned long from a byte buffer
-static inline quint32 read_be32(const char* base, int byteIndex, int size)
-{
-    if (byteIndex + 3 >= size)
-        return 0; // caller must bounds-check
-    const quint8 b0 = static_cast<quint8>(base[byteIndex]);
-    const quint8 b1 = static_cast<quint8>(base[byteIndex + 1]);
-    const quint8 b2 = static_cast<quint8>(base[byteIndex + 2]);
-    const quint8 b3 = static_cast<quint8>(base[byteIndex + 3]);
-    return (static_cast<quint32>(b0) << 24) |
-           (static_cast<quint32>(b1) << 16) |
-           (static_cast<quint32>(b2) << 8)  |
-           static_cast<quint32>(b3);
-}
-
 // Core decompressor (tree + compressed stream in one QByteArray)
 static QByteArray pchgFastDecomp(const QByteArray& input, int treeSize, int originalSize)
 {
+    // Read a big-endian 16-bit signed word from a byte buffer
+    auto read_be16 = [&](const char* base, int byteIndex, int size) -> qint16 {
+        if (byteIndex + 1 >= size)
+            return 0; // caller must bounds-check; we keep silent here
+        const quint8 b0 = static_cast<quint8>(base[byteIndex]);
+        const quint8 b1 = static_cast<quint8>(base[byteIndex + 1]);
+        return static_cast<qint16>((b0 << 8) | b1);
+    };
+
+    // Read a big-endian 32-bit unsigned long from a byte buffer
+    auto read_be32 = [&](const char* base, int byteIndex, int size) -> quint32 {
+        if (byteIndex + 3 >= size)
+            return 0; // caller must bounds-check
+        const quint8 b0 = static_cast<quint8>(base[byteIndex]);
+        const quint8 b1 = static_cast<quint8>(base[byteIndex + 1]);
+        const quint8 b2 = static_cast<quint8>(base[byteIndex + 2]);
+        const quint8 b3 = static_cast<quint8>(base[byteIndex + 3]);
+        return (static_cast<quint32>(b0) << 24) |
+               (static_cast<quint32>(b1) << 16) |
+               (static_cast<quint32>(b2) << 8)  |
+                static_cast<quint32>(b3);
+    };
+
     // Basic validation
     if (treeSize <= 0 || (treeSize & 1)) {
         qCCritical(LOG_IFFPLUGIN) << "Invalid treeSize (must be positive and even)" << treeSize;
@@ -3531,7 +3561,6 @@ static QByteArray pchgFastDecomp(const QByteArray& input, int treeSize, int orig
 
     return out;
 }
-
 // !Huffman decompression
 
 bool PCHGChunk::initialize(const QList<QRgb> &cmapPalette, qint32 height)
