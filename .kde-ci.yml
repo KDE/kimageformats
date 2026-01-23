@@ -9,3 +9,4 @@ Options:
  require-passing-tests-on: ['Linux', 'FreeBSD', 'Windows']
  cmake-options: "-DKIMAGEFORMATS_JXR=ON -DKIMAGEFORMATS_HEIF=ON -DKIMAGEFORMATS_HEIF_TEST:STRING=OFF -DKIMAGEFORMATS_HEJ2_TEST:STRING=OFF -DKIMAGEFORMATS_AVCI_TEST:STRING=OFF"
  per-test-timeout: 90
+ enable-lsan: True
