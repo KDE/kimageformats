@@ -359,6 +359,7 @@ The plugin supports the following image data:
   with color map only.
 - FORM IMAG (Compact Disc-Interactive): It supports CLut4, CLut7, CLut8, Rle7
   and DYuv formats.
+- FORM RGFX: It supports uncompressed images only.
 - FOR4 CIMG (Maya Image File Format): It supports 24/48-bit RGB and 32/64-bit 
   RGBA images.
 

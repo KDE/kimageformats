@@ -1,6 +1,6 @@
 /*
     This file is part of the KDE project
-    SPDX-FileCopyrightText: 2025 Mirco Miranda <mircomir@outlook.com>
+    SPDX-FileCopyrightText: 2025-2026 Mirco Miranda <mircomir@outlook.com>
 
     SPDX-License-Identifier: LGPL-2.0-or-later
 */
@@ -10,6 +10,7 @@
  * - https://wiki.amigaos.net/wiki/IFF_FORM_and_Chunk_Registry
  * - https://www.fileformat.info/format/iff/egff.htm
  * - https://download.autodesk.com/us/maya/2010help/index.html (Developer resources -> File formats -> Maya IFF)
+ * - https://aminet.net/package/dev/misc/IFF-RGFX
  */
 
 #ifndef KIMG_CHUNKS_P_H
@@ -59,6 +60,11 @@ Q_DECLARE_LOGGING_CATEGORY(LOG_IFFPLUGIN)
 #define IHDR_CHUNK QByteArray("IHDR")
 #define IPAR_CHUNK QByteArray("IPAR")
 #define PLTE_CHUNK QByteArray("PLTE")
+#define RBOD_CHUNK QByteArray("RBOD")
+#define RCOL_CHUNK QByteArray("RCOL")
+#define RFLG_CHUNK QByteArray("RFLG")
+#define RGHD_CHUNK QByteArray("RGHD")
+#define RSCM_CHUNK QByteArray("RSCM")
 #define XBMI_CHUNK QByteArray("XBMI")
 #define YUVS_CHUNK QByteArray("YUVS")
 
@@ -91,10 +97,11 @@ Q_DECLARE_LOGGING_CATEGORY(LOG_IFFPLUGIN)
 // FORM types
 #define ACBM_FORM_TYPE QByteArray("ACBM")
 #define ILBM_FORM_TYPE QByteArray("ILBM")
+#define IMAG_FORM_TYPE QByteArray("IMAG")
 #define PBM__FORM_TYPE QByteArray("PBM ")
 #define RGB8_FORM_TYPE QByteArray("RGB8")
 #define RGBN_FORM_TYPE QByteArray("RGBN")
-#define IMAG_FORM_TYPE QByteArray("IMAG")
+#define RGFX_FORM_TYPE QByteArray("RGFX")
 
 #define CIMG_FOR4_TYPE QByteArray("CIMG")
 #define TBMP_FOR4_TYPE QByteArray("TBMP")
@@ -937,6 +944,8 @@ private:
     QImage::Format iffFormat() const;
 
     QImage::Format cdiFormat() const;
+
+    QImage::Format rgfxFormat() const;
 };
 
 
@@ -1729,6 +1738,213 @@ public:
 protected:
     quint32 strideSize(const IHDRChunk *header) const;
 };
+
+
+/*!
+ * *** RGFX IFF CHUNKS ***
+ */
+
+/*!
+ * \brief The RGHDChunk class
+ */
+class RGHDChunk : public IFFChunk
+{
+public:
+    enum Compression {
+        Uncompressed = 0,
+        Xpk = 1, /**< any XPK-packer */
+        Zip = 2 /**< libzip (LZ77/ZIP) compression */
+    };
+
+    enum BitmapType {
+        Planar8 = 0x0000, /**<  unaligned planar 8 bit bitmap */
+        Chunky8 = 0x0001, /**<  unaligned chunky 8 bit bitmap */
+        Rgb24 = 0x0002, /**<  3-byte 24  bit  RGB triples */
+        Rgb32 = 0x0004, /**<  4-byte 32  bit ARGB quadruples */
+        Rgb15 = 0x0010, /**<  2-byte 15  bit  RGB (x+3x5 bit integer) */
+        Rgb16 = 0x0020, /**<  2-byte 16  bit ARGB (1+3x5 bit integer) */
+        Rgb48 = 0x0040, /**<  6-byte 48  bit  RGB (3x 16 bit integer) */
+        Rgb64 = 0x0080, /**<  8-byte 64  bit ARGB (4x 16 bit integer) */
+        Rgb96 = 0x0100, /**< 12-byte 96  bit  RGB (3x 32 bit float) */
+        Rgb128 = 0x0200, /**< 16-byte 128 bit ARGB (4x 32 bit float) */
+
+        HasAlpha = (1 << 30), /**< set if A is meaningful */
+        HasInvAlpha = (1 << 31) /**< set if A is meaningful but inversed (A = 255 - alpha) */
+    };
+    Q_DECLARE_FLAGS(BitmapTypes, BitmapType)
+
+    virtual ~RGHDChunk() override;
+    RGHDChunk();
+    RGHDChunk(const RGHDChunk&) = default;
+    RGHDChunk& operator=(const RGHDChunk&) = default;
+
+    CHUNKID_DEFINE(RGHD_CHUNK)
+
+    virtual bool isValid() const override;
+
+    QSize size() const;
+
+    qint32 leftEdge() const;
+
+    qint32 topEdge() const;
+
+    qint32 width() const;
+
+    qint32 height() const;
+
+    qint32 pageWidth() const;
+
+    qint32 pageHeight() const;
+
+    quint32 depth() const;
+
+    quint32 pixelBits() const;
+
+    quint32 bytesPerLine() const;
+
+    Compression compression() const;
+
+    quint32 xAspect() const;
+
+    quint32 yAspect() const;
+
+    BitmapTypes bitmapType() const;
+
+    double aspectRatio() const;
+
+protected:
+    virtual bool innerReadStructure(QIODevice *d) override;
+};
+
+
+/*!
+ * \brief The RCOLChunk class
+ */
+class RCOLChunk : public CMAPChunk
+{
+public:
+    virtual ~RCOLChunk() override;
+    RCOLChunk();
+    RCOLChunk(const RCOLChunk& other) = default;
+    RCOLChunk& operator =(const RCOLChunk& other) = default;
+
+    virtual bool isValid() const override;
+
+    virtual qint32 count() const override;
+
+    CHUNKID_DEFINE(RCOL_CHUNK)
+
+protected:
+    virtual QList<QRgb> innerPalette() const override;
+};
+
+
+/*!
+ * \brief The RFLGChunk class
+ */
+class RFLGChunk : public IFFChunk
+{
+public:
+    enum class Flag : quint32 {
+        FromGray = 0x08, /**< created from 8/16 bit gray source so R==G==B */
+        From8Bit = 0x10, /**< created from 8 bit source, so (R,G,B)&0xFF00 == ... & 0x00FF */
+        From4Bit = 0x20, /**< created from 4 bit source, so (R,G,B)&0xF0 == ... & 0x0F */
+        From8BitAlpha = 0x40, /**< 16/32 bit alpha created from 8 bit alpha source */
+        From16BitAlpha = 0x80 /**< 32 bit alpha created from 16 bit alpha source */
+    };
+    Q_DECLARE_FLAGS(Flags, Flag)
+
+    virtual ~RFLGChunk() override;
+    RFLGChunk();
+    RFLGChunk(const RFLGChunk&) = default;
+    RFLGChunk& operator=(const RFLGChunk&) = default;
+
+    CHUNKID_DEFINE(RFLG_CHUNK)
+
+    virtual bool isValid() const override;
+
+    Flags flags() const;
+
+protected:
+    virtual bool innerReadStructure(QIODevice *d) override;
+};
+
+
+/*!
+ * \brief The RSCMChunk class
+ */
+class RSCMChunk : public IFFChunk
+{
+public:
+    virtual ~RSCMChunk() override;
+    RSCMChunk();
+    RSCMChunk(const RSCMChunk&) = default;
+    RSCMChunk& operator=(const RSCMChunk&) = default;
+
+    CHUNKID_DEFINE(RSCM_CHUNK)
+
+    virtual bool isValid() const override;
+
+    /*!
+     * \brief viewMode Default screenmode
+     *
+     * Since HAM modes only can be identified by their ID (or DIPF) you have to make sure,
+     * that rcsm_ViewMode is OR'ed with HAM_KEY for these (same for EHB and EXTRAHALFBRITE_KEY).
+     *
+     * Specific RTG ViewModes will lose their meaning, as soon as graphics are transferred between
+     * different systems, which is why the two LocalVM entries are considered obsolete.
+     *
+     * Always set the obsolete entries to 0xFFFFFFFF and avoid interpreting them.
+     * \return default screenmode
+     */
+    quint32 viewMode() const;
+
+    /*!
+     * \brief localVM0
+     * \obsolete obsolete local RTG
+     */
+    quint32 localVM0() const;
+
+    /*!
+     * \brief localVM1
+     * \obsolete obsolete local RTG
+     */
+    quint32 localVM1() const;
+
+protected:
+    virtual bool innerReadStructure(QIODevice *d) override;
+};
+
+
+/*!
+ * \brief The RBODChunk class
+ */
+class RBODChunk : public IFFChunk
+{
+public:
+    virtual ~RBODChunk() override;
+    RBODChunk();
+    RBODChunk(const RBODChunk&) = default;
+    RBODChunk& operator=(const RBODChunk&) = default;
+
+    CHUNKID_DEFINE(RBOD_CHUNK)
+
+    virtual bool isValid() const override;
+
+    QByteArray strideRead(QIODevice *d,
+                          qint32 y,
+                          const RGHDChunk *header,
+                          const RSCMChunk *rcsm = nullptr,
+                          const RCOLChunk *rcol = nullptr) const;
+
+    bool resetStrideRead(QIODevice *d) const;
+
+private:
+    QByteArray deinterleave(const QByteArray &planes, qint32 y, const RGHDChunk *header, const RSCMChunk *rcsm = nullptr, const RCOLChunk *rcol = nullptr) const;
+
+    quint32 strideSize(const RGHDChunk *header) const;
+};
+
 
 /*!
  * *** UNDOCUMENTED CHUNKS ***

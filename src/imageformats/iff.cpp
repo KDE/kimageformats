@@ -267,6 +267,11 @@ static void addMetadata(QImage &img, const IFOR_Chunk *form)
             if (!params.isEmpty()) {
                 img.setDotsPerMeterY(img.dotsPerMeterY() * params.first()->aspectRatio());
             }
+        } else if (form->formType() == RGFX_FORM_TYPE) {
+            auto headers = IFFChunk::searchT<RGHDChunk>(form);
+            if (!headers.isEmpty()) {
+                img.setDotsPerMeterY(img.dotsPerMeterY() * headers.first()->aspectRatio());
+            }
         } else {
             auto headers = IFFChunk::searchT<BMHDChunk>(form);
             if (!headers.isEmpty()) {
@@ -543,6 +548,69 @@ bool IFFHandler::readCDIImage(QImage *image)
     return true;
 }
 
+bool IFFHandler::readRGFXImage(QImage *image)
+{
+    auto forms = d->searchForms<FORMChunk>();
+    if (forms.isEmpty()) {
+        return false;
+    }
+    auto cin = qBound(0, currentImageNumber(), int(forms.size() - 1));
+    auto &&form = forms.at(cin);
+
+    // show the first one (I don't have a sample with many images)
+    auto headers = IFFChunk::searchT<RGHDChunk>(form);
+    if (headers.isEmpty()) {
+        return false;
+    }
+
+    // create the image
+    auto &&header = headers.first();
+    auto img = imageAlloc(header->size(), form->format());
+    if (img.isNull()) {
+        qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readRGFXImage(): error while allocating the image";
+        return false;
+    }
+
+    // set the palette
+    if (img.format() == QImage::Format_Indexed8) {
+        auto pltes = IFFChunk::searchT<RCOLChunk>(form);
+        if (!pltes.isEmpty()) {
+            img.setColorTable(pltes.first()->palette());
+        }
+    }
+
+    // decoding the image
+    auto bodies = IFFChunk::searchT<RBODChunk>(form);
+    if (bodies.isEmpty()) {
+        img.fill(0);
+    } else {
+        auto &&body = bodies.first();
+        if (!body->resetStrideRead(device())) {
+            qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readRGFXImage(): error while reading image data";
+            return false;
+        }
+        auto rcsms = IFFChunk::searchT<RSCMChunk>(form);
+        auto rcols = IFFChunk::searchT<RCOLChunk>(form);
+        for (auto y = 0, h = img.height(); y < h; ++y) {
+            auto line = reinterpret_cast<char*>(img.scanLine(y));
+            auto ba = body->strideRead(device(), y, header,
+                                       rcsms.isEmpty() ? nullptr : rcsms.first(),
+                                       rcols.isEmpty() ? nullptr : rcols.first());
+            if (ba.isEmpty()) {
+                qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readRGFXImage(): error while reading image scanline";
+                return false;
+            }
+            memcpy(line, ba.constData(), std::min(img.bytesPerLine(), ba.size()));
+        }
+    }
+
+    // set metadata (including image resolution)
+    addMetadata(img, form);
+
+    *image = img;
+    return true;
+}
+
 bool IFFHandler::read(QImage *image)
 {
     if (!d->readStructure(device())) {
@@ -559,6 +627,10 @@ bool IFFHandler::read(QImage *image)
     }
 
     if (readCDIImage(image)) {
+        return true;
+    }
+
+    if (readRGFXImage(image)) {
         return true;
     }
 

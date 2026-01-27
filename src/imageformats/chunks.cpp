@@ -1,6 +1,6 @@
 /*
     This file is part of the KDE project
-    SPDX-FileCopyrightText: 2025 Mirco Miranda <mircomir@outlook.com>
+    SPDX-FileCopyrightText: 2025-2026 Mirco Miranda <mircomir@outlook.com>
 
     SPDX-License-Identifier: LGPL-2.0-or-later
 */
@@ -325,8 +325,18 @@ IFFChunk::ChunkList IFFChunk::innerFromDevice(QIODevice *d, bool *ok, IFFChunk *
             chunk = QSharedPointer<IFFChunk>(new PLTEChunk());
         } else if (cid == RAST_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new RASTChunk());
+        } else if (cid == RBOD_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new RBODChunk());
+        } else if (cid == RCOL_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new RCOLChunk());
+        } else if (cid == RFLG_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new RFLGChunk());
         } else if (cid == RGBA_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new RGBAChunk());
+        } else if (cid == RGHD_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new RGHDChunk());
+        } else if (cid == RSCM_CHUNK) {
+            chunk = QSharedPointer<IFFChunk>(new RSCMChunk());
         } else if (cid == SHAM_CHUNK) {
             chunk = QSharedPointer<IFFChunk>(new SHAMChunk());
         } else if (cid == TBHD_CHUNK) {
@@ -1448,6 +1458,8 @@ bool FORMChunk::innerReadStructure(QIODevice *d)
         setChunks(IFFChunk::innerFromDevice(d, &ok, this));
     } else if (_type == IMAG_FORM_TYPE) {
         setChunks(IFFChunk::innerFromDevice(d, &ok, this));
+    } else if (_type == RGFX_FORM_TYPE) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
     }
     return ok;
 }
@@ -1535,6 +1547,36 @@ QImage::Format FORMChunk::cdiFormat() const
     return QImage::Format_Invalid;
 }
 
+QImage::Format FORMChunk::rgfxFormat() const
+{
+    auto headers = IFFChunk::searchT<RGHDChunk>(chunks());
+    if (headers.isEmpty()) {
+        return QImage::Format_Invalid;
+    }
+
+    if (auto &&h = headers.first()) {
+        auto rgfx_format = RGHDChunk::BitmapTypes(h->bitmapType() & 0x3FFFFFFF);
+        if (rgfx_format == RGHDChunk::BitmapType::Chunky8 || rgfx_format == RGHDChunk::BitmapType::Planar8)
+            return QImage::Format_Indexed8;
+        if (rgfx_format == RGHDChunk::BitmapType::Rgb15 || rgfx_format == RGHDChunk::BitmapType::Rgb16)
+            return QImage::Format_RGB555; // NOTE: RGB16 ignoring alpha due to missing compatible Qt format
+        if (rgfx_format == RGHDChunk::BitmapType::Rgb24)
+            return FORMAT_RGB_8BIT;
+        if (rgfx_format == RGHDChunk::BitmapType::Rgb32)
+            return FORMAT_RGBA_8BIT;
+        if (rgfx_format == RGHDChunk::BitmapType::Rgb48)
+            return QImage::Format_RGBX64;
+        if (rgfx_format == RGHDChunk::BitmapType::Rgb64)
+            return QImage::Format_RGBA64;
+        if (rgfx_format == RGHDChunk::BitmapType::Rgb96)
+            return QImage::Format_RGBX32FPx4;
+        if (rgfx_format == RGHDChunk::BitmapType::Rgb128)
+            return QImage::Format_RGBA32FPx4;
+    }
+
+    return QImage::Format_Invalid;
+}
+
 QByteArray FORMChunk::formType() const
 {
     return _type;
@@ -1544,6 +1586,8 @@ QImage::Format FORMChunk::format() const
 {
     if (formType() == IMAG_FORM_TYPE) {
         return cdiFormat();
+    } else if (formType() == RGFX_FORM_TYPE) {
+        return rgfxFormat();
     }
     return iffFormat();
 }
@@ -1554,6 +1598,11 @@ QSize FORMChunk::size() const
         auto ihdrs = IFFChunk::searchT<IHDRChunk>(chunks());
         if (!ihdrs.isEmpty()) {
             return ihdrs.first()->size();
+        }
+    } else if (formType() == RGFX_FORM_TYPE) {
+        auto rghds = IFFChunk::searchT<RGHDChunk>(chunks());
+        if (!rghds.isEmpty()) {
+            return rghds.first()->size();
         }
     } else {
         auto bmhds = IFFChunk::searchT<BMHDChunk>(chunks());
@@ -1675,6 +1724,8 @@ bool CATChunk::innerReadStructure(QIODevice *d)
     } else if (_type == RGBN_FORM_TYPE) {
         setChunks(IFFChunk::innerFromDevice(d, &ok, this));
     } else if (_type == IMAG_FORM_TYPE) {
+        setChunks(IFFChunk::innerFromDevice(d, &ok, this));
+    } else if (_type == RGFX_FORM_TYPE) {
         setChunks(IFFChunk::innerFromDevice(d, &ok, this));
     }
     return ok;
@@ -3044,6 +3095,473 @@ quint32 IDATChunk::strideSize(const IHDRChunk *header) const
     if (auto mod = rs % 4)
         rs += (4 - mod);
     return rs;
+}
+
+
+/* ******************
+ * *** RGHD Chunk ***
+ * ****************** */
+
+RGHDChunk::~RGHDChunk()
+{
+
+}
+
+RGHDChunk::RGHDChunk()
+{
+
+}
+
+bool RGHDChunk::isValid() const
+{
+    return dataBytes() >= 13 * sizeof(quint32) && chunkId() == RGHDChunk::defaultChunkId();
+}
+
+QSize RGHDChunk::size() const
+{
+    return QSize(width(), height());
+}
+
+qint32 RGHDChunk::leftEdge() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return i32(data(), 0);
+}
+
+qint32 RGHDChunk::topEdge() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return i32(data(), 4);
+}
+
+qint32 RGHDChunk::width() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return i32(data(), 8);
+}
+
+qint32 RGHDChunk::height() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return i32(data(), 12);
+}
+
+qint32 RGHDChunk::pageWidth() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return i32(data(), 16);
+}
+
+qint32 RGHDChunk::pageHeight() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return i32(data(), 20);
+}
+
+quint32 RGHDChunk::depth() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return ui32(data(), 24);
+}
+
+quint32 RGHDChunk::pixelBits() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return ui32(data(), 28);
+}
+
+quint32 RGHDChunk::bytesPerLine() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return ui32(data(), 32);
+}
+
+RGHDChunk::Compression RGHDChunk::compression() const
+{
+    if (!isValid()) {
+        return Compression::Uncompressed;
+    }
+    return Compression(ui32(data(), 36));
+}
+
+quint32 RGHDChunk::xAspect() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return ui32(data(), 40);
+}
+
+quint32 RGHDChunk::yAspect() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return ui32(data(), 44);
+}
+
+double RGHDChunk::aspectRatio() const
+{
+    if (auto xr = xAspect()) {
+        auto yr = yAspect();
+        return double(yr) / double(xr);
+    }
+    return 1;
+}
+
+RGHDChunk::BitmapTypes RGHDChunk::bitmapType() const
+{
+    if (!isValid()) {
+        return BitmapType::Planar8;
+    }
+    return BitmapTypes(ui32(data(), 48));
+}
+
+bool RGHDChunk::innerReadStructure(QIODevice *d)
+{
+    return cacheData(d);
+}
+
+
+/* ******************
+ * *** RCOL Chunk ***
+ * ****************** */
+
+RCOLChunk::~RCOLChunk()
+{
+
+}
+
+RCOLChunk::RCOLChunk()
+{
+
+}
+
+bool RCOLChunk::isValid() const
+{
+    return dataBytes() >= 776 && chunkId() == RCOLChunk::defaultChunkId();
+}
+
+qint32 RCOLChunk::count() const
+{
+    return isValid() ? 256 : 0;
+}
+
+QList<QRgb> RCOLChunk::innerPalette() const
+{
+    if (!isValid()) {
+        return {};
+    }
+
+    QList<QRgb> l;
+    auto &&d = data();
+    for (qint32 i = 0, n = count(); i < n; ++i) {
+        auto i3 = i * 3 + 8;
+        l << qRgb(d.at(i3), d.at(i3 + 1), d.at(i3 + 2));
+    }
+
+    if (ui32(data(), 0)) {
+        auto tr = ui32(data(), 4);
+        if (tr < l.size()) {
+            l[tr] &= 0x00FFFFFF;
+        }
+    }
+
+    return l;
+}
+
+
+/* ******************
+ * *** RFLG Chunk ***
+ * ****************** */
+
+RFLGChunk::~RFLGChunk()
+{
+
+}
+
+RFLGChunk::RFLGChunk()
+{
+
+}
+
+bool RFLGChunk::isValid() const
+{
+    return dataBytes() >= 4 && chunkId() == RFLGChunk::defaultChunkId();
+}
+
+RFLGChunk::Flags RFLGChunk::flags() const
+{
+    if (!isValid()) {
+        return {};
+    }
+    return Flags(ui32(data(), 0));
+}
+
+bool RFLGChunk::innerReadStructure(QIODevice *d)
+{
+    return cacheData(d);
+}
+
+
+/* ******************
+ * *** RSCM Chunk ***
+ * ****************** */
+
+RSCMChunk::~RSCMChunk()
+{
+
+}
+
+RSCMChunk::RSCMChunk()
+{
+
+}
+
+bool RSCMChunk::isValid() const
+{
+    return dataBytes() >= 12 && chunkId() == RSCMChunk::defaultChunkId();
+}
+
+quint32 RSCMChunk::viewMode() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return ui32(data(), 0);
+}
+
+quint32 RSCMChunk::localVM0() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return ui32(data(), 4);
+}
+
+quint32 RSCMChunk::localVM1() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return ui32(data(), 8);
+}
+
+bool RSCMChunk::innerReadStructure(QIODevice *d)
+{
+    return cacheData(d);
+}
+
+
+/* ******************
+ * *** RBOD Chunk ***
+ * ****************** */
+
+RBODChunk::~RBODChunk()
+{
+
+}
+
+RBODChunk::RBODChunk()
+{
+
+}
+
+bool RBODChunk::isValid() const
+{
+    return chunkId() == RBODChunk::defaultChunkId();
+}
+
+QByteArray RBODChunk::strideRead(QIODevice *d, qint32 y, const RGHDChunk *header, const RSCMChunk *rcsm, const RCOLChunk *rcol) const
+{
+    if (!isValid() || header == nullptr || d == nullptr) {
+        return {};
+    }
+
+    QByteArray planes;
+    auto readSize = strideSize(header);
+    for (auto nextPos = nextChunkPos(); !d->atEnd() && d->pos() < nextPos && planes.size() < readSize;) {
+        if (header->compression() == RGHDChunk::Compression::Uncompressed) {
+            planes = d->read(readSize);
+        } else {
+            qCDebug(LOG_IFFPLUGIN) << "RBODChunk::strideRead(): unknown compression" << header->compression();
+        }
+        if (planes.size() != readSize) {
+            return {};
+        }
+    }
+
+    return deinterleave(planes, y, header, rcsm, rcol);
+}
+
+bool RBODChunk::resetStrideRead(QIODevice *d) const
+{
+    return seek(d);
+}
+
+QByteArray RBODChunk::deinterleave(const QByteArray &planes, qint32 y, const RGHDChunk *header, const RSCMChunk *rcsm, const RCOLChunk *rcol) const
+{
+    Q_UNUSED(y)
+    Q_UNUSED(rcsm)
+    Q_UNUSED(rcol)
+    if (planes.size() != strideSize(header)) {
+        return {};
+    }
+
+    QByteArray ba;
+
+    auto width = header->width();
+    auto rgfx_format = RGHDChunk::BitmapTypes(header->bitmapType() & 0x3FFFFFFF);
+
+    if (rgfx_format == RGHDChunk::BitmapType::Chunky8) {
+        ba = planes;
+    } else if (rgfx_format == RGHDChunk::BitmapType::Planar8) {
+        // No test case: ignoring...
+    } else if (rgfx_format == RGHDChunk::BitmapType::Rgb15 || rgfx_format == RGHDChunk::BitmapType::Rgb16) {
+        ba = planes;
+        if (QSysInfo::ByteOrder == QSysInfo::LittleEndian) {
+            for (qint32 x = 0; x < width; ++x) {
+                auto x2 = x * 2;
+                ba[x2] = planes[x2 + 1];
+                ba[x2 + 1] = planes[x2];
+            }
+        }
+    } else if (rgfx_format == RGHDChunk::BitmapType::Rgb24) {
+        ba = planes;
+    } else if (rgfx_format == RGHDChunk::BitmapType::Rgb32) {
+        ba.resize(planes.size());
+        auto invAlpha = header->bitmapType() & RGHDChunk::BitmapType::HasInvAlpha;
+        for (qint32 x = 0; x < width; ++x) {
+            auto x4 = x * 4;
+            ba[x4] = planes[x4 + 1];
+            ba[x4 + 1] = planes[x4 + 2];
+            ba[x4 + 2] = planes[x4 + 3];
+            ba[x4 + 3] = invAlpha ? 255 - planes[x4] : planes[x4];
+        }
+    } else if (rgfx_format == RGHDChunk::BitmapType::Rgb48) {
+        QDataStream in(planes);
+        in.setByteOrder(QDataStream::BigEndian);
+        QDataStream ou(&ba, QDataStream::WriteOnly);
+        ou.setByteOrder(QDataStream::ByteOrder(QSysInfo::ByteOrder));
+
+        quint16 r, g, b;
+        for (qint32 x = 0; x < width; ++x) {
+            in >> r >> g >> b;
+            ou << r << g << b << quint16(0xFFFF);
+        }
+
+        if (in.status() != QDataStream::Ok || ou.status() != QDataStream::Ok) {
+            return {};
+        }
+    } else if (rgfx_format == RGHDChunk::BitmapType::Rgb64) {
+        QDataStream in(planes);
+        in.setByteOrder(QDataStream::BigEndian);
+        QDataStream ou(&ba, QDataStream::WriteOnly);
+        ou.setByteOrder(QDataStream::ByteOrder(QSysInfo::ByteOrder));
+
+        auto invAlpha = header->bitmapType() & RGHDChunk::BitmapType::HasInvAlpha;
+        quint16 r, g, b, a;
+        for (qint32 x = 0; x < width; ++x) {
+            in >> a >> r >> g >> b;
+            if (invAlpha)
+                a = 0xFFFF - a;
+            ou << r << g << b << a;
+        }
+
+        if (in.status() != QDataStream::Ok || ou.status() != QDataStream::Ok) {
+            return {};
+        }
+    } else if (rgfx_format == RGHDChunk::BitmapType::Rgb96) {
+        QDataStream in(planes);
+        in.setByteOrder(QDataStream::BigEndian);
+        in.setFloatingPointPrecision(QDataStream::SinglePrecision);
+        QDataStream ou(&ba, QDataStream::WriteOnly);
+        ou.setByteOrder(QDataStream::ByteOrder(QSysInfo::ByteOrder));
+        ou.setFloatingPointPrecision(QDataStream::SinglePrecision);
+
+        float r, g, b;
+        for (qint32 x = 0; x < width; ++x) {
+            in >> r >> g >> b;
+            ou << r << g << b << float(1);
+        }
+
+        if (in.status() != QDataStream::Ok || ou.status() != QDataStream::Ok) {
+            return {};
+        }
+    } else if (rgfx_format == RGHDChunk::BitmapType::Rgb128) {
+        QDataStream in(planes);
+        in.setByteOrder(QDataStream::BigEndian);
+        in.setFloatingPointPrecision(QDataStream::SinglePrecision);
+        QDataStream ou(&ba, QDataStream::WriteOnly);
+        ou.setByteOrder(QDataStream::ByteOrder(QSysInfo::ByteOrder));
+        ou.setFloatingPointPrecision(QDataStream::SinglePrecision);
+
+        auto invAlpha = header->bitmapType() & RGHDChunk::BitmapType::HasInvAlpha;
+        float r, g, b, a;
+        for (qint32 x = 0; x < width; ++x) {
+            in >> a >> r >> g >> b;
+            if (invAlpha)
+                a = 1 - a;
+            ou << r << g << b << a;
+        }
+
+        if (in.status() != QDataStream::Ok || ou.status() != QDataStream::Ok) {
+            return {};
+        }
+    }
+
+    return ba;
+}
+
+quint32 RBODChunk::strideSize(const RGHDChunk *header) const
+{
+    auto rgfx_format = RGHDChunk::BitmapTypes(header->bitmapType() & 0x3FFFFFFF);
+    if (rgfx_format == RGHDChunk::BitmapType::Planar8) {
+        return (header->width() + 7) / 8;
+    }
+    if (rgfx_format == RGHDChunk::BitmapType::Chunky8) {
+        return header->width();
+    }
+    if (rgfx_format == RGHDChunk::BitmapType::Rgb15 || rgfx_format == RGHDChunk::BitmapType::Rgb16) {
+        return header->width() * 2;
+    }
+    if (rgfx_format == RGHDChunk::BitmapType::Rgb24) {
+        return header->width() * 3;
+    }
+    if (rgfx_format == RGHDChunk::BitmapType::Rgb32) {
+        return header->width() * 4;
+    }
+    if (rgfx_format == RGHDChunk::BitmapType::Rgb48) {
+        return header->width() * 6;
+    }
+    if (rgfx_format == RGHDChunk::BitmapType::Rgb64) {
+        return header->width() * 8;
+    }
+    if (rgfx_format == RGHDChunk::BitmapType::Rgb96) {
+        return header->width() * 12;
+    }
+    if (rgfx_format == RGHDChunk::BitmapType::Rgb128) {
+        return header->width() * 16;
+    }
+    return 0;
 }
 
 

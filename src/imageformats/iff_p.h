@@ -37,6 +37,8 @@ private:
 
     bool readCDIImage(QImage *image);
 
+    bool readRGFXImage(QImage *image);
+
 private:
     const QScopedPointer<IFFHandlerPrivate> d;
 };
