@@ -247,3 +247,8 @@ add_executable(anitest anitest.cpp)
 target_link_libraries(anitest Qt6::Gui Qt6::Test)
 ecm_mark_as_test(anitest)
 add_test(NAME kimageformats-ani COMMAND anitest)
+
+add_executable(xcursortest xcursortest.cpp)
+target_link_libraries(xcursortest Qt6::Gui Qt6::Test)
+ecm_mark_as_test(xcursortest)
+add_test(NAME kimageformats-xcursortest COMMAND xcursortest)

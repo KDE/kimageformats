@@ -145,6 +145,10 @@ kimageformats_add_plugin(kimg_xcf SOURCES xcf.cpp)
 
 ##################################
 
+kimageformats_add_plugin(kimg_xcursor SOURCES xcursor.cpp)
+
+##################################
+
 if (LibRaw_FOUND)
     kimageformats_add_plugin(kimg_raw SOURCES raw.cpp)
     kde_enable_exceptions()
