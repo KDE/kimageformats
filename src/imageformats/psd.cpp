@@ -1017,7 +1017,7 @@ inline void rawChannelCopy(uchar *target, qint32 targetChannels, qint32 targetCh
 
 
 template<class T>
-inline void cmykToRgb(uchar *target, qint32 targetChannels, const char *source, qint32 sourceChannels, qint32 width, bool alpha = false)
+inline bool cmykToRgb(uchar *target, qint32 targetChannels, const char *source, qint32 sourceChannels, qint32 width, bool alpha = false)
 {
     auto s = reinterpret_cast<const T*>(source);
     auto t = reinterpret_cast<T*>(target);
@@ -1026,7 +1026,7 @@ inline void cmykToRgb(uchar *target, qint32 targetChannels, const char *source, 
 
     if (sourceChannels < 2) {
         qCDebug(LOG_PSDPLUGIN) << "cmykToRgb: image is not a valid MCH/CMYK!";
-        return;
+        return false;
     }
 
     for (qint32 w = 0; w < width; ++w) {
@@ -1047,6 +1047,7 @@ inline void cmykToRgb(uchar *target, qint32 targetChannels, const char *source, 
                 *(pt + 3) = std::numeric_limits<T>::max();
         }
     }
+    return true;
 }
 
 inline double finv(double v)
@@ -1066,7 +1067,7 @@ inline double gammaCorrection(double linear)
 }
 
 template<class T>
-inline void labToRgb(uchar *target, qint32 targetChannels, const char *source, qint32 sourceChannels, qint32 width, bool alpha = false)
+inline bool labToRgb(uchar *target, qint32 targetChannels, const char *source, qint32 sourceChannels, qint32 width, bool alpha = false)
 {
     auto s = reinterpret_cast<const T*>(source);
     auto t = reinterpret_cast<T*>(target);
@@ -1075,7 +1076,7 @@ inline void labToRgb(uchar *target, qint32 targetChannels, const char *source, q
 
     if (sourceChannels < 3) {
         qCDebug(LOG_PSDPLUGIN) << "labToRgb: image is not a valid LAB!";
-        return;
+        return false;
     }
 
     for (qint32 w = 0; w < width; ++w) {
@@ -1110,6 +1111,7 @@ inline void labToRgb(uchar *target, qint32 targetChannels, const char *source, q
                 *(pt + 3) = std::numeric_limits<T>::max();
         }
     }
+    return true;
 }
 
 bool readChannel(QByteArray &target, QDataStream &stream, quint32 compressedSize, quint16 compression)
@@ -1450,10 +1452,13 @@ bool PSDHandler::read(QImage *image)
             // Conversion to RGB
             if (header.color_mode == CM_CMYK || header.color_mode == CM_MULTICHANNEL) {
                 if (tmpCmyk.isNull()) {
-                    if (header.depth == 8)
-                        cmykToRgb<quint8>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width, alpha);
-                    else if (header.depth == 16)
-                        cmykToRgb<quint16>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width, alpha);
+                    if (header.depth == 8) {
+                        if (!cmykToRgb<quint8>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width, alpha))
+                            return false;
+                    } else if (header.depth == 16) {
+                        if (!cmykToRgb<quint16>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width, alpha))
+                            return false;
+                    }
                 } else if (header.depth == 8) {
                     rawChannelsCopyToCMYK<quint8>(tmpCmyk.bits(), 4, psdScanline.data(), header.channel_count, header.width);
                     if (auto rgbPtr = iccConv.convertedScanLine(tmpCmyk, 0))
@@ -1469,10 +1474,13 @@ bool PSDHandler::read(QImage *image)
                 }
             }
             if (header.color_mode == CM_LABCOLOR) {
-                if (header.depth == 8)
-                    labToRgb<quint8>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width, alpha);
-                else if (header.depth == 16)
-                    labToRgb<quint16>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width, alpha);
+                if (header.depth == 8) {
+                    if (!labToRgb<quint8>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width, alpha))
+                        return false;
+                } else if (header.depth == 16) {
+                    if (!labToRgb<quint16>(img.scanLine(y), imgChannels, psdScanline.data(), header.channel_count, header.width, alpha))
+                        return false;
+                }
             }
             if (header.color_mode == CM_RGB) {
                 if (header.depth == 8)
