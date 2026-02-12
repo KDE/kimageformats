@@ -319,7 +319,10 @@ bool SGIImagePrivate::readImage(QImage &img)
 
     if (_rle) {
         uint l;
-        _starttab = new quint32[_numrows];
+        _starttab = new (std::nothrow) quint32[_numrows];
+        if (_starttab == nullptr) {
+            return false;
+        }
         for (l = 0; !_stream.atEnd() && l < _numrows; l++) {
             _stream >> _starttab[l];
             _starttab[l] -= 512 + _numrows * 2 * sizeof(quint32);
@@ -331,7 +334,10 @@ bool SGIImagePrivate::readImage(QImage &img)
             _starttab[l] = 0;
         }
 
-        _lengthtab = new quint32[_numrows];
+        _lengthtab = new (std::nothrow) quint32[_numrows];
+        if (_lengthtab == nullptr) {
+            return false;
+        }
         for (l = 0; !_stream.atEnd() && l < _numrows; l++) {
             _stream >> _lengthtab[l];
             if (_stream.status() != QDataStream::Ok) {
@@ -794,7 +800,10 @@ bool SGIImagePrivate::writeImage(const QImage &image)
     _pixmax = 0;
     _colormap = NORMAL;
     _numrows = _ysize * _zsize;
-    _starttab = new quint32[_numrows];
+    _starttab = new (std::nothrow) quint32[_numrows];
+    if (_starttab == nullptr) {
+        return false;
+    }
     _rlemap.setBaseOffset(512 + _numrows * 2 * sizeof(quint32));
 
     if (!scanData(image, tfmt, tcs)) {
