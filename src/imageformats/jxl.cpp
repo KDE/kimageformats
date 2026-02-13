@@ -2008,6 +2008,11 @@ bool QJpegXLHandler::extractBox(QByteArray &output, size_t container_size)
         return false;
     }
 
+    if (rawboxsize > 8388608) { // 8MB limit
+        qCWarning(LOG_JXLPLUGIN, "Skipped decoding of big JXL metadata box");
+        return true;
+    }
+
     output.resize(rawboxsize);
     status = JxlDecoderSetBoxBuffer(m_decoder, reinterpret_cast<uint8_t *>(output.data()), output.size());
     if (status != JXL_DEC_SUCCESS) {
@@ -2021,7 +2026,7 @@ bool QJpegXLHandler::extractBox(QByteArray &output, size_t container_size)
         if (status == JXL_DEC_BOX_NEED_MORE_OUTPUT) {
             size_t bytes_remains = JxlDecoderReleaseBoxBuffer(m_decoder);
 
-            if (output.size() > 4194304) { // approx. 4MB limit for decompressed metadata box
+            if (output.size() > 33554432) { // approx. 32MB (4*8) limit for decompressed metadata box
                 qCWarning(LOG_JXLPLUGIN, "JXL metadata box is too large");
                 m_parseState = ParseJpegXLError;
                 return false;
