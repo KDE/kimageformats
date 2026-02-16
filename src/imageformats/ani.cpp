@@ -418,6 +418,9 @@ bool ANIHandler::ensureScanned() const
             // IART and INAM are technically inside LIST->INFO but "INFO" is supposedly optional
             // so just handle those two attributes wherever we encounter them
         } else if (chunkId == "INAM" || chunkId == "IART") {
+            if (chunkSize > kMaxQVectorSize) {
+                return false;
+            }
             const QByteArray value = device()->read(chunkSize);
 
             if (static_cast<quint32_le>(value.size()) != chunkSize) {
