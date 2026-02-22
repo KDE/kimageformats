@@ -253,13 +253,19 @@ public:
     bool jp2ToImage(QImage *img) const
     {
         Q_ASSERT(img->depth() == 8 * sizeof(T) || img->depth() == 32 * sizeof(T));
-        for (qint32 c = 0, cc = m_jp2_image->numcomps; c < cc; ++c) {
-            auto cs = cc == 1 ? 1 : 4;
+        if (img->width() < 1 || img->height() < 1) {
+            return false;
+        }
+        auto maxChannels = qint32(img->bytesPerLine() / sizeof(T) / img->width());
+        for (qint32 c = 0, cc = std::min(qint32(m_jp2_image->numcomps), maxChannels); c < cc; ++c) {
+            auto cs = std::min(cc == 1 ? 1 : 4, maxChannels);
             auto &&jc = m_jp2_image->comps[c];
-            if (jc.data == nullptr)
+            if (jc.data == nullptr) {
                 return false;
-            if (qint32(jc.w) != img->width() || qint32(jc.h) != img->height())
+            }
+            if (qint32(jc.w) != img->width() || qint32(jc.h) != img->height()) {
                 return false;
+            }
 
             // discriminate between int and float (avoid complicating things by creating classes with template specializations)
             if (std::numeric_limits<T>::is_integer) {
