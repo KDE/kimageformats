@@ -3012,7 +3012,7 @@ QByteArray IDATChunk::strideRead(QIODevice *d, qint32 y, const IHDRChunk *header
         }
 
         if (header->model() == IHDRChunk::CLut4) {
-            if (rr.size() < header->width() / 2) {
+            if (rr.size() < (qint64(header->width()) + 1) / 2) {
                 return {};
             }
             QByteArray tmp(header->width(), char());
