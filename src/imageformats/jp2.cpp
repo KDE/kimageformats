@@ -269,10 +269,11 @@ public:
 
             // discriminate between int and float (avoid complicating things by creating classes with template specializations)
             if (std::numeric_limits<T>::is_integer) {
-                auto divisor = 1;
-                if (jc.prec > sizeof(T) * 8) {
+                auto divisor = 1ull;
+                auto prec = std::min(size_t(jc.prec), sizeof(*jc.data) * 8);
+                if (prec > sizeof(T) * 8 && prec < 64) {
                     // convert to the wanted precision (e.g. 16-bit -> 8-bit: divisor = 65535 / 255 = 257)
-                    divisor = std::max(1, int(((1ll << jc.prec) - 1) / ((1ll << (sizeof(T) * 8)) - 1)));
+                    divisor = std::max(1ull, (((1ull << prec) - 1) / ((1ull << (sizeof(T) * 8)) - 1)));
                 }
                 for (qint32 y = 0, h = img->height(); y < h; ++y) {
                     auto ptr = reinterpret_cast<T *>(img->scanLine(y));
