@@ -137,6 +137,10 @@ kimageformats_add_plugin(kimg_sct SOURCES sct.cpp)
 
 ##################################
 
+kimageformats_add_plugin(kimg_tim SOURCES tim.cpp)
+
+##################################
+
 kimageformats_add_plugin(kimg_tga SOURCES tga.cpp microexif.cpp scanlineconverter.cpp)
 
 ##################################

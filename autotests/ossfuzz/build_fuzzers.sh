@@ -180,6 +180,7 @@ HANDLER_TYPES="ANIHandler ani
         RAWHandler raw
         RGBHandler rgb
         ScitexHandler sct
+        TIMHandler tim
         TGAHandler tga
         XCFHandler xcf"
 

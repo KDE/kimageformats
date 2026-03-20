@@ -23,7 +23,7 @@
   Usage:
     python infra/helper.py build_image kimageformats
     python infra/helper.py build_fuzzers --sanitizer undefined|address|memory kimageformats
-    python infra/helper.py run_fuzzer kimageformats kimgio_[ani|avif|dds|exr|hdr|heif|iff|jp2|jxl|jxr|kra|ora|pcx|pfm|pic|psd|pxr|qoi|ras|raw|rgb|sct|tga|xcf]_fuzzer
+    python infra/helper.py run_fuzzer kimageformats kimgio_[ani|avif|dds|exr|hdr|heif|iff|jp2|jxl|jxr|kra|ora|pcx|pfm|pic|psd|pxr|qoi|ras|raw|rgb|sct|tim|tga|xcf]_fuzzer
 */
 
 #include <QBuffer>
@@ -52,6 +52,7 @@
 #include "raw_p.h"
 #include "rgb_p.h"
 #include "sct_p.h"
+#include "tim_p.h"
 #include "tga_p.h"
 #include "xcf_p.h"
 

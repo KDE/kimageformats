@@ -21,6 +21,7 @@ The following image formats have read-only support:
 - Krita (kra)
 - OpenRaster (ora)
 - Pixar raster (pxr)
+- PlayStation graphics (tim)
 - Portable FloatMap/HalfMap (pfm, phm)
 - Photoshop documents (psd, psb, pdd, psdt)
 - Radiance HDR (hdr)
@@ -250,6 +251,7 @@ limit depends on the format encoding).
 - RAW: 65,535 x 65,535 pixels
 - RGB: 65,535 x 65,535 pixels
 - SCT: 300,000 x 300,000 pixels
+- TIM: 65,535 x 65,535 pixels
 - TGA: 65,535 x 65,535 pixels
 - XCF: 300,000 x 300,000 pixels
 

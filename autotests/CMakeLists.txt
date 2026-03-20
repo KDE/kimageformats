@@ -86,6 +86,7 @@ kimageformats_read_tests(
     ras
     rgb
     sct
+    tim
     tga
 )
 
