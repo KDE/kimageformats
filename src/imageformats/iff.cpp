@@ -474,11 +474,7 @@ bool IFFHandler::readMayaImage(QImage *image)
         painter.setCompositionMode(QPainter::CompositionMode_Source);
         painter.drawImage(tp, ti);
     }
-#if QT_VERSION < QT_VERSION_CHECK(6, 9, 0)
-    img.mirror(false, true);
-#else
     img.flip(Qt::Orientation::Vertical);
-#endif
     addMetadata(img, form);
 
     *image = img;
