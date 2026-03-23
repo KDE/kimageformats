@@ -3092,7 +3092,8 @@ quint32 IDATChunk::strideSize(const IHDRChunk *header) const
         return 0;
     }
 
-    auto rs = (header->width() * header->depth() + 7) / 8;
+    // width() and depth() are at most 65535
+    auto rs = (quint32(header->width()) * header->depth() + 7) / 8;
 
     // No padding bytes are inserted in the data.
     if (header->model() == IHDRChunk::Rgb888) {
