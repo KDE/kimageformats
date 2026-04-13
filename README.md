@@ -394,7 +394,12 @@ plugin:
 ### The JXR plugin
 
 **This plugin is disabled by default. It can be enabled by settings
-`KIMAGEFORMATS_JXR` to `ON` in your cmake options.**
+`KIMAGEFORMATS_WITH_KNOWN_CRASHES_JXR` to `ON` in your cmake options.**
+
+> [!caution]
+> The plugin disabled by default due to security issues in [jxrlib](https://github.com/4creators/jxrlib): 
+> the upstream jxrlib is dead and there is no "hope" they will fix the issues.
+> **You should not enable it unless you know what you are doing.**
 
 The following defines can be defined in cmake to modify the behavior of the 
 plugin:

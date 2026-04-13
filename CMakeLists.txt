@@ -97,9 +97,10 @@ set_package_properties(LibRaw PROPERTIES
     PURPOSE "Required for the QImage plugin for RAW images"
 )
 
-# JXR plugin disabled by default due to security issues
-option(KIMAGEFORMATS_JXR "Enable plugin for JPEG XR format" OFF)
-if(KIMAGEFORMATS_JXR)
+# JXR plugin disabled by default due to security issues.
+# You should not enable it unless you know what you are doing.
+option(KIMAGEFORMATS_WITH_KNOWN_CRASHES_JXR "Enable plugin for JPEG XR format" OFF)
+if(KIMAGEFORMATS_WITH_KNOWN_CRASHES_JXR)
     find_package(LibJXR)
 endif()
 add_feature_info(LibJXR LibJXR_FOUND "required for the QImage plugin for JPEG XR images")
