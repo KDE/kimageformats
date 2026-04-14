@@ -324,6 +324,10 @@ plugin:
   attribute named "xmp". Note that Gimp reads the "xmp" attribute and Darktable 
   writes it as well.
 
+The plugin can set the following additional metadata:
+- `EXRLayerName`: A string containing the name of the EXR layer used to decode 
+   the image.
+
 ### The EPS plugin
 
 The plugin uses `Ghostscript` to convert the raster image. When reading it

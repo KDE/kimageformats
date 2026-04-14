@@ -86,6 +86,8 @@ private:
      * - 7: lossy 4-by-4 pixel block compression, fields are compressed more
      * - 8: lossy DCT based compression, in blocks of 32 scanlines. More efficient for partial buffer access.
      * - 9: lossy DCT based compression, in blocks of 256 scanlines. More efficient space wise and faster to decode full frames than DWAA_COMPRESSION.
+     * - 10: High-Throughput JPEG2000 (HTJ2K), 256 scanlines (requires OpenEXR 3.4+).
+     * - 11: High-Throughput JPEG2000 (HTJ2K), 32 scanlines (requires OpenEXR 3.4+).
      */
     qint32 m_compressionRatio;
 

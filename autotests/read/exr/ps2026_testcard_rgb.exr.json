@@ -1,9 +1,9 @@
 [
     {
-        "fileName" : "rgb-gimp.png",
+        "fileName" : "ps2026_testcard_rgb.png",
         "colorSpace" : {
-            "description" : "Embedded RGB (linear)",
-            "primaries" : "Custom",
+            "description" : "sRGB build-in (Profilo RGB lineare)",
+            "primaries" : "SRgb",
             "transferFunction" : "Linear",
             "gamma" : 1
         },

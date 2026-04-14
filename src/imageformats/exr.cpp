@@ -58,6 +58,7 @@
 #include <ImathBox.h>
 #include <ImfArray.h>
 #include <ImfBoxAttribute.h>
+#include <ImfOpaqueAttribute.h>
 #include <ImfChannelListAttribute.h>
 #include <ImfCompressionAttribute.h>
 #include <ImfConvert.h>
@@ -227,8 +228,9 @@ static QImage::Format imageFormat(const Imf::RgbaInputFile &file)
 
 /*!
  * \brief viewList
- * \param header
+ * \param header The image header.
  * \return The list of available views.
+ * \note This plugin does not support compositing layers which are returned as single images.
  */
 static QStringList viewList(const Imf::Header &h)
 {
@@ -238,14 +240,44 @@ static QStringList viewList(const Imf::Header &h)
             l << QString::fromStdString(v);
         }
     }
+    if (l.isEmpty()) {
+        // Recent versions of Photoshop save images by setting the layer.
+        // Channels are named Layer 1.A, Layer 1.B, etc., so I have to set
+        // the layer or the images will appear black.
+        auto channels = h.channels();
+        for (auto i = channels.begin(); i != channels.end(); ++i) {
+            auto name = QString::fromLatin1(i.name(), -1);
+            auto idx = name.indexOf(QChar(u'.'));
+            if (idx > -1)
+                l << name.left(idx);
+        }
+        l.removeDuplicates();
+    }
     return l;
+}
+
+static QString setLayerName(Imf::RgbaInputFile &file, qint32 imageNumber = -1)
+{
+    // set the image to load
+    QString layerName;
+    auto &&header = file.header();
+    if (imageNumber > -1) {
+        auto views = viewList(header);
+        if (imageNumber < views.count())
+            layerName = views.at(imageNumber);
+    }
+    // set the layer name
+    if (!layerName.isEmpty()) {
+        file.setLayerName(layerName.toStdString());
+    }
+    return layerName;
 }
 
 #ifdef QT_DEBUG
 static void printAttributes(const Imf::Header &h)
 {
     for (auto i = h.begin(); i != h.end(); ++i) {
-        qCDebug(LOG_EXRPLUGIN) << i.name();
+        qCDebug(LOG_EXRPLUGIN) << i.name() << i.attribute().typeName();
     }
 }
 #endif
@@ -340,15 +372,29 @@ static void readColorSpace(const Imf::Header &header, QImage &image)
 {
     // final color operations
     QColorSpace cs;
-    if (auto chroma = header.findTypedAttribute<Imf::ChromaticitiesAttribute>("chromaticities")) {
-        auto &&v = chroma->value();
-        cs = QColorSpace(QPointF(v.white.x, v.white.y),
-                         QPointF(v.red.x, v.red.y),
-                         QPointF(v.green.x, v.green.y),
-                         QPointF(v.blue.x, v.blue.y),
-                         QColorSpace::TransferFunction::Linear);
+
+    // Photoshop 2026 allow to save the ICC profile as "iccProfile" attribute
+    if (auto iccProfile = header.findTypedAttribute<Imf::OpaqueAttribute>("iccProfile")) {
+        auto &&v = iccProfile->data();
+        cs = QColorSpace::fromIccProfile(QByteArray::fromRawData(v, v.size()));
     }
+
     if (!cs.isValid()) {
+        // Creating the ICC profile from Chromaticities
+        if (auto chroma = header.findTypedAttribute<Imf::ChromaticitiesAttribute>("chromaticities")) {
+            auto &&v = chroma->value();
+            cs = QColorSpace(QPointF(v.white.x, v.white.y),
+                             QPointF(v.red.x, v.red.y),
+                             QPointF(v.green.x, v.green.y),
+                             QPointF(v.blue.x, v.blue.y),
+                             QColorSpace::TransferFunction::Linear);
+            if (cs.isValid())
+                cs.setDescription(QStringLiteral("Embedded RGB (linear)"));
+        }
+    }
+
+    if (!cs.isValid()) {
+        // Use a linear profile
         cs = QColorSpace(QColorSpace::SRgbLinear);
     }
     image.setColorSpace(cs);
@@ -377,12 +423,7 @@ bool EXRHandler::read(QImage *outImage)
         auto &&header = file.header();
 
         // set the image to load
-        if (m_imageNumber > -1) {
-            auto views = viewList(header);
-            if (m_imageNumber < views.count()) {
-                file.setLayerName(views.at(m_imageNumber).toStdString());
-            }
-        }
+        auto layerName = setLayerName(file, m_imageNumber);
 
         // get image info
         Imath::Box2i dw = file.dataWindow();
@@ -400,6 +441,9 @@ bool EXRHandler::read(QImage *outImage)
         if (image.isNull()) {
             qCWarning(LOG_EXRPLUGIN) << "Failed to allocate image, invalid size?" << QSize(width, height);
             return false;
+        }
+        if (!layerName.isEmpty()) {
+            image.setText(QStringLiteral("EXRLayerName"), layerName);
         }
 
         Imf::Array2D<Imf::Rgba> pixels;
@@ -688,12 +732,7 @@ QVariant EXRHandler::option(ImageOption option) const
             try {
                 K_IStream istr(d);
                 Imf::RgbaInputFile file(istr);
-                if (m_imageNumber > -1) { // set the image to read
-                    auto views = viewList(file.header());
-                    if (m_imageNumber < views.count()) {
-                        file.setLayerName(views.at(m_imageNumber).toStdString());
-                    }
-                }
+                setLayerName(file, m_imageNumber);
                 Imath::Box2i dw = file.dataWindow();
                 v = QVariant(QSize(dw.max.x - dw.min.x + 1, dw.max.y - dw.min.y + 1));
             } catch (const std::exception &) {
@@ -713,6 +752,7 @@ QVariant EXRHandler::option(ImageOption option) const
             try {
                 K_IStream istr(d);
                 Imf::RgbaInputFile file(istr);
+                setLayerName(file, m_imageNumber);
                 v = QVariant::fromValue(imageFormat(file));
             } catch (const std::exception &) {
                 // broken file or unsupported version
@@ -787,12 +827,9 @@ bool EXRHandler::canRead(QIODevice *device)
         return false;
     }
 
-#if OPENEXR_VERSION_MAJOR == 3 && OPENEXR_VERSION_MINOR > 2
-    // openexpr >= 3.3 uses seek and tell extensively
     if (device->isSequential()) {
         return false;
     }
-#endif
 
     const QByteArray head = device->peek(4);
 
