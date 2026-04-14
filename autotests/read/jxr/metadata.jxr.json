@@ -14,7 +14,7 @@
             },
             {
                 "key" : "Software" ,
-                "value" : "LIFE Pro 2.18.10"
+                "value" : "LIFE Pro 2.20.35"
             },
             {
                 "key" : "Altitude",
@@ -31,6 +31,10 @@
             {
                 "key" : "Description",
                 "value" : "TV broadcast test image."
+            },
+            {
+                "key" : "HostComputer",
+                "value" : "Windows 11 Enterprise (25H2)"
             },
             {
                 "key" : "Latitude",

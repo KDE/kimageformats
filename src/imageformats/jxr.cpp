@@ -498,7 +498,7 @@ public:
         }
         auto host = hostComputer();
         if (!host.isEmpty()) {
-            image.setText(QStringLiteral(META_KEY_HOSTCOMPUTER), capt);
+            image.setText(QStringLiteral(META_KEY_HOSTCOMPUTER), host);
         }
         auto docn = documentName();
         if (!docn.isEmpty()) {
