@@ -295,6 +295,11 @@ plugin:
 - `DDS_DISABLE_STRIDE_ALIGNMENT`: disable the stride alignment based on DDS 
   pitch: it is known that some writers do not set it correctly.
 
+When writing, it is possible to set which pixel format to use by setting the
+subtypes. The default is `Automatic` which chooses the most appropriate format
+based on the image. For a complete list of subformats, please use the
+appropriate [`QImageWriter`](https://doc.qt.io/qt-6/qimagewriter.html) APIs.
+
 ### The HEIF plugin
 
 **This plugin is disabled by default. It can be enabled by settings
@@ -383,6 +388,11 @@ JP2 plugin has the following limitations due to the lack of support by OpenJPEG:
 - Image resolution is not supported.
 - To write ICC profiles you need OpenJPEG V2.5.4 or higher
 
+When writing, it is possible to set which format to use by setting the 
+following subtypes:
+- `JP2` (default): Save data using the JP2 container.
+- `J2K`: Save only the compressed codestream.
+
 ### The JXL plugin
 
 **The current version of the plugin limits the image size to 256 megapixels
@@ -451,6 +461,13 @@ plugin:
   of sRGB which significantly increases performance.
 - `PSD_NATIVE_CMYK_SUPPORT_DISABLED`: disable native support for CMYK images 
   when compiled with Qt 6.8+
+
+The plugin can set the following additional metadata:
+  - `PSDDuotoneOptions`: Byte array in hexadecimal format of color data of the 
+     duotone specification (the format of which is not documented). From the PSD 
+     specification: *"Other applications that read Photoshop files can treat a 
+     duotone image as a gray image, and just preserve the contents of the duotone 
+     information when reading and writing the file."*
 
 ### The RAW plugin
 
