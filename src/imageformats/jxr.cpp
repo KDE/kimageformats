@@ -123,17 +123,17 @@ public:
 
     ~JXRHandlerPrivate()
     {
-        if (pCodecFactory) {
-            PKCreateCodecFactory_Release(&pCodecFactory);
-        }
-        if (pFactory) {
-            PKCreateFactory_Release(&pFactory);
-        }
         if (pDecoder) {
-            PKImageDecode_Release(&pDecoder);
+            pDecoder->Release(&pDecoder);
         }
         if (pEncoder) {
-            PKImageEncode_Release(&pEncoder);
+            pEncoder->Release(&pEncoder);
+        }
+        if (pCodecFactory) {
+            pCodecFactory->Release(&pCodecFactory);
+        }
+        if (pFactory) {
+            pFactory->Release(&pFactory);
         }
     }
 
@@ -556,7 +556,11 @@ public:
         if (device == nullptr || pEncoder == nullptr) {
             return false;
         }
-        if (auto err = PKImageEncode_Release(&pEncoder)) {
+        if (auto err = pEncoder->Terminate(pEncoder)) {
+            qCWarning(LOG_JXRPLUGIN) << "JXRHandlerPrivate::finalizeWriting() error while terminating the encoder:" << err;
+            return false;
+        }
+        if (auto err = pEncoder->Release(&pEncoder)) {
             qCWarning(LOG_JXRPLUGIN) << "JXRHandlerPrivate::finalizeWriting() error while releasing the encoder:" << err;
             return false;
         }
@@ -999,13 +1003,13 @@ bool JXRHandler::read(QImage *outImage)
             return false;
         }
         if (auto err = pConverter->Initialize(pConverter, d->pDecoder, nullptr, convFmt)) {
-            PKFormatConverter_Release(&pConverter);
+            pConverter->Release(&pConverter);
             qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() unable to initialize the converter:" << err;
             return false;
         }
         if (d->pDecoder->WMP.wmiI.cBitsPerUnit == size_t(img.depth())) { // in place conversion
             if (auto err = pConverter->Copy(pConverter, &rect, img.bits(), img.bytesPerLine())) {
-                PKFormatConverter_Release(&pConverter);
+                pConverter->Release(&pConverter);
                 qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() unable to copy converted data:" << err;
                 return false;
             }
@@ -1014,12 +1018,13 @@ bool JXRHandler::read(QImage *outImage)
             qint64 buffSize = convStrideSize * img.height();
             qint64 limit = QImageReader::allocationLimit();
             if (limit && (buffSize + img.sizeInBytes()) > limit * 1024 * 1024) {
+                pConverter->Release(&pConverter);
                 qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() unable to covert due to allocation limit set:" << limit << "MiB";
                 return false;
             }
             QVector<quint8> ba(buffSize);
             if (auto err = pConverter->Copy(pConverter, &rect, ba.data(), convStrideSize)) {
-                PKFormatConverter_Release(&pConverter);
+                pConverter->Release(&pConverter);
                 qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() unable to copy converted data:" << err;
                 return false;
             }
@@ -1027,7 +1032,7 @@ bool JXRHandler::read(QImage *outImage)
                 std::memcpy(img.scanLine(y), ba.data() + convStrideSize * y, (std::min)(convStrideSize, qint64(img.bytesPerLine())));
             }
         }
-        PKFormatConverter_Release(&pConverter);
+        pConverter->Release(&pConverter);
     }
 
     // Metadata (e.g.: icc profile, description, etc...)

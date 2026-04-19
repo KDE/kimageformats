@@ -48,7 +48,7 @@ Depending on the format, you can specify the following additional options.
 
 - `--help`: Displays help on commandline options.
 - `--fuzz <max>`: The fuzziness. Used to add some deviation in ARGB data 
-(nornally used on lossy codec).
+(normally used on lossy codec).
 - `--perceptive-fuzz`: Used to scale dynamically the fuzziness based on 
 the alpha channel value. This is useful on images with pre-multiplied and 
 small alphas. Qt can use different roundings based on optimizations resulting 
