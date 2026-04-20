@@ -303,6 +303,12 @@ public:
             return qtFormat;
         }
 
+        // *** MCH could be RGB, CMYK ***
+        qtFormat = multichannelFormat(jxrfmt, colorSpace());
+        if (qtFormat != QImage::Format_Invalid) {
+            return qtFormat;
+        }
+
         // *** CONVERSION WITH THE SAME DEPTH ***
         // IMPORTANT: For supported conversions see JXRGluePFC.c
 
@@ -798,6 +804,47 @@ public:
                 return p.second;
         }
         return GUID_PKPixelFormatUndefined;
+    }
+
+    /*!
+     * \brief multichannelFormat
+     * I can only decide how to interpret multichannels by checking the color profile.
+     * If it's not present, I assume CMYK for 4 channels and RGB for 3 channels (like
+     * Windows does).
+     * \param jxrFormat Format to be converted.
+     * \param cs The color space of the image.
+     * \return A valid Qt format or QImage::Format_Invalid if there is no match
+     */
+    static QImage::Format multichannelFormat(const PKPixelFormatGUID &jxrFormat, const QColorSpace& cs)
+    {
+        auto model = QColorSpace::ColorModel::Undefined;
+        if (cs.isValid()) {
+            model = cs.colorModel();
+        } else if (!cs.iccProfile().isEmpty()) {
+            model = QColorSpace::ColorModel::Gray; // means invalid
+        }
+
+        if (IsEqualGUID(GUID_PKPixelFormat24bpp3Channels, jxrFormat)) {
+            if (model == QColorSpace::ColorModel::Rgb || model == QColorSpace::ColorModel::Undefined)
+                return QImage::Format_RGB888;
+        }
+
+        if (IsEqualGUID(GUID_PKPixelFormat32bpp4Channels, jxrFormat)) {
+            if (model == QColorSpace::ColorModel::Cmyk || model == QColorSpace::ColorModel::Undefined)
+                return QImage::Format_CMYK8888;
+        }
+
+        if (IsEqualGUID(GUID_PKPixelFormat32bpp3ChannelsAlpha, jxrFormat)) {
+            if (model == QColorSpace::ColorModel::Rgb || model == QColorSpace::ColorModel::Undefined)
+                return QImage::Format_RGBA8888;
+        }
+
+        if (IsEqualGUID(GUID_PKPixelFormat64bpp3ChannelsAlpha, jxrFormat)) {
+            if (model == QColorSpace::ColorModel::Rgb || model == QColorSpace::ColorModel::Undefined)
+                return QImage::Format_RGBA64;
+        }
+
+        return QImage::Format_Invalid;
     }
 
 private:
