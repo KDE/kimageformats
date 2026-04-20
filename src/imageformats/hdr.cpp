@@ -54,10 +54,10 @@ public:
     {
         return width() > 0 && height() > 0 && width() <= HDR_MAX_IMAGE_WIDTH && height() <= HDR_MAX_IMAGE_HEIGHT;
     }
-    qint32 width() const { return(m_size.width()); }
-    qint32 height() const { return(m_size.height()); }
-    QString software() const { return(m_software); }
-    QImageIOHandler::Transformations transformation() const { return(m_transformation); }
+    qint32 width() const { return m_size.width(); }
+    qint32 height() const { return m_size.height(); }
+    QString software() const { return m_software; }
+    QImageIOHandler::Transformations transformation() const { return m_transformation; }
 
     /*!
      * \brief colorSpace
@@ -73,7 +73,7 @@ public:
      * 0.600 0.150 0.060 0.333 0.333" for red, green, blue
      * and white, respectively.
      */
-    QColorSpace colorSpace() const { return(m_colorSpace); }
+    QColorSpace colorSpace() const { return m_colorSpace; }
 
     /*!
      * \brief exposure
@@ -247,7 +247,7 @@ static bool Read_Old_Line(uchar *image, int width, QDataStream &s)
         s >> image[2];
         s >> image[3];
 
-        if (s.atEnd()) {
+        if (s.status() != QDataStream::Ok) {
             return false;
         }
 
@@ -340,20 +340,24 @@ static bool LoadHDR(QDataStream &s, const Header& h, QImage &img)
 
         // determine scanline type
         if ((width < MINELEN) || (MAXELEN < width)) {
-            Read_Old_Line(image, width, s);
+            if (!Read_Old_Line(image, width, s)) {
+                return false;
+            }
             RGBE_To_QRgbLine(image, scanline, h);
             continue;
         }
 
         s >> val;
 
-        if (s.atEnd()) {
-            return true;
+        if (s.status() != QDataStream::Ok) {
+            return false;
         }
 
         if (val != 2) {
             s.device()->ungetChar(val);
-            Read_Old_Line(image, width, s);
+            if (!Read_Old_Line(image, width, s)) {
+                return false;
+            }
             RGBE_To_QRgbLine(image, scanline, h);
             continue;
         }
@@ -362,13 +366,15 @@ static bool LoadHDR(QDataStream &s, const Header& h, QImage &img)
         s >> image[2];
         s >> image[3];
 
-        if (s.atEnd()) {
-            return true;
+        if (s.status() != QDataStream::Ok) {
+            return false;
         }
 
         if ((image[1] != 2) || (image[2] & 128)) {
             image[0] = 2;
-            Read_Old_Line(image + 4, width - 1, s);
+            if (!Read_Old_Line(image + 4, width - 1, s)) {
+                return false;
+            }
             RGBE_To_QRgbLine(image, scanline, h);
             continue;
         }
@@ -382,7 +388,7 @@ static bool LoadHDR(QDataStream &s, const Header& h, QImage &img)
         for (int i = 0, len = int(lineArray.size()); i < 4; i++) {
             for (int j = 0; j < width;) {
                 s >> code;
-                if (s.atEnd()) {
+                if (s.status() != QDataStream::Ok) {
                     qCDebug(HDRPLUGIN) << "Truncated HDR file";
                     return false;
                 }
@@ -510,7 +516,7 @@ bool HDRHandler::canRead(QIODevice *device)
     }
 
     // the .pic taken from official test cases does not start with this string but can be loaded.
-    if(device->peek(11) == "#?RADIANCE\n" || device->peek(7) == "#?RGBE\n") {
+    if (device->peek(11) == "#?RADIANCE\n" || device->peek(7) == "#?RGBE\n") {
         return true;
     }
 
