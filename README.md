@@ -333,6 +333,15 @@ distributions. In particular, it is necessary that the HEIF library has
 support for HEVC codec. If HEVC codec is not available the plugin
 will compile but will fail the tests.
 
+The following defines can be defined in cmake to modify the behavior of the 
+plugin:
+- `HEIF_DISABLE_QT_TRANSFORMATION`: HEIF transformations, in addition to 
+  rotations and reflections, also support image cropping. Consequently, the 
+  Qt plugin, must also honor the crop. This define is useful in case 
+  of problems: activating it disables Qt's support for transformations, 
+  delegating them to the HEIF libraries (which will therefore always apply 
+  them regardless of what is requested from Qt).
+
 **If you are interested in compiling the plugin without running the tests, 
 also use the following string options:**
 - `KIMAGEFORMATS_HEIF_TEST` to change the behaviour of HEIF tests. Set to 

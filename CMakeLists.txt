@@ -72,7 +72,7 @@ set_property(CACHE KIMAGEFORMATS_HEJ2_TEST PROPERTY STRINGS "OFF" "READ_ONLY" "A
 set(KIMAGEFORMATS_AVCI_TEST "ALL" CACHE STRING "Enable AVCI tests: OFF, ALL")
 set_property(CACHE KIMAGEFORMATS_AVCI_TEST PROPERTY STRINGS "OFF" "ALL")
 if(KIMAGEFORMATS_HEIF)
-    pkg_check_modules(LibHeif IMPORTED_TARGET libheif>=1.10.0)
+    pkg_check_modules(LibHeif IMPORTED_TARGET libheif>=1.17.0)
 endif()
 add_feature_info(LibHeif LibHeif_FOUND "required for the QImage plugin for HEIF/HEIC images")
 
