@@ -236,11 +236,12 @@ static QStringList viewList(const Imf::Header &h)
 {
     QStringList l;
     if (auto views = h.findTypedAttribute<Imf::StringVectorAttribute>("multiView")) {
+        // Internally OpenEXR first checks if the multiView attribute is present:
+        // if present, I have no other layers.
         for (auto &&v : views->value()) {
             l << QString::fromStdString(v);
         }
-    }
-    if (l.isEmpty()) {
+    } else {
         // Recent versions of Photoshop save images by setting the layer.
         // Channels are named Layer 1.A, Layer 1.B, etc., so I have to set
         // the layer or the images will appear black.
