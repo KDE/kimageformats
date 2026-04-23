@@ -400,7 +400,7 @@ public:
     QSize imageSize() const
     {
         if (pDecoder) {
-            qint32 w, h;
+            qint32 w = 0, h = 0;
             pDecoder->GetSize(pDecoder, &w, &h);
             if (w > JXR_MAX_IMAGE_WIDTH || h > JXR_MAX_IMAGE_HEIGHT || w < 1 || h < 1) {
                 qCCritical(LOG_JXRPLUGIN) << "JXRHandlerPrivate::imageSize() Maximum image size is limited to" << JXR_MAX_IMAGE_WIDTH << "x"
@@ -422,7 +422,7 @@ public:
         if (pDecoder == nullptr) {
             return cs;
         }
-        quint32 size;
+        quint32 size = 0;
         if (!pDecoder->GetColorContext(pDecoder, nullptr, &size) && size) {
             QByteArray ba(size, 0);
             if (!pDecoder->GetColorContext(pDecoder, reinterpret_cast<quint8 *>(ba.data()), &size)) {
@@ -443,7 +443,7 @@ public:
             return xmp;
         }
 #ifdef JXR_ENABLE_ADVANCED_METADATA
-        quint32 size;
+        quint32 size = 0;
         if (!PKImageDecode_GetXMPMetadata_WMP(pDecoder, nullptr, &size) && size > 0 && size < JXR_MAX_METADATA_SIZE) {
             QByteArray ba(size, 0);
             if (!PKImageDecode_GetXMPMetadata_WMP(pDecoder, reinterpret_cast<quint8 *>(ba.data()), &size)) {
@@ -1018,7 +1018,7 @@ bool JXRHandler::read(QImage *outImage)
     }
 
     // resolution
-    float hres, vres;
+    float hres = 0, vres = 0;
     if (auto err = d->pDecoder->GetResolution(d->pDecoder, &hres, &vres)) {
         qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() error while reading resolution:" << err;
     } else {
