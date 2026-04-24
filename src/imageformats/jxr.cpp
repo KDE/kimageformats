@@ -35,14 +35,19 @@
 #include <cstring>
 
 Q_DECLARE_LOGGING_CATEGORY(LOG_JXRPLUGIN)
+
+#ifdef QT_DEBUG
+Q_LOGGING_CATEGORY(LOG_JXRPLUGIN, "kf.imageformats.plugins.jxr", QtDebugMsg)
+#else
 Q_LOGGING_CATEGORY(LOG_JXRPLUGIN, "kf.imageformats.plugins.jxr", QtWarningMsg)
+#endif
 
 /*!
  * Support for float images
  *
  * NOTE: Float images have values greater than 1 so they need an additional in place conversion.
  */
-// #define JXR_DENY_FLOAT_IMAGE
+// #define JXR_DENY_FLOAT_IMAGE // default commented
 
 /*!
  * Remove the needs of additional memory by disabling the conversion between
@@ -112,11 +117,10 @@ public:
         , m_transformations(QImageIOHandler::TransformationNone)
     {
         m_tempDir = QSharedPointer<QTemporaryDir>(new QTemporaryDir);
-        if (PKCreateFactory(&pFactory, PK_SDK_VERSION) == WMP_errSuccess) {
-            PKCreateCodecFactory(&pCodecFactory, WMP_SDK_VERSION);
-        }
-        if (pFactory == nullptr || pCodecFactory == nullptr) {
-            qCWarning(LOG_JXRPLUGIN) << "JXRHandlerPrivate::JXRHandlerPrivate() initialization error of JXR library!";
+        if (auto err = PKCreateFactory(&pFactory, PK_SDK_VERSION)) {
+            qCCritical(LOG_JXRPLUGIN) << "JXRHandlerPrivate::JXRHandlerPrivate() error while initializing the JXR factory:" << err;
+        } else if (auto err = PKCreateCodecFactory(&pCodecFactory, WMP_SDK_VERSION)) {
+            qCCritical(LOG_JXRPLUGIN) << "JXRHandlerPrivate::JXRHandlerPrivate() error while initializing the JXR codec factory:" << err;
         }
     }
     JXRHandlerPrivate(const JXRHandlerPrivate &other) = default;
@@ -124,16 +128,24 @@ public:
     ~JXRHandlerPrivate()
     {
         if (pDecoder) {
-            pDecoder->Release(&pDecoder);
+            if (auto err = pDecoder->Release(&pDecoder)) {
+                qCWarning(LOG_JXRPLUGIN) << "JXRHandlerPrivate::JXRHandlerPrivate() error while releasing the decoder:" << err;
+            }
         }
         if (pEncoder) {
-            pEncoder->Release(&pEncoder);
+            if (auto err = pEncoder->Release(&pEncoder)) {
+                qCWarning(LOG_JXRPLUGIN) << "JXRHandlerPrivate::JXRHandlerPrivate() error while releasing the encoder:" << err;
+            }
         }
         if (pCodecFactory) {
-            pCodecFactory->Release(&pCodecFactory);
+            if (auto err = pCodecFactory->Release(&pCodecFactory)) {
+                qCWarning(LOG_JXRPLUGIN) << "JXRHandlerPrivate::JXRHandlerPrivate() error while releasing the codec factory:" << err;
+            }
         }
         if (pFactory) {
-            pFactory->Release(&pFactory);
+            if (auto err = pFactory->Release(&pFactory)) {
+                qCWarning(LOG_JXRPLUGIN) << "JXRHandlerPrivate::JXRHandlerPrivate() error while releasing the factory:" << err;
+            }
         }
     }
 
@@ -278,8 +290,12 @@ public:
     PKPixelFormatGUID jxrFormat() const
     {
         PKPixelFormatGUID pixelFormatGUID = GUID_PKPixelFormatUndefined;
-        if (pDecoder) {
-            pDecoder->GetPixelFormat(pDecoder, &pixelFormatGUID);
+        if (pDecoder == nullptr) {
+            return pixelFormatGUID;
+        }
+        if (auto err = pDecoder->GetPixelFormat(pDecoder, &pixelFormatGUID)) {
+            qCCritical(LOG_JXRPLUGIN) << "JXRHandlerPrivate::jxrFormat() error while getting pixel format:" << err;
+            return GUID_PKPixelFormatUndefined;
         }
         return pixelFormatGUID;
     }
@@ -399,17 +415,20 @@ public:
      */
     QSize imageSize() const
     {
-        if (pDecoder) {
-            qint32 w = 0, h = 0;
-            pDecoder->GetSize(pDecoder, &w, &h);
-            if (w > JXR_MAX_IMAGE_WIDTH || h > JXR_MAX_IMAGE_HEIGHT || w < 1 || h < 1) {
-                qCCritical(LOG_JXRPLUGIN) << "JXRHandlerPrivate::imageSize() Maximum image size is limited to" << JXR_MAX_IMAGE_WIDTH << "x"
-                                          << JXR_MAX_IMAGE_HEIGHT << "pixels";
-                return {};
-            }
-            return QSize(w, h);
+        if (pDecoder == nullptr) {
+            return {};
         }
-        return {};
+        qint32 w = 0, h = 0;
+        if (auto err = pDecoder->GetSize(pDecoder, &w, &h)) {
+            qCCritical(LOG_JXRPLUGIN) << "JXRHandlerPrivate::imageSize() error while getting the image size:" << err;
+            return {};
+        }
+        if (w > JXR_MAX_IMAGE_WIDTH || h > JXR_MAX_IMAGE_HEIGHT || w < 1 || h < 1) {
+            qCCritical(LOG_JXRPLUGIN) << "JXRHandlerPrivate::imageSize() Maximum image size is limited to" << JXR_MAX_IMAGE_WIDTH << "x"
+                                      << JXR_MAX_IMAGE_HEIGHT << "pixels";
+            return {};
+        }
+        return QSize(w, h);
     }
 
     /*!
@@ -423,7 +442,7 @@ public:
             return cs;
         }
         quint32 size = 0;
-        if (!pDecoder->GetColorContext(pDecoder, nullptr, &size) && size) {
+        if (!pDecoder->GetColorContext(pDecoder, nullptr, &size) && size > 0 && size < kMaxQVectorSize) {
             QByteArray ba(size, 0);
             if (!pDecoder->GetColorContext(pDecoder, reinterpret_cast<quint8 *>(ba.data()), &size)) {
                 cs = QColorSpace::fromIccProfile(ba);
@@ -1050,14 +1069,18 @@ bool JXRHandler::read(QImage *outImage)
             return false;
         }
         if (auto err = pConverter->Initialize(pConverter, d->pDecoder, nullptr, convFmt)) {
-            pConverter->Release(&pConverter);
             qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() unable to initialize the converter:" << err;
+            if (auto err = pConverter->Release(&pConverter)) {
+                qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() error while releasing the converter:" << err;
+            }
             return false;
         }
         if (d->pDecoder->WMP.wmiI.cBitsPerUnit == size_t(img.depth())) { // in place conversion
             if (auto err = pConverter->Copy(pConverter, &rect, img.bits(), img.bytesPerLine())) {
-                pConverter->Release(&pConverter);
                 qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() unable to copy converted data:" << err;
+                if (auto err = pConverter->Release(&pConverter)) {
+                    qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() error while releasing the converter:" << err;
+                }
                 return false;
             }
         } else { // additional buffer needed
@@ -1065,21 +1088,27 @@ bool JXRHandler::read(QImage *outImage)
             qint64 buffSize = convStrideSize * img.height();
             qint64 limit = QImageReader::allocationLimit();
             if (limit && (buffSize + img.sizeInBytes()) > limit * 1024 * 1024) {
-                pConverter->Release(&pConverter);
                 qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() unable to covert due to allocation limit set:" << limit << "MiB";
+                if (auto err = pConverter->Release(&pConverter)) {
+                    qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() error while releasing the converter:" << err;
+                }
                 return false;
             }
             QVector<quint8> ba(buffSize);
             if (auto err = pConverter->Copy(pConverter, &rect, ba.data(), convStrideSize)) {
-                pConverter->Release(&pConverter);
                 qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() unable to copy converted data:" << err;
+                if (auto err = pConverter->Release(&pConverter)) {
+                    qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() error while releasing the converter:" << err;
+                }
                 return false;
             }
             for (qint32 y = 0, h = img.height(); y < h; ++y) {
                 std::memcpy(img.scanLine(y), ba.data() + convStrideSize * y, (std::min)(convStrideSize, qint64(img.bytesPerLine())));
             }
         }
-        pConverter->Release(&pConverter);
+        if (auto err = pConverter->Release(&pConverter)) {
+            qCWarning(LOG_JXRPLUGIN) << "JXRHandler::read() error while releasing the converter:" << err;
+        }
     }
 
     // Metadata (e.g.: icc profile, description, etc...)
