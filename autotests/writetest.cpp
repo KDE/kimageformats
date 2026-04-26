@@ -62,7 +62,7 @@ void setOptionalInfo(QImage &image, const QString &suffix)
 
     // Set metadata
     auto meta = obj.value("metadata").toArray();
-    for (auto jv : meta) {
+    for (auto &&jv : meta) {
         auto obj = jv.toObject();
         auto key = obj.value("key").toString();
         auto val = obj.value("value").toString();
@@ -106,7 +106,7 @@ bool checkOptionalInfo(QImage &image, const QString &suffix)
 
     // Test metadata
     auto meta = obj.value("metadata").toArray();
-    for (auto jv : meta) {
+    for (auto &&jv : meta) {
         auto obj = jv.toObject();
         auto key = obj.value("key").toString();
         auto val = obj.value("value").toString();

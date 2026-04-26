@@ -25,6 +25,85 @@
 #endif
 
 /*!
+     * \brief The Flash enum
+     */
+enum class Flash : quint16 {
+    NotSet = 0,
+
+    // Values for bit 0 indicating whether the flash fired.
+    // 0b = Flash did not fire.
+    // 1b = Flash fired.
+    Fired = 1,
+
+    // Values for bits 1 and 2 indicating the status of returned light.
+    // 00b = No strobe return detection function
+    // 01b = reserved
+    // 10b = Strobe return light not detected.
+    // 11b = Strobe return light detected.
+    ReturnLightNotDetected = 2 << 1,
+    ReturnLightDetected = 3 << 1,
+
+    // Values for bits 3 and 4 indicating the camera's flash mode.
+    // 00b = unknown
+    // 01b = Compulsory flash firing
+    // 10b = Compulsory flash suppression
+    // 11b = Auto mode
+    CompulsoryFiring = 1 << 3,
+    CompulsorySuppression = 2 << 3,
+    AutoMode = 3 << 3,
+
+    // Values for bit 5 indicating the presence of a flash function.
+    // 0b = Flash function present
+    // 1b = No flash function
+    FlashNotAvailable = 1 << 5,
+
+    // Values for bit 6 indicating the camera's red-eye mode.
+    // 0b = No red-eye reduction mode or unknown
+    // 1b = Red-eye reduction supported
+    RedEyeReductionSupported = 1 << 6,
+};
+Q_DECLARE_FLAGS(FlashFlags, Flash)
+Q_DECLARE_OPERATORS_FOR_FLAGS(FlashFlags)
+
+/*!
+     * \brief The ExposureMode enum
+     */
+enum class ExposureMode : quint16 {
+    Auto,
+    Manual,
+    AutoBracket,
+
+    NotSet = 65535
+};
+
+/*!
+     * \brief The ExposureProgram enum
+     */
+enum class ExposureProgram : quint16 {
+    NotDefined,
+    Manual,
+    Normal,
+    AperturePriority,
+    ShutterPriority,
+    Creative,
+    Action,
+    PortraitMode,
+    LandscapeMode,
+
+    NotSet = 65535
+};
+
+/*!
+     * \brief The WhiteBalance enum
+     */
+enum class WhiteBalance : quint16 {
+    Auto,
+    Manual,
+
+    NotSet = 65535
+};
+
+/*!
  * \brief The MicroExif class
  * Class to extract / write minimal EXIF data (e.g. resolution, rotation,
  * some strings).
@@ -237,6 +316,69 @@ public:
     void setUniqueId(const QUuid &uuid);
 
     /*!
+     * \brief digitalZoomRatio
+     * \return The digital zoom ratio when the image was shot or NaN if not set.
+     */
+    double digitalZoomRatio() const;
+    void setDigitalZoomRatio(double zoom);
+
+    /*!
+     * \brief exposureMode
+     * \return The exposure mode set when the image was shot. In auto-bracketing mode, the camera shoots a series of frames of the same scene at different exposure settings.
+     */
+    ExposureMode exposureMode() const;
+    void setExposureMode(const ExposureMode& em);
+
+    /*!
+     * \brief exposureProgram
+     * \return The class of the program used by the camera to set exposure when the picture is taken.
+     */
+    ExposureProgram exposureProgram() const;
+    void setExposureProgram(const ExposureProgram& ep);
+
+    /*!
+     * \brief exposureTime
+     * \return Exposure time, given in seconds (sec) or NaN if not set.
+     */
+    double exposureTime() const;
+    void setExposureTime(double et);
+
+    /*!
+     * \brief fNumber
+     * \return The F number or NaN if not set.
+     */
+    double fNumber() const;
+    void setFNumber(double f);
+
+    /*!
+     * \brief focalLength
+     * \return The actual focal length of the lens, in mm.
+     */
+    double focalLength() const;
+    void setFocalLength(double fl);
+
+    /*!
+     * \brief flash
+     * \return The status of flash when the image was shot.
+     */
+    FlashFlags flash() const;
+    void setFlash(const FlashFlags& flash);
+
+    /*!
+     * \brief isoSpeedRatings
+     * \return The sensitivity of the camera or input device when the image was shot.
+     */
+    quint16 isoSpeedRatings() const;
+    void setIsoSpeedRatings(quint16 iso);
+
+    /*!
+     * \brief whiteBalance
+     * \return The white balance mode set when the image was shot.
+     */
+    WhiteBalance whiteBalance() const;
+    void setWhiteBalance(const WhiteBalance& wb);
+
+    /*!
      * \brief latitude
      * \return Floating-point number indicating the latitude in degrees north of the equator (e.g. 27.717) or NaN if not set.
      */
@@ -257,6 +399,13 @@ public:
      */
     double altitude() const;
     void setAltitude(double meters);
+
+    /*!
+     * \brief imageSpeed
+     * \return The speed in Km/h or NaN if not set.
+     */
+    double imageSpeed() const;
+    void setImageSpeed(double kmh);
 
     /*!
      * \brief imageDirection

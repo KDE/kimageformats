@@ -155,7 +155,30 @@ About the image:
 - `Owner`: Name of the owner of the image.
 - `Software`: Name and version number of the software package(s) used to 
   create the image.
+- `Speed`: Floating-point number indicating the speed of GPS receiver 
+  movement in Km/h (e.g. 30.2).
 - `Title`: The title of the image.
+
+About the shot:
+- `DigitalZoomRatio`: Floating-point number indicating the digital zoom ratio
+  when the image was shot.
+- `ExposureMode`: Integer number indicating the exposure mode set when the 
+  image was shot as reported in the EXIF ​​specifications.
+- `ExposureProgram`: Integer number indicating the class of the program used 
+  by the camera to set exposure when the picture is taken as reported in the 
+  EXIF ​​specifications.
+- `ExposureTime`: Floating-point number indicating the exposure time, 
+  given in seconds (s).
+- `Flash`: Integer number indicating the status of flash when the image 
+  was shot as reported in the EXIF ​​specifications.
+- `FNumber`: Floating-point number indicating the F number.
+- `FocalLength`: Floating-point number indicating the actual focal length 
+  of the lens, in millimeters (mm).
+- `ISOSpeedRatings`: Integer number indicating the sensitivity of the camera 
+  or input device when the image was shot as reported in the EXIF 
+  ​​specifications.
+- `WhiteBalance`: Integer number indicating the white balance mode set when 
+  the image was shot as reported in the EXIF ​​specifications.
 
 About the camera:
 - `Manufacturer`: The manufacturer of the recording equipment.

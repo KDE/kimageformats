@@ -34,9 +34,21 @@
 #define META_KEY_MODIFICATIONDATE "ModificationDate"
 #define META_KEY_OWNER "Owner"
 #define META_KEY_SOFTWARE "Software"
+#define META_KEY_SPEED "Speed"
 #define META_KEY_TITLE "Title"
 #define META_KEY_XML_GIMP "XML:org.gimp.xml"
 #define META_KEY_XMP_ADOBE "XML:com.adobe.xmp"
+
+// Shot info metadata keys
+#define META_KEY_DIGITALZOOMRATIO "DigitalZoomRatio"
+#define META_KEY_EXPOSUREMODE "ExposureMode"
+#define META_KEY_EXPOSUREPROGRAM "ExposureProgram"
+#define META_KEY_EXPOSURETIME "ExposureTime"
+#define META_KEY_FLASH "Flash"
+#define META_KEY_FNUMBER "FNumber"
+#define META_KEY_FOCALLENGTH "FocalLength"
+#define META_KEY_ISOSPEEDRATINGS "ISOSpeedRatings"
+#define META_KEY_WHITEBALANCE "WhiteBalance"
 
 // Camera info metadata keys
 #define META_KEY_MANUFACTURER "Manufacturer"

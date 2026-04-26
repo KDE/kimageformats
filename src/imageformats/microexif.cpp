@@ -36,17 +36,26 @@
 #define TIFF_VAL_URES_CENTIMETER 3
 
 // EXIF 3 specs
+#define EXIF_EXPOSURETIME 0x829A
+#define EXIF_FNUMBER 0x829D
 #define EXIF_EXIFIFD 0x8769
+#define EXIF_EXPOSUREPROGRAM 0x8822
 #define EXIF_GPSIFD 0x8825
+#define EXIF_ISOSPEEDRATINGS 0x8827
 #define EXIF_EXIFVERSION 0x9000
 #define EXIF_DATETIMEORIGINAL 0x9003
 #define EXIF_DATETIMEDIGITIZED 0x9004
 #define EXIF_OFFSETTIME 0x9010
 #define EXIF_OFFSETTIMEORIGINAL 0x9011
 #define EXIF_OFFSETTIMEDIGITIZED 0x9012
+#define EXIF_FLASH 0x9209
+#define EXIF_FOCALLENGTH 0x920A
 #define EXIF_COLORSPACE 0xA001
 #define EXIF_PIXELXDIM 0xA002
 #define EXIF_PIXELYDIM 0xA003
+#define EXIF_EXPOSUREMODE 0xA402
+#define EXIF_WHITEBALANCE 0xA403
+#define EXIF_DIGITALZOOMRATIO 0xA404
 #define EXIF_IMAGEUNIQUEID 0xA420
 #define EXIF_BODYSERIALNUMBER 0xA431
 #define EXIF_LENSMAKE 0xA433
@@ -64,6 +73,8 @@
 #define GPS_LONGITUDE 4
 #define GPS_ALTITUDEREF 5
 #define GPS_ALTITUDE 6
+#define GPS_SPEEDREF 12
+#define GPS_SPEED 13
 #define GPS_IMGDIRECTIONREF 16
 #define GPS_IMGDIRECTION 17
 #define EXIF_TAG_VALUE(n, byteSize) (((n) << 6) | ((byteSize) & 0x3F))
@@ -123,16 +134,25 @@ static const KnownTags staticTagTypes = {
     TagInfo(TIFF_ARTIST, ExifTagType::Utf8),
     TagInfo(TIFF_DATETIME, ExifTagType::Ascii),
     TagInfo(TIFF_COPYRIGHT, ExifTagType::Utf8),
+    TagInfo(EXIF_EXPOSURETIME, ExifTagType::Rational),
+    TagInfo(EXIF_FNUMBER, ExifTagType::Rational),
     TagInfo(EXIF_EXIFIFD, ExifTagType::Long),
+    TagInfo(EXIF_EXPOSUREPROGRAM, ExifTagType::Short),
     TagInfo(EXIF_GPSIFD, ExifTagType::Long),
+    TagInfo(EXIF_ISOSPEEDRATINGS, ExifTagType::Short),
     TagInfo(EXIF_DATETIMEORIGINAL, ExifTagType::Ascii),
-    TagInfo(EXIF_OFFSETTIMEDIGITIZED, ExifTagType::Ascii),
+    TagInfo(EXIF_DATETIMEDIGITIZED, ExifTagType::Ascii),
     TagInfo(EXIF_OFFSETTIME, ExifTagType::Ascii),
     TagInfo(EXIF_OFFSETTIMEORIGINAL, ExifTagType::Ascii),
     TagInfo(EXIF_OFFSETTIMEDIGITIZED, ExifTagType::Ascii),
+    TagInfo(EXIF_FLASH, ExifTagType::Short),
+    TagInfo(EXIF_FOCALLENGTH, ExifTagType::Rational),
     TagInfo(EXIF_COLORSPACE, ExifTagType::Short),
     TagInfo(EXIF_PIXELXDIM, ExifTagType::Long),
     TagInfo(EXIF_PIXELYDIM, ExifTagType::Long),
+    TagInfo(EXIF_EXPOSUREMODE, ExifTagType::Short),
+    TagInfo(EXIF_WHITEBALANCE, ExifTagType::Short),
+    TagInfo(EXIF_DIGITALZOOMRATIO, ExifTagType::Rational),
     TagInfo(EXIF_IMAGEUNIQUEID, ExifTagType::Ascii),
     TagInfo(EXIF_BODYSERIALNUMBER, ExifTagType::Ascii),
     TagInfo(EXIF_LENSMAKE, ExifTagType::Utf8),
@@ -155,6 +175,8 @@ static const KnownTags staticGpsTagTypes = {
     TagInfo(GPS_LONGITUDE, ExifTagType::Rational),
     TagInfo(GPS_ALTITUDEREF, ExifTagType::Byte),
     TagInfo(GPS_ALTITUDE, ExifTagType::Rational),
+    TagInfo(GPS_SPEEDREF, ExifTagType::Ascii),
+    TagInfo(GPS_SPEED, ExifTagType::Rational),
     TagInfo(GPS_IMGDIRECTIONREF, ExifTagType::Ascii),
     TagInfo(GPS_IMGDIRECTION, ExifTagType::Rational)
 };
@@ -317,7 +339,7 @@ static void writeList(QDataStream &ds, const QVariant &value)
 inline qint32 rationalPrecision(double v)
 {
     v = qAbs(v);
-    return 8 - qBound(0, v < 1 ? 8 : int(std::log10(v)), 8);
+    return v < 1 ? 8 : 8 - qBound(0, int(std::log10(v)), 8);
 }
 
 template<class T>
@@ -884,7 +906,7 @@ QDateTime MicroExif::dateTime() const
     auto ofTag = exifString(EXIF_OFFSETTIME);
     if (dt.isValid() && !ofTag.isEmpty())
         dt.setTimeZone(QTimeZone::fromSecondsAheadOfUtc(timeOffset(ofTag) * 60));
-    return(dt);
+    return dt;
 }
 
 void MicroExif::setDateTime(const QDateTime &dt)
@@ -904,7 +926,7 @@ QDateTime MicroExif::dateTimeOriginal() const
     auto ofTag = exifString(EXIF_OFFSETTIMEORIGINAL);
     if (dt.isValid() && !ofTag.isEmpty())
         dt.setTimeZone(QTimeZone::fromSecondsAheadOfUtc(timeOffset(ofTag) * 60));
-    return(dt);
+    return dt;
 }
 
 void MicroExif::setDateTimeOriginal(const QDateTime &dt)
@@ -924,7 +946,7 @@ QDateTime MicroExif::dateTimeDigitized() const
     auto ofTag = exifString(EXIF_OFFSETTIMEDIGITIZED);
     if (dt.isValid() && !ofTag.isEmpty())
         dt.setTimeZone(QTimeZone::fromSecondsAheadOfUtc(timeOffset(ofTag) * 60));
-    return(dt);
+    return dt;
 }
 
 void MicroExif::setDateTimeDigitized(const QDateTime &dt)
@@ -964,6 +986,138 @@ void MicroExif::setUniqueId(const QUuid &uuid)
         setExifString(EXIF_IMAGEUNIQUEID, QString());
     else
         setExifString(EXIF_IMAGEUNIQUEID, uuid.toString(QUuid::WithoutBraces).replace(QStringLiteral("-"), QString()));
+}
+
+double MicroExif::digitalZoomRatio() const
+{
+    if (!m_exifTags.contains(EXIF_DIGITALZOOMRATIO))
+        return qQNaN();
+    return m_exifTags.value(EXIF_DIGITALZOOMRATIO).toDouble();
+
+}
+
+void MicroExif::setDigitalZoomRatio(double zoom)
+{
+    if (qIsNaN(zoom))
+        m_exifTags.remove(EXIF_DIGITALZOOMRATIO);
+    else
+        m_exifTags.insert(EXIF_DIGITALZOOMRATIO, zoom);
+}
+
+quint16 MicroExif::isoSpeedRatings() const
+{
+    return quint16(m_exifTags.value(EXIF_ISOSPEEDRATINGS).toUInt());
+}
+
+void MicroExif::setIsoSpeedRatings(quint16 iso)
+{
+    if (iso == 0)
+        m_exifTags.remove(EXIF_ISOSPEEDRATINGS);
+    else
+        m_exifTags.insert(EXIF_ISOSPEEDRATINGS, iso);
+}
+
+ExposureMode MicroExif::exposureMode() const
+{
+    auto ok = false;
+    auto v = m_exifTags.value(EXIF_EXPOSUREMODE).toUInt(&ok);
+    return ok ? ExposureMode(v) : ExposureMode::NotSet;
+}
+
+void MicroExif::setExposureMode(const ExposureMode &em)
+{
+    if (em == ExposureMode::NotSet)
+        m_exifTags.remove(EXIF_EXPOSUREMODE);
+    else
+        m_exifTags.insert(EXIF_EXPOSUREMODE, quint16(em));
+}
+
+ExposureProgram MicroExif::exposureProgram() const
+{
+    auto ok = false;
+    auto v = m_exifTags.value(EXIF_EXPOSUREPROGRAM).toUInt(&ok);
+    return ok ? ExposureProgram(v) : ExposureProgram::NotSet;
+}
+
+void MicroExif::setExposureProgram(const ExposureProgram &ep)
+{
+    if (ep == ExposureProgram::NotSet)
+        m_exifTags.remove(EXIF_EXPOSUREPROGRAM);
+    else
+        m_exifTags.insert(EXIF_EXPOSUREPROGRAM, quint16(ep));
+}
+
+double MicroExif::exposureTime() const
+{
+    if (!m_exifTags.contains(EXIF_EXPOSURETIME))
+        return qQNaN();
+    return m_exifTags.value(EXIF_EXPOSURETIME).toDouble();
+}
+
+void MicroExif::setExposureTime(double et)
+{
+    if (qIsNaN(et))
+        m_exifTags.remove(EXIF_EXPOSURETIME);
+    else
+        m_exifTags.insert(EXIF_EXPOSURETIME, et);
+}
+
+double MicroExif::fNumber() const
+{
+    if (!m_exifTags.contains(EXIF_FNUMBER))
+        return qQNaN();
+    return m_exifTags.value(EXIF_FNUMBER).toDouble();
+}
+
+void MicroExif::setFNumber(double f)
+{
+    if (qIsNaN(f))
+        m_exifTags.remove(EXIF_FNUMBER);
+    else
+        m_exifTags.insert(EXIF_FNUMBER, f);
+}
+
+double MicroExif::focalLength() const
+{
+    if (!m_exifTags.contains(EXIF_FOCALLENGTH))
+        return qQNaN();
+    return m_exifTags.value(EXIF_FOCALLENGTH).toDouble();
+}
+
+void MicroExif::setFocalLength(double fl)
+{
+    if (qIsNaN(fl))
+        m_exifTags.remove(EXIF_FOCALLENGTH);
+    else
+        m_exifTags.insert(EXIF_FOCALLENGTH, fl);
+}
+
+FlashFlags MicroExif::flash() const
+{
+    return FlashFlags(m_exifTags.value(EXIF_FLASH).toUInt());
+}
+
+void MicroExif::setFlash(const FlashFlags &flash)
+{
+    if (flash == Flash::NotSet)
+        m_exifTags.remove(EXIF_FLASH);
+    else
+        m_exifTags.insert(EXIF_FLASH, quint16(flash));
+}
+
+WhiteBalance MicroExif::whiteBalance() const
+{
+    auto ok = false;
+    auto v = m_exifTags.value(EXIF_WHITEBALANCE).toUInt(&ok);
+    return ok ? WhiteBalance(v) : WhiteBalance::NotSet;
+}
+
+void MicroExif::setWhiteBalance(const WhiteBalance &wb)
+{
+    if (wb == WhiteBalance::NotSet)
+        m_exifTags.remove(EXIF_WHITEBALANCE);
+    else
+        m_exifTags.insert(EXIF_WHITEBALANCE, quint16(wb));
 }
 
 double MicroExif::latitude() const
@@ -1043,6 +1197,30 @@ void MicroExif::setAltitude(double meters)
     }
     m_gpsTags.insert(GPS_ALTITUDEREF, quint8(meters < 0 ? 1 : 0));
     m_gpsTags.insert(GPS_ALTITUDE, meters);
+}
+
+double MicroExif::imageSpeed() const
+{
+    if (!m_gpsTags.contains(GPS_SPEED))
+        return qQNaN();
+    auto ref = gpsString(GPS_SPEEDREF).toUpper();
+    auto speed = m_gpsTags.value(GPS_SPEED).toDouble();
+    if (ref == QStringLiteral("M"))
+        speed *= 1.60934;
+    else if (ref == QStringLiteral("N"))
+        speed *= 1.852;
+    return speed;
+}
+
+void MicroExif::setImageSpeed(double kmh)
+{
+    if (qIsNaN(kmh)) {
+        m_gpsTags.remove(GPS_SPEEDREF);
+        m_gpsTags.remove(GPS_SPEED);
+        return;
+    }
+    m_gpsTags.insert(GPS_SPEEDREF, QStringLiteral("K"));
+    m_gpsTags.insert(GPS_SPEED, kmh);
 }
 
 double MicroExif::imageDirection(bool *isMagnetic) const
@@ -1191,6 +1369,58 @@ void MicroExif::updateImageMetadata(QImage &targetImage, bool replaceExisting) c
         if (!qIsNaN(v))
             targetImage.setText(QStringLiteral(META_KEY_DIRECTION), QStringLiteral("%1").arg(v, 0, 'g', 9));
     }
+    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_SPEED)).isEmpty()) {
+        auto v = imageSpeed();
+        if (!qIsNaN(v))
+            targetImage.setText(QStringLiteral(META_KEY_SPEED), QStringLiteral("%1").arg(v, 0, 'g', 9));
+    }
+
+    // shot info
+    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_DIGITALZOOMRATIO)).isEmpty()) {
+        auto v = digitalZoomRatio();
+        if (!qIsNaN(v))
+            targetImage.setText(QStringLiteral(META_KEY_DIGITALZOOMRATIO), QStringLiteral("%1").arg(v, 0, 'g', 9));
+    }
+    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_EXPOSUREMODE)).isEmpty()) {
+        auto v = exposureMode();
+        if (v != ExposureMode::NotSet)
+            targetImage.setText(QStringLiteral(META_KEY_EXPOSUREMODE), QStringLiteral("%1").arg(quint16(v)));
+    }
+    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_EXPOSUREPROGRAM)).isEmpty()) {
+        auto v = exposureProgram();
+        if (v != ExposureProgram::NotSet)
+            targetImage.setText(QStringLiteral(META_KEY_EXPOSUREPROGRAM), QStringLiteral("%1").arg(quint16(v)));
+    }
+    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_EXPOSURETIME)).isEmpty()) {
+        auto v = exposureTime();
+        if (!qIsNaN(v))
+            targetImage.setText(QStringLiteral(META_KEY_EXPOSURETIME), QStringLiteral("%1").arg(v, 0, 'g', 9));
+    }
+    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_FLASH)).isEmpty()) {
+        auto v = flash();
+        if (v != Flash::NotSet)
+            targetImage.setText(QStringLiteral(META_KEY_FLASH), QStringLiteral("%1").arg(quint16(v)));
+    }
+    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_FNUMBER)).isEmpty()) {
+        auto v = fNumber();
+        if (!qIsNaN(v))
+            targetImage.setText(QStringLiteral(META_KEY_FNUMBER), QStringLiteral("%1").arg(v, 0, 'g', 9));
+    }
+    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_FOCALLENGTH)).isEmpty()) {
+        auto v = focalLength();
+        if (!qIsNaN(v))
+            targetImage.setText(QStringLiteral(META_KEY_FOCALLENGTH), QStringLiteral("%1").arg(v, 0, 'g', 9));
+    }
+    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_ISOSPEEDRATINGS)).isEmpty()) {
+        auto v = isoSpeedRatings();
+        if (v != 0)
+            targetImage.setText(QStringLiteral(META_KEY_ISOSPEEDRATINGS), QStringLiteral("%1").arg(v));
+    }
+    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_WHITEBALANCE)).isEmpty()) {
+        auto v = whiteBalance();
+        if (v != WhiteBalance::NotSet)
+            targetImage.setText(QStringLiteral(META_KEY_WHITEBALANCE), QStringLiteral("%1").arg(quint16(v)));
+    }
 }
 
 bool MicroExif::updateImageResolution(QImage &targetImage)
@@ -1217,7 +1447,7 @@ MicroExif MicroExif::fromByteArray(const QByteArray &ba, bool searchHeader)
             idx = std::min(idxLE, idxBE);
         else
             idx = idxLE > -1 ? idxLE : idxBE;
-        if(idx > 0)
+        if (idx > 0)
             ba0 = ba0.mid(idx);
     }
     QBuffer buf;
@@ -1308,7 +1538,7 @@ MicroExif MicroExif::fromImage(const QImage &image)
         dt = QDateTime::currentDateTime();
     exif.setDateTimeOriginal(dt);
 
-    // GPS Info
+    // GPS info
     auto ok = false;
     auto alt = image.text(QStringLiteral(META_KEY_ALTITUDE)).toDouble(&ok);
     if (ok)
@@ -1322,6 +1552,38 @@ MicroExif MicroExif::fromImage(const QImage &image)
     auto dir = image.text(QStringLiteral(META_KEY_DIRECTION)).toDouble(&ok);
     if (ok)
         exif.setImageDirection(dir);
+    auto spd = image.text(QStringLiteral(META_KEY_SPEED)).toDouble(&ok);
+    if (ok)
+        exif.setImageSpeed(spd);
+
+    // EXIF shot info
+    auto zoom = image.text(QStringLiteral(META_KEY_DIGITALZOOMRATIO)).toDouble(&ok);
+    if (ok)
+        exif.setDigitalZoomRatio(zoom);
+    auto expm = image.text(QStringLiteral(META_KEY_EXPOSUREMODE)).toUShort(&ok);
+    if (ok)
+        exif.setExposureMode(ExposureMode(expm));
+    auto expp = image.text(QStringLiteral(META_KEY_EXPOSUREPROGRAM)).toUShort(&ok);
+    if (ok)
+        exif.setExposureProgram(ExposureProgram(expp));
+    auto expt = image.text(QStringLiteral(META_KEY_EXPOSURETIME)).toDouble(&ok);
+    if (ok)
+        exif.setExposureTime(expt);
+    auto flsh = image.text(QStringLiteral(META_KEY_FLASH)).toUShort(&ok);
+    if (ok)
+        exif.setFlash(FlashFlags(flsh));
+    auto fnum = image.text(QStringLiteral(META_KEY_FNUMBER)).toDouble(&ok);
+    if (ok)
+        exif.setFNumber(fnum);
+    auto flen = image.text(QStringLiteral(META_KEY_FOCALLENGTH)).toDouble(&ok);
+    if (ok)
+        exif.setFocalLength(flen);
+    auto isos = image.text(QStringLiteral(META_KEY_ISOSPEEDRATINGS)).toUShort(&ok);
+    if (ok)
+        exif.setIsoSpeedRatings(isos);
+    auto whtb = image.text(QStringLiteral(META_KEY_WHITEBALANCE)).toUShort(&ok);
+    if (ok)
+        exif.setWhiteBalance(WhiteBalance(whtb));
 
     return exif;
 }
