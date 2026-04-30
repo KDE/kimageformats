@@ -16,6 +16,7 @@ The following image formats have read-only support:
 
 - Animated Windows cursors (ani)
 - Camera RAW images (arw, cr2, cr3, dcs, dng, ...)
+- Farbfeld (ff)
 - Gimp (xcf)
 - Interchange Format Files (iff, ilbm, lbm)
 - Krita (kra)
@@ -256,6 +257,7 @@ limit depends on the format encoding).
 - DDS: 300,000 x 300,000 pixels
 - EXR: 300,000 x 300,000 pixels
 - EPS: same size as Qt's JPG plugin
+- FF: 300,000 x 300,000 pixels
 - HDR: 300,000 x 300,000 pixels
 - HEIF: n/a
 - IFF: 65,535 x 65,535 pixels
