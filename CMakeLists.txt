@@ -107,7 +107,7 @@ add_feature_info(LibJXR LibJXR_FOUND "required for the QImage plugin for JPEG XR
 
 ecm_set_disabled_deprecation_versions(
     QT 6.11.0
-    KF 6.23.0
+    KF 6.26.0
 )
 
 add_subdirectory(src)
