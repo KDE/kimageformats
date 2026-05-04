@@ -996,7 +996,7 @@ private:
             return true;
         }
 
-        DESCRIPTIVEMETADATA meta;
+        DESCRIPTIVEMETADATA meta = {};
         if (pDecoder->GetDescriptiveMetadata(pDecoder, &meta)) {
             return false;
         }
