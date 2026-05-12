@@ -4069,8 +4069,19 @@ QByteArray DBODChunk::strideRead(QIODevice *d, qint32, const DGBLChunk *header, 
     }
 
     // Uncompressed, Rle and TvDeepCompression: one line at a time.
-    if (rr != size)
+    if (rr != size) {
         return {};
+    }
+
+    // byte swap
+    if (auto count = pel->count()) {
+        if (pel->depth() / count == 16) {
+            for (auto x = 0, w = qint32(planes.size()) - 1; x < w; x += 2) {
+                std::swap(planes[x], planes[x + 1]);
+            }
+        }
+    }
+
     return planes;
 }
 
