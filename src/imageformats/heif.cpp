@@ -14,6 +14,7 @@
 #include <libheif/heif_properties.h>
 
 #include <QColorSpace>
+#include <QImageReader>
 #include <QLoggingCategory>
 #include <QPointF>
 #include <QSysInfo>
@@ -63,6 +64,58 @@ bool HEIFHandler::m_heif_encoder_available = false;
 bool HEIFHandler::m_hej2_decoder_available = false;
 bool HEIFHandler::m_hej2_encoder_available = false;
 bool HEIFHandler::m_avci_decoder_available = false;
+
+/*!
+ * \brief create_heif_reader_for_qiodevice
+ * Create a heif_reader structure that wraps a QIODevice for streaming
+ * \return heif_reader structure with callbacks delegating to QIODevice
+ */
+static heif_reader create_heif_reader_for_qiodevice()
+{
+    heif_reader reader = {};
+
+    reader.reader_api_version = 1;
+
+    reader.get_position = [](void* userdata) -> int64_t {
+        QIODevice* device = static_cast<QIODevice*>(userdata);
+        return device->pos();
+    };
+
+    reader.read = [](void* data, size_t size, void* userdata) -> int {
+        QIODevice* device = static_cast<QIODevice*>(userdata);
+        qint64 bytesRead = device->read(static_cast<char*>(data), size);
+        if (bytesRead == -1) {
+            return -1; // Error
+        }
+        if (bytesRead != size) {
+            // We expected to read 'size' bytes but got less.
+            // This is an error because we should have known the size.
+            return -1; // Error
+        }
+        return 0; // Success
+    };
+
+    reader.seek = [](int64_t position, void* userdata) -> int {
+        QIODevice* device = static_cast<QIODevice*>(userdata);
+        return device->seek(position) ? 0 : -1;
+    };
+
+    reader.wait_for_file_size = [](int64_t target_size, void* userdata) -> heif_reader_grow_status {
+        QIODevice* device = static_cast<QIODevice*>(userdata);
+        if (target_size <= device->size()) {
+            return heif_reader_grow_status_size_reached;
+        }
+        return heif_reader_grow_status_size_beyond_eof;
+    };
+
+    // Version 2 functions set to NULL as we don't need them for simple streaming
+    reader.request_range = nullptr;
+    reader.preload_range_hint = nullptr;
+    reader.release_file_range = nullptr;
+    reader.release_error_msg = nullptr; // We use static error strings
+
+    return reader;
+}
 
 extern "C" {
 static struct heif_error heifhandler_write_callback(struct heif_context * /* ctx */, const void *data, size_t size, void *userdata)
@@ -621,17 +674,48 @@ bool HEIFHandler::ensureDecoder()
         return false;
     }
 
-    const QByteArray buffer = device()->readAll();
+    QIODevice *dev = device();
+    if (dev == nullptr) {
+        qCCritical(LOG_HEIFPLUGIN) << "create_heif_reader_for_qiodevice error: device is null";
+        m_parseState = ParseHeicError;
+        return false;
+    }
+
+    QByteArray buffer = dev->peek(28);
     if (!HEIFHandler::isSupportedBMFFType(buffer) && !HEIFHandler::isSupportedHEJ2(buffer) && !HEIFHandler::isSupportedAVCI(buffer)) {
         m_parseState = ParseHeicError;
         return false;
     }
 
     struct heif_context *ctx = heif_context_alloc();
-    struct heif_error err = heif_context_read_from_memory(ctx, static_cast<const void *>(buffer.constData()), buffer.size(), nullptr);
+    struct heif_error err;
 
+#if LIBHEIF_HAVE_VERSION(1, 19, 1)
+    if (auto heif_limits = heif_context_get_security_limits(ctx)) {
+        heif_limits->max_image_size_pixels = quint64(HEIF_MAX_IMAGE_WIDTH) * HEIF_MAX_IMAGE_HEIGHT;
+        heif_limits->max_memory_block_size = quint64(QImageReader::allocationLimit()) * 1024 * 1024;
+#if LIBHEIF_HAVE_VERSION(1, 20, 0)
+        heif_limits->max_total_memory = heif_limits->max_memory_block_size;
+#endif
+        err = heif_context_set_security_limits(ctx, heif_limits);
+        if (err.code) {
+            qCWarning(LOG_HEIFPLUGIN) << "heif_context_set_security_limits error:" << err.message;
+            heif_context_free(ctx);
+            m_parseState = ParseHeicError;
+            return false;
+        }
+    }
+#endif
+
+    if (dev->isSequential()) {
+        buffer = deviceRead(dev, kMaxQVectorSize);
+        err = heif_context_read_from_memory(ctx, static_cast<const void *>(buffer.constData()), buffer.size(), nullptr);
+    } else {
+        heif_reader reader = create_heif_reader_for_qiodevice();
+        err = heif_context_read_from_reader(ctx, &reader, dev, nullptr);
+    }
     if (err.code) {
-        qCWarning(LOG_HEIFPLUGIN) << "heif_context_read_from_memory error:" << err.message;
+        qCWarning(LOG_HEIFPLUGIN) << "heif_context_read_from_reader error:" << err.message;
         heif_context_free(ctx);
         m_parseState = ParseHeicError;
         return false;
