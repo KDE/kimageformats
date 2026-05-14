@@ -248,18 +248,19 @@ Anyway, all plugins are also limited by the
 
 > [!note]
 > You can change the maximum limit of 300000 pixels by setting the constant
-> `KIF_LARGE_IMAGE_PIXEL_LIMIT` to the desired value in the cmake file.
+> `KIF_LARGE_IMAGE_PIXEL_LIMIT` to the desired value in the cmake file. It 
+> cannot be less than 65536.
 
 Below are the maximum sizes for each plugin ('n/a' means no limit, i.e. the 
 limit depends on the format encoding).
-- ANI: n/a
+- ANI: same size as Qt's ICO plugin
 - AVIF: 32,768 x 32,768 pixels, in any case no larger than 256 megapixels
 - DDS: 300,000 x 300,000 pixels
 - EXR: 300,000 x 300,000 pixels
 - EPS: same size as Qt's JPG plugin
 - FF: 300,000 x 300,000 pixels
 - HDR: 300,000 x 300,000 pixels
-- HEIF: n/a
+- HEIF: 65,535 x 65,535 pixels
 - IFF: 65,535 x 65,535 pixels
 - JP2: 300,000 x 300,000 pixels, in any case no larger than 2 gigapixels
 - JXL: 262,144 x 262,144 pixels, in any case no larger than 256 megapixels

@@ -46,6 +46,16 @@ Q_LOGGING_CATEGORY(LOG_HEIFPLUGIN, "kf.imageformats.plugins.heif", QtWarningMsg)
 // #define HEIF_DISABLE_QT_TRANSFORMATION
 #endif
 
+/* *** HEIF_MAX_IMAGE_WIDTH and HEIF_MAX_IMAGE_HEIGHT ***
+ * The maximum size in pixel allowed by the plugin.
+ */
+#ifndef HEIF_MAX_IMAGE_WIDTH
+#define HEIF_MAX_IMAGE_WIDTH KIF_64K_IMAGE_PIXEL_LIMIT
+#endif
+#ifndef HEIF_MAX_IMAGE_HEIGHT
+#define HEIF_MAX_IMAGE_HEIGHT HEIF_MAX_IMAGE_WIDTH
+#endif
+
 size_t HEIFHandler::m_initialized_count = 0;
 bool HEIFHandler::m_plugins_queried = false;
 bool HEIFHandler::m_heif_decoder_available = false;
@@ -134,6 +144,11 @@ bool HEIFHandler::write(const QImage &image)
 {
     if (image.format() == QImage::Format_Invalid || image.isNull()) {
         qCWarning(LOG_HEIFPLUGIN) << "No image data to save";
+        return false;
+    }
+
+    if (image.width() >= HEIF_MAX_IMAGE_WIDTH || image.height() >= HEIF_MAX_IMAGE_HEIGHT) {
+        qCWarning(LOG_HEIFPLUGIN) << "Image size invalid:" << image.width() << "x" << image.height();
         return false;
     }
 
@@ -714,14 +729,17 @@ bool HEIFHandler::ensureDecoder()
     const int imageWidth = heif_image_get_width(img, heif_channel_interleaved);
     const int imageHeight = heif_image_get_height(img, heif_channel_interleaved);
 
-    QSize imageSize(imageWidth, imageHeight);
+    QSize imageSize;
+    if (imageWidth < HEIF_MAX_IMAGE_WIDTH && imageHeight < HEIF_MAX_IMAGE_HEIGHT) {
+        imageSize = QSize(imageWidth, imageHeight);
+    }
 
     if (!imageSize.isValid()) {
         heif_image_release(img);
         heif_image_handle_release(handle);
         heif_context_free(ctx);
         m_parseState = ParseHeicError;
-        qCWarning(LOG_HEIFPLUGIN) << "HEIC image size invalid:" << imageSize;
+        qCWarning(LOG_HEIFPLUGIN) << "HEIC image size invalid:" << imageWidth << "x" << imageHeight;
         return false;
     }
 
