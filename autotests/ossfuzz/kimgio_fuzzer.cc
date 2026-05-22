@@ -29,6 +29,7 @@
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QImage>
+#include <QImageReader>
 
 #include "ani_p.h"
 #include "avif_p.h"
@@ -61,6 +62,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     int argc = 0;
     QCoreApplication a(argc, nullptr);
+
+    QImageReader::setAllocationLimit(2000);
 
     QImageIOHandler* handler = new HANDLER();
 
