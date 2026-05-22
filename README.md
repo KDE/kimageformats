@@ -449,7 +449,12 @@ plugin:
 > [!caution]
 > The plugin disabled by default due to security issues in [jxrlib](https://github.com/4creators/jxrlib): 
 > the upstream jxrlib is dead and there is no "hope" they will fix the issues.
+>
 > **You should not enable it unless you know what you are doing.**
+
+> [!note]
+> Security issues in the jxrlib discovered by the [KImageFormats OSS-Fuzz project](https://github.com/google/oss-fuzz/tree/master/projects/kimageformats) 
+> should be fixed in this [jxrlib fork](https://github.com/mircomir/jxrlib).
 
 The following defines can be defined in cmake to modify the behavior of the 
 plugin:
@@ -463,9 +468,6 @@ plugin:
   it only wants (P)BGRA32bpp files (a format not supported by Qt). Only for 
   this format an hack is activated to guarantee total compatibility of the 
   plugin with Windows.
-- `JXR_ENABLE_ADVANCED_METADATA`: enable metadata support (e.g. XMP). Some 
-  distributions use an incomplete JXR library that does not allow reading 
-  metadata, causing compilation errors.
 
 ### The KRA plugin
 

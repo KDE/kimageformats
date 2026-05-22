@@ -43,41 +43,39 @@ Q_LOGGING_CATEGORY(LOG_JXRPLUGIN, "kf.imageformats.plugins.jxr", QtWarningMsg)
 #endif
 
 /*!
- * Support for float images
+ * \brief JXR_DENY_FLOAT_IMAGE
  *
- * NOTE: Float images have values greater than 1 so they need an additional in place conversion.
+ * When defined, disables the support for float images.
+ * \note Float images have values greater than 1 so they need an additional in place conversion.
  */
+#ifndef JXR_DENY_FLOAT_IMAGE
 // #define JXR_DENY_FLOAT_IMAGE // default commented
+#endif
 
 /*!
- * Remove the needs of additional memory by disabling the conversion between
- * different color depths (e.g. RGBA64bpp to RGBA32bpp).
+ * \brief JXR_DISABLE_DEPTH_CONVERSION
  *
- * NOTE: Leaving deptch conversion enabled (default) ensures maximum read compatibility.
+ * When defined, removes the needs of additional memory by disabling the conversion between
+ * different color depths (e.g. RGBA64bpp to RGBA32bpp).
+ * \note Leaving depth conversion enabled (default) ensures maximum read compatibility.
  */
+#ifndef JXR_DISABLE_DEPTH_CONVERSION
 // #define JXR_DISABLE_DEPTH_CONVERSION // default commented
+#endif
 
 /*!
+ * \brief JXR_DISABLE_BGRA_HACK
+ *
+ * When defined, disables Windows compatibility for BGRs.
+ *
  * Windows displays and opens JXR files correctly out of the box. Unfortunately it doesn't
  * seem to open (P)RGBA @32bpp files as it only wants (P)BGRA32bpp files (a format not supported by Qt).
- * Only for this format an hack is activated to guarantee total compatibility of the plugin with Windows.
+ * Only for this format, an hack is activated to guarantee total compatibility of the plugin with Windows,
+ * at the cost of some overhead.
  */
+#ifndef JXR_DISABLE_BGRA_HACK
 // #define JXR_DISABLE_BGRA_HACK // default commented
-
-/*!
- * The following functions are present in the Debian headers but not in the SUSE ones even if the source version is 1.0.1 on both.
- *
- * - ERR PKImageDecode_GetXMPMetadata_WMP(PKImageDecode *pID, U8 *pbXMPMetadata, U32 *pcbXMPMetadata);
- * - ERR PKImageDecode_GetEXIFMetadata_WMP(PKImageDecode *pID, U8 *pbEXIFMetadata, U32 *pcbEXIFMetadata);
- * - ERR PKImageDecode_GetGPSInfoMetadata_WMP(PKImageDecode *pID, U8 *pbGPSInfoMetadata, U32 *pcbGPSInfoMetadata);
- * - ERR PKImageDecode_GetIPTCNAAMetadata_WMP(PKImageDecode *pID, U8 *pbIPTCNAAMetadata, U32 *pcbIPTCNAAMetadata);
- * - ERR PKImageDecode_GetPhotoshopMetadata_WMP(PKImageDecode *pID, U8 *pbPhotoshopMetadata, U32 *pcbPhotoshopMetadata);
- *
- * As a result, their use is disabled by default. It is possible to activate their use by defining the
- * JXR_ENABLE_ADVANCED_METADATA preprocessor directive
- */
-
-// #define JXR_ENABLE_ADVANCED_METADATA
+#endif
 
 /* *** JXR_MAX_IMAGE_WIDTH and JXR_MAX_IMAGE_HEIGHT ***
  * The maximum size in pixel allowed by the plugin.
@@ -89,11 +87,23 @@ Q_LOGGING_CATEGORY(LOG_JXRPLUGIN, "kf.imageformats.plugins.jxr", QtWarningMsg)
 #define JXR_MAX_IMAGE_HEIGHT JXR_MAX_IMAGE_WIDTH
 #endif
 
-#ifndef JXR_MAX_METADATA_SIZE
 /*!
- * XMP and EXIF maximum size.
+ * \brief JXR_MAX_METADATA_SIZE
+ *
+ * XMP and EXIF maximum size in bytes.
  */
+#ifndef JXR_MAX_METADATA_SIZE
 #define JXR_MAX_METADATA_SIZE (4 * 1024 * 1024)
+#endif
+
+/*
+ * Compatibility with older libraries
+ */
+#ifndef JXR_MAKEVERSION
+#define JXR_MAKEVERSION(major, minor, patch) (((major) << 16) | ((minor) << 8) | (patch))
+#endif
+#ifndef JXR_VERSION
+#define JXR_VERSION JXR_MAKEVERSION(1, 1, 0)
 #endif
 
 class JXRHandlerPrivate : public QSharedData
@@ -461,7 +471,7 @@ public:
         if (pDecoder == nullptr) {
             return xmp;
         }
-#ifdef JXR_ENABLE_ADVANCED_METADATA
+#if JXR_VERSION >= JXR_MAKEVERSION(1, 4, 0)
         quint32 size = 0;
         if (!PKImageDecode_GetXMPMetadata_WMP(pDecoder, nullptr, &size) && size > 0 && size < JXR_MAX_METADATA_SIZE) {
             QByteArray ba(size, 0);
@@ -963,6 +973,12 @@ private:
         if (pCodecFactory == nullptr) {
             return false;
         }
+
+#if JXR_VERSION >= JXR_MAKEVERSION(1, 4, 0)
+        // Prevents the library from making single large memory allocations.
+        // Note that it may still exceed it with multiple allocations.
+        PKAlloc_SetLimit(size_t(QImageReader::allocationLimit()) * 1024 * 1024);
+#endif
         if (auto err = pCodecFactory->CreateDecoderFromFile(qUtf8Printable(fileName()), &pDecoder)) {
             qCWarning(LOG_JXRPLUGIN) << "JXRHandlerPrivate::initDecoder() unable to create decoder:" << err;
             return false;
