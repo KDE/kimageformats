@@ -209,6 +209,8 @@ EXRHandler::EXRHandler()
 {
     // Set the number of threads to use (0 is allowed)
     Imf::setGlobalThreadCount(QThread::idealThreadCount() / 2);
+    // Set maximum image size
+    Imf::Header::setMaxImageSize(EXR_MAX_IMAGE_WIDTH, EXR_MAX_IMAGE_HEIGHT);
 }
 
 bool EXRHandler::canRead() const
