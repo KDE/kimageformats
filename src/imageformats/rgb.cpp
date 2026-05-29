@@ -353,7 +353,7 @@ bool SGIImagePrivate::readImage(QImage &img)
         return false;
     }
 
-    _data = _dev->readAll();
+    _data = deviceRead(_dev, kMaxQVectorSize);
 
     // sanity check
     if (_rle) {

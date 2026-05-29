@@ -16,6 +16,7 @@
 
 #include <jxl/cms.h>
 #include <jxl/encode.h>
+#include <jxl/memory_manager.h>
 #include <jxl/thread_parallel_runner.h>
 
 #include <string.h>
@@ -56,6 +57,21 @@ Q_LOGGING_CATEGORY(LOG_JXLPLUGIN, "kf.imageformats.plugins.jxl", QtWarningMsg)
 #define MAX_IMAGE_PIXELS FEATURE_LEVEL_5_PIXELS
 #endif
 
+void *QtJXLMemoryManagerAlloc(void *opaque, size_t size)
+{
+    if (opaque) {
+        size_t maxBytes = *(size_t*)opaque;
+        if (maxBytes && size > maxBytes)
+            return NULL;
+    }
+    return malloc(size);
+}
+
+void QtJXLMemoryManagerFree(void *, void *address)
+{
+    free(address);
+}
+
 QJpegXLHandler::QJpegXLHandler()
     : m_parseState(ParseJpegXLNotParsed)
     , m_quality(90)
@@ -70,6 +86,7 @@ QJpegXLHandler::QJpegXLHandler()
     , m_alpha_channel_id(0)
     , m_input_image_format(QImage::Format_Invalid)
     , m_target_image_format(QImage::Format_Invalid)
+    , m_maxBytes(size_t(QImageReader::allocationLimit()) * 1024 * 1024)
 {
 }
 
@@ -153,7 +170,7 @@ bool QJpegXLHandler::ensureDecoder()
         return true;
     }
 
-    m_rawData = device()->readAll();
+    m_rawData = deviceRead(device(), kMaxQVectorSize);
 
     if (m_rawData.isEmpty()) {
         return false;
@@ -165,7 +182,14 @@ bool QJpegXLHandler::ensureDecoder()
         return false;
     }
 
-    m_decoder = JxlDecoderCreate(nullptr);
+    // Creating a simple memory manager
+    JxlMemoryManager memory_manager = {
+        .opaque = &m_maxBytes,
+        .alloc = QtJXLMemoryManagerAlloc,
+        .free = QtJXLMemoryManagerFree
+    };
+    // Creating the decoder (it makes a deep copy of memory manager)
+    m_decoder = JxlDecoderCreate(&memory_manager);
     if (!m_decoder) {
         qCWarning(LOG_JXLPLUGIN, "ERROR: JxlDecoderCreate failed");
         m_parseState = ParseJpegXLError;

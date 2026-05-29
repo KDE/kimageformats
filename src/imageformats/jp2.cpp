@@ -12,7 +12,6 @@
 #include <QColorSpace>
 #include <QIODevice>
 #include <QImage>
-#include <QImageReader>
 #include <QLoggingCategory>
 #include <QThread>
 
@@ -187,7 +186,7 @@ public:
 
     bool isImageValid(const opj_image_t *i) const
     {
-        return i && i->comps && i->numcomps > 0;
+        return i && i->comps && i->numcomps > 0 && i->numcomps < 256;
     }
 
     void enableThreads(opj_codec_t *codec) const
@@ -359,15 +358,9 @@ public:
         }
 
         // OpenJPEG uses a shadow copy @32-bit/channel so we need to do a check
-        const int allocationLimit = QImageReader::allocationLimit();
-        if (allocationLimit > 0) {
-            auto maxBytes = qint64(allocationLimit) * 1024 * 1024;
-            auto neededBytes = qint64(width) * height * nchannels * 4;
-            if (maxBytes > 0 && neededBytes > maxBytes) {
-                qCCritical(LOG_JP2PLUGIN) << "Allocation limit set to" << (maxBytes / 1024 / 1024) << "MiB but" << (neededBytes / 1024 / 1024)
-                                          << "MiB are needed!";
-                return false;
-            }
+        if (!checkImageSize(width, height, nchannels * 4)) {
+            qCCritical(LOG_JP2PLUGIN) << "Rejecting image as it exceeds the current allocation limit.";
+            return false;
         }
 
         return true;
@@ -384,6 +377,11 @@ public:
         if (isImageValid(m_jp2_image)) {
             auto &&c0 = m_jp2_image->comps[0];
             auto tmp = QSize(c0.w, c0.h);
+            for (quint32 c = 1; c < m_jp2_image->numcomps; ++c) {
+                auto &&cc = m_jp2_image->comps[c];
+                if (QSize(cc.w, cc.h) != tmp)
+                    tmp = QSize();
+            }
             if (checkSizeLimits(tmp, m_jp2_image->numcomps))
                 sz = tmp;
         }

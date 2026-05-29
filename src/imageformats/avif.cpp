@@ -157,7 +157,7 @@ bool QAVIFHandler::ensureDecoder()
         return true;
     }
 
-    m_rawData = device()->readAll();
+    m_rawData = deviceRead(device(), kMaxQVectorSize);
 
     m_rawAvifData.data = reinterpret_cast<const uint8_t *>(m_rawData.constData());
     m_rawAvifData.size = m_rawData.size();

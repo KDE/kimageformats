@@ -12,6 +12,7 @@
 
 #include <QImage>
 #include <QImageIOHandler>
+#include <QImageReader>
 #include <QIODevice>
 #include <QPixelFormat>
 
@@ -88,7 +89,7 @@ enum class ImageInitToZero
  * \brief imageAlloc
  * Helper function to initialize framework images.
  * \param size The image size.
- * \param format The image format,
+ * \param format The image format.
  * \param init Whether and which images should be initialized to zero.
  * \return The allocated image or a null image on error.
  */
@@ -103,19 +104,58 @@ inline QImage imageAlloc(const QSize &size, const QImage::Format &format, const 
         auto isFloat = pixelFormat.typeInterpretation() == QPixelFormat::FloatingPoint;
         auto isPremul = pixelFormat.premultiplied();
         if (init == ImageInitToZero::All) {
-            img.fill(0);
+            img.fill(Qt::black);
         } else if (isFloat && (init == ImageInitToZero::FPOnly || init == ImageInitToZero::FPAndPremul)) {
-            img.fill(0);
+            img.fill(Qt::black);
         } else if (isPremul && (init == ImageInitToZero::PremulOnly || init == ImageInitToZero::FPAndPremul)) {
-            img.fill(0);
+            img.fill(Qt::black);
         }
     }
     return img;
 }
 
+/*!
+ * \brief imageAlloc
+ * Helper function to initialize framework images.
+ * \param width The image width.
+ * \param height The image height.
+ * \param format The image format.
+ * \param init Whether and which images should be initialized to zero.
+ * \return The allocated image or a null image on error.
+ */
 inline QImage imageAlloc(qint32 width, qint32 height, const QImage::Format &format, const ImageInitToZero& init = ImageInitToZero::None)
 {
     return imageAlloc(QSize(width, height), format, init);
+}
+
+/*!
+ * \brief checkImageSize
+ * Helper function to make sure the image size does not exceed the limit set in Qt.
+ * \param width The image width.
+ * \param height The image height.
+ * \param bytesPerPixel The number of bytes for each pixel of the image.
+ * \return True if the limit is respected, false otherwise.
+ */
+inline bool checkImageSize(qint32 width, qint32 height, qint32 bytesPerPixel)
+{
+    size_t maxBytes = size_t(QImageReader::allocationLimit()) * 1024 * 1024;
+    if (maxBytes == 0) {
+        return true;
+    }
+    size_t bytes = size_t(width) * height * bytesPerPixel;
+    return bytes <= maxBytes;
+}
+
+/*!
+ * \brief checkImageSize
+ * Helper function to make sure the image size does not exceed the limit set in Qt.
+ * \param size The image size.
+ * \param bytesPerPixel The number of bytes for each pixel of the image.
+ * \return True if the limit is respected, false otherwise.
+ */
+inline bool checkImageSize(const QSize& size, qint32 bytesPerPixel)
+{
+    return checkImageSize(size.width(), size.height(), bytesPerPixel);
 }
 
 template<class TI, class SF> // SF = source FP, TI = target INT
@@ -199,7 +239,7 @@ static QByteArray deviceRead(QIODevice *d, qint64 maxSize)
         return{};
     }
 
-    const qint64 blockSize = 32 * 1024 * 1024;
+    const qint64 blockSize = 1024 * 1024;
     auto devSize = d->isSequential() ? qint64() : d->size();
 
     if (devSize > 0) {

@@ -89,6 +89,8 @@ private:
     QImage::Format m_target_image_format;
 
     JxlPixelFormat m_input_pixel_format;
+
+    size_t m_maxBytes;
 };
 
 class QJpegXLPlugin : public QImageIOPlugin

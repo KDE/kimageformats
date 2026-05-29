@@ -89,12 +89,14 @@ const auto supported_formats = QSet<QByteArray>{
  * \brief rawImageSize
  * \return The size in pixels of the RAW image.
  */
-static QSize rawImageSize(LibRaw *rawProcessor)
+static QSize rawImageSize(LibRaw *rawProcessor, qint32 *bytesPerPixel = nullptr)
 {
-    auto w = libraw_get_iwidth(&rawProcessor->imgdata);
-    auto h = libraw_get_iheight(&rawProcessor->imgdata);
-    // flip & 4: taken from LibRaw code
-    return (rawProcessor->imgdata.sizes.flip & 4) ? QSize(h, w) : QSize(w, h);
+    int w = 0, h = 0, c = 0, b = 0;
+    rawProcessor->get_mem_image_format(&w, &h, &c, &b);
+    if (bytesPerPixel) {
+        *bytesPerPixel = std::max(1, b * c / 8);
+    }
+    return QSize(w, h);
 }
 
 inline int raw_scanf_one(const QByteArray &ba, const char *fmt, void *val)
@@ -381,9 +383,9 @@ QString createTag(libraw_gps_info_t gps, const char *tag)
         if (gps.latref != '\0') {
             auto lc = QLocale::c();
             auto value = QStringLiteral("%1,%2%3")
-                             .arg(lc.toString(gps.latitude[0], 'f', 0))
-                             .arg(lc.toString(gps.latitude[1] + gps.latitude[2] / 60, 'f', 4))
-                             .arg(QChar::fromLatin1(gps.latref));
+                             .arg(lc.toString(gps.latitude[0], 'f', 0),
+                                  lc.toString(gps.latitude[1] + gps.latitude[2] / 60, 'f', 4),
+                                  QChar::fromLatin1(gps.latref));
             return createTag(value, tag);
         }
     }
@@ -391,9 +393,9 @@ QString createTag(libraw_gps_info_t gps, const char *tag)
         if (gps.longref != '\0') {
             auto lc = QLocale::c();
             auto value = QStringLiteral("%1,%2%3")
-                             .arg(lc.toString(gps.longitude[0], 'f', 0))
-                             .arg(lc.toString(gps.longitude[1] + gps.longitude[2] / 60, 'f', 4))
-                             .arg(QChar::fromLatin1(gps.longref));
+                             .arg(lc.toString(gps.longitude[0], 'f', 0),
+                                  lc.toString(gps.longitude[1] + gps.longitude[2] / 60, 'f', 4),
+                                  QChar::fromLatin1(gps.longref));
             return createTag(value, tag);
         }
     }
@@ -688,7 +690,7 @@ bool LoadTHUMB(QImageIOHandler *handler, QImage &img)
         return false;
     }
 #else
-    auto all = device->readAll();
+    auto all = deviceRead(device(), kMaxQVectorSize);
     if (rawProcessor->open_buffer(all.data(), all.size()) != LIBRAW_SUCCESS) {
         return false;
     }
@@ -751,16 +753,21 @@ bool LoadRAW(QImageIOHandler *handler, QImage &img)
         return false;
     }
 #else
-    auto ba = device->readAll();
+    auto ba = deviceRead(device(), kMaxQVectorSize);
     if (rawProcessor->open_buffer(ba.data(), ba.size()) != LIBRAW_SUCCESS) {
         return false;
     }
 #endif
 
     // *** Limiting the maximum image size on a reasonable size
-    auto size = rawImageSize(rawProcessor.get());
+    qint32 bytesPerPixel = 0;
+    auto size = rawImageSize(rawProcessor.get(), &bytesPerPixel);
     if (size.width() >= RAW_MAX_IMAGE_WIDTH || size.height() >= RAW_MAX_IMAGE_HEIGHT) {
         qCWarning(LOG_RAWPLUGIN) << "The maximum image size is limited to" << (RAW_MAX_IMAGE_WIDTH - 1) << "x" << (RAW_MAX_IMAGE_HEIGHT - 1) << "px";
+        return false;
+    }
+    if (!checkImageSize(size, bytesPerPixel)) {
+        qCWarning(LOG_RAWPLUGIN) << "Rejecting image as it exceeds the current allocation limit.";
         return false;
     }
 
@@ -1056,7 +1063,7 @@ bool RAWHandler::canRead(QIODevice *device)
     LibRaw_QIODevice stream(device);
     auto ok = rawProcessor->open_datastream(&stream) == LIBRAW_SUCCESS;
 #else
-    auto ba = device->readAll();
+    auto ba = deviceRead(device(), kMaxQVectorSize);
     auto ok = rawProcessor->open_buffer(ba.data(), ba.size()) == LIBRAW_SUCCESS;
 #endif
 

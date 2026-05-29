@@ -12,16 +12,15 @@
 #include <QColorSpace>
 #include <QIODevice>
 #include <QImage>
-#include <QImageReader>
 #include <QList>
 #include <QLoggingCategory>
 #include <QPainter>
 #include <QStack>
 #include <QtEndian>
 
-#ifndef XCF_QT5_SUPPORT
-// Float images are not supported by Qt 5 and can be disabled in QT 6 to reduce memory usage.
-// Unfortunately enabling/disabling this define results in slightly different images, so leave the default if possible.
+// Float images can be disabled to reduce memory usage.
+// Unfortunately enabling/disabling this define results in slightly different images,
+// so leave the default if possible.
 #define USE_FLOAT_IMAGES // default uncommented
 
 // Let's set a "reasonable" maximum size
@@ -30,11 +29,6 @@
 #endif
 #ifndef XCF_MAX_IMAGE_HEIGHT
 #define XCF_MAX_IMAGE_HEIGHT XCF_MAX_IMAGE_WIDTH
-#endif
-#else
-// While it is possible to have images larger than 32767 pixels, QPainter seems unable to go beyond this threshold using Qt 5.
-#define XCF_MAX_IMAGE_WIDTH 32767
-#define XCF_MAX_IMAGE_HEIGHT 32767
 #endif
 
 #ifdef USE_FLOAT_IMAGES
@@ -1384,20 +1378,14 @@ bool XCFImageFormat::composeTiles(XCFImage &xcf_image)
         }
     }
 
-#ifndef XCF_QT5_SUPPORT
-    // Qt 6 image allocation limit calculation: we have to check the limit here because the image is split in
-    // tiles of 64x64 pixels. The required memory to build the image is at least doubled because tiles are loaded
+    // The required memory to build the image is at least doubled because tiles are loaded
     // and then the final image is created by copying the tiles inside it.
     // NOTE: on Windows to open a 10GiB image the plugin uses 28GiB of RAM
     const qint64 channels = 1 + (layer.type == RGB_GIMAGE ? 2 : 0) + (layer.type == RGBA_GIMAGE ? 3 : 0);
-    const int allocationLimit = QImageReader::allocationLimit();
-    if (allocationLimit > 0) {
-        if (qint64(layer.width) * qint64(layer.height) * channels * 2ll / 1024ll / 1024ll > allocationLimit) {
-            qCDebug(XCFPLUGIN) << "Rejecting image as it exceeds the current allocation limit of" << allocationLimit << "megabytes";
-            return false;
-        }
+    if (!checkImageSize(layer.width, layer.height, channels * 2)) {
+        qCDebug(XCFPLUGIN) << "Rejecting image as it exceeds the current allocation limit.";
+        return false;
     }
-#endif
 
     layer.image_tiles.resize(layer.nrows);
 
