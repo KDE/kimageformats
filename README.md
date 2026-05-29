@@ -244,7 +244,7 @@ RGB.
 Where possible, plugins support large images. By convention, many of the
 large image plugins are limited to a maximum of 300,000 x 300,000 pixels.
 Anyway, all plugins are also limited by the
-`QImageIOReader::allocationLimit()`.
+`QImageReader::allocationLimit()`.
 
 > [!note]
 > You can change the maximum limit of 300000 pixels by setting the constant
@@ -300,8 +300,18 @@ consumption proportional to the size of the image to be saved.
 Normally this is not a source of problems because the affected plugins
 are limited to maximum images of 2GiB or less.
 
+Note that the value of `QImageReader::allocationLimit()` is only used when 
+allocating a new `QImage`. Since this parameter was created to limit damage 
+caused by corrupted files, any conversion of `QImage` (for example, with 
+`QImage::convertTo()`) is not subject to this limit.
+
 On plugins for formats that support large images, progressive conversion has
 been used or the maximum size of the image that can be saved has been limited.
+Plugins that use external libraries don't always allow progressive decoding 
+(e.g., the JPEG series). In these cases, the memory required for reading 
+may be much larger than the entire decoded image. When the external library has 
+a maximum memory limit function, the value of `QImageReader::allocationLimit()` 
+is set.
 
 ### Non-RGB formats
 

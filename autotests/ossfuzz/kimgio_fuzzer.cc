@@ -63,7 +63,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     int argc = 0;
     QCoreApplication a(argc, nullptr);
 
-    QImageReader::setAllocationLimit(2000);
+    QImageReader::setAllocationLimit(512);
 
     QImageIOHandler* handler = new HANDLER();
 
