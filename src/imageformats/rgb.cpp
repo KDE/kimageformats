@@ -300,19 +300,15 @@ bool SGIImagePrivate::readImage(QImage &img)
         return false;
     }
 
+    if (_zsize > KIF_MAX_IMAGE_CHANNELS) {
+        qCDebug(LOG_RGBPLUGIN) << "Too many channels: the plugin is limited to" << KIF_MAX_IMAGE_CHANNELS << "channels";
+        return false;
+    }
+
     img = imageAlloc(size(), format());
     if (img.isNull()) {
         qCWarning(LOG_RGBPLUGIN) << "Failed to allocate image, invalid dimensions?" << QSize(_xsize, _ysize);
         return false;
-    }
-
-    if (_zsize > 4) {
-        //         qCDebug(LOG_RGBPLUGIN) << "using first 4 of " << _zsize << " channels";
-        // Only let this continue if it won't cause a int overflow later
-        // this is most likely a broken file anyway
-        if (_ysize > std::numeric_limits<int>::max() / _zsize) {
-            return false;
-        }
     }
 
     _numrows = _ysize * _zsize;

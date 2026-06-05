@@ -3756,9 +3756,7 @@ qint32 DPELChunk::count() const
         return 0;
     }
     auto cnt = i32(data(), 0);
-    if (cnt < 0 || cnt > 128) {
-        // an image should have 3, 4 or 5 channels:
-        // 128 is enough to give an error.
+    if (cnt < 0 || cnt > KIF_MAX_IMAGE_CHANNELS) {
         cnt = 0;
     }
     return cnt;

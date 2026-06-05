@@ -728,7 +728,7 @@ static bool IsValid(const PSDHeader &header)
     }
     // Specs tells: "Supported range is 1 to 56" but when the alpha channel is present the limit is 57:
     // Photoshop does not make you add more (see also 53alphas.psd test case).
-    if (header.channel_count < 1 || header.channel_count > 57) {
+    if (header.channel_count < 1 || header.channel_count > std::min(57, KIF_MAX_IMAGE_CHANNELS)) {
         qCDebug(LOG_PSDPLUGIN) << "PSD header: invalid number of channels" << header.channel_count;
         return false;
     }

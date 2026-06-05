@@ -105,7 +105,7 @@ static bool IsSupported(const QoiHeader &head)
         return false;
     }
     // Check if the header is a valid QOI header
-    if (head.Width == 0 || head.Height == 0 || head.Channels < 3 || head.Colorspace > 1) {
+    if (head.Width == 0 || head.Height == 0 || head.Channels < 3 || head.Channels > 4 || head.Colorspace > 1) {
         return false;
     }
     // Set a reasonable upper limit

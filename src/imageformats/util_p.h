@@ -16,6 +16,11 @@
 #include <QIODevice>
 #include <QPixelFormat>
 
+// Default maximum number of channels (do not exceed 256).
+#ifndef KIF_MAX_IMAGE_CHANNELS
+#define KIF_MAX_IMAGE_CHANNELS 60
+#endif
+
 // Default maximum width and height for the large image plugins.
 #ifndef KIF_LARGE_IMAGE_PIXEL_LIMIT
 #define KIF_LARGE_IMAGE_PIXEL_LIMIT 300000
