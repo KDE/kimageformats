@@ -1180,7 +1180,7 @@ bool QAVIFHandler::jumpToNextImage()
     if (m_decoder->imageIndex >= 0) {
         if (m_decoder->imageCount < 2) {
             m_parseState = ParseAvifSuccess;
-            return true;
+            return false;
         }
 
         if (m_decoder->imageIndex >= m_decoder->imageCount - 1) { // start from beginning
