@@ -33,8 +33,8 @@ git clone --depth 1 -b master https://invent.kde.org/frameworks/extra-cmake-modu
 git clone --depth 1 --branch=dev git://code.qt.io/qt/qtbase.git
 git clone --depth 1 --branch=dev git://code.qt.io/qt/qttools.git
 git clone --depth 1 -b master https://invent.kde.org/frameworks/karchive.git
-git clone --depth 1 -b v3.13.1 https://aomedia.googlesource.com/aom
-git clone --depth 1 -b v1.3.0 https://github.com/AOMediaCodec/libavif.git
+git clone --depth 1 -b v3.14.1 https://aomedia.googlesource.com/aom
+git clone --depth 1 -b v1.4.2 https://github.com/AOMediaCodec/libavif.git
 git clone --depth 1 https://github.com/strukturag/libde265.git
 git clone --depth 1 -b v2.5.4 https://github.com/uclouvain/openjpeg.git
 git clone --depth 1 https://github.com/strukturag/libheif.git
