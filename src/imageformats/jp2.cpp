@@ -186,7 +186,7 @@ public:
 
     bool isImageValid(const opj_image_t *i) const
     {
-        return i && i->comps && i->numcomps > 0 && i->numcomps < 256;
+        return i && i->comps && i->numcomps > 0 && i->numcomps <= KIF_MAX_IMAGE_CHANNELS;
     }
 
     void enableThreads(opj_codec_t *codec) const
@@ -347,8 +347,13 @@ public:
 
     bool checkSizeLimits(qint32 width, qint32 height, qint32 nchannels) const
     {
-        if (width > JP2_MAX_IMAGE_WIDTH || height > JP2_MAX_IMAGE_HEIGHT || width < 1 || height < 1) {
+        if (width > JP2_MAX_IMAGE_WIDTH || height > JP2_MAX_IMAGE_HEIGHT) {
             qCCritical(LOG_JP2PLUGIN) << "Maximum image size is limited to" << JP2_MAX_IMAGE_WIDTH << "x" << JP2_MAX_IMAGE_HEIGHT << "pixels";
+            return false;
+        }
+
+        if (width < 1 || height < 1) {
+            qCCritical(LOG_JP2PLUGIN) << "The image size" << width << "x" << height << "pixels is not valid";
             return false;
         }
 
