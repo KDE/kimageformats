@@ -360,7 +360,7 @@ also use the following string options:**
 - `KIMAGEFORMATS_HEIF_TEST` to change the behaviour of HEIF tests. Set to 
 `"OFF"` (no test at all) or `"READ_ONLY"` (run read tests only).
 - `KIMAGEFORMATS_HEJ2_TEST` to change the behaviour of HEJ2 tests. Set to 
-`"OFF"` (no test at all) or `"READ_ONLY"` (run read tests only)..
+`"OFF"` (no test at all) or `"READ_ONLY"` (run read tests only).
 - `KIMAGEFORMATS_AVCI_TEST` to change the behaviour of AVCI tests. Set to 
 `"OFF"` (no test at all).
 

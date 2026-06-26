@@ -365,6 +365,20 @@ static void readMetadata(const Imf::Header &header, QImage &image)
     if (auto serial = header.findTypedAttribute<Imf::StringAttribute>("lensSerialNumber")) {
         image.setText(QStringLiteral(META_KEY_LENS_SERIALNUMBER), QString::fromStdString(serial->value()));
     }
+
+    // shot metadata
+    if (auto isoSpeed = header.findTypedAttribute<Imf::FloatAttribute>("isoSpeed")) {
+        image.setText(QStringLiteral(META_KEY_ISOSPEEDRATINGS), QLocale::c().toString(qRound(isoSpeed->value())));
+    }
+    if (auto expTime = header.findTypedAttribute<Imf::FloatAttribute>("expTime")) {
+        image.setText(QStringLiteral(META_KEY_EXPOSURETIME), QLocale::c().toString(expTime->value()));
+    }
+    if (auto aperture = header.findTypedAttribute<Imf::FloatAttribute>("aperture")) {
+        image.setText(QStringLiteral(META_KEY_FNUMBER), QLocale::c().toString(aperture->value()));
+    }
+    if (auto focalLen = header.findTypedAttribute<Imf::FloatAttribute>("effectiveFocalLength")) {
+        image.setText(QStringLiteral(META_KEY_FOCALLENGTH), QLocale::c().toString(focalLen->value()));
+    }
 }
 
 /*!
@@ -586,6 +600,34 @@ static void setMetadata(const QImage &image, Imf::Header &header)
         }
         if (!key.compare(QStringLiteral(META_KEY_LENS_SERIALNUMBER), Qt::CaseInsensitive)) {
             header.insert("lensSerialNumber", Imf::StringAttribute(text.toStdString()));
+        }
+        if (!key.compare(QStringLiteral(META_KEY_ISOSPEEDRATINGS), Qt::CaseInsensitive)) {
+            auto ok = false;
+            auto value = QLocale::c().toFloat(text, &ok);
+            if (ok) {
+                header.insert("isoSpeed", Imf::FloatAttribute(value));
+            }
+        }
+        if (!key.compare(QStringLiteral(META_KEY_EXPOSURETIME), Qt::CaseInsensitive)) {
+            auto ok = false;
+            auto value = QLocale::c().toFloat(text, &ok);
+            if (ok) {
+                header.insert("expTime", Imf::FloatAttribute(value));
+            }
+        }
+        if (!key.compare(QStringLiteral(META_KEY_FNUMBER), Qt::CaseInsensitive)) {
+            auto ok = false;
+            auto value = QLocale::c().toFloat(text, &ok);
+            if (ok) {
+                header.insert("aperture", Imf::FloatAttribute(value));
+            }
+        }
+        if (!key.compare(QStringLiteral(META_KEY_FOCALLENGTH), Qt::CaseInsensitive)) {
+            auto ok = false;
+            auto value = QLocale::c().toFloat(text, &ok);
+            if (ok) {
+                header.insert("effectiveFocalLength", Imf::FloatAttribute(value));
+            }
         }
     }
     if (dateTime.isValid()) {

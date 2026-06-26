@@ -32,6 +32,38 @@
         {
             "key" : "Model",
             "value" : "KImageFormats"
+        },
+        {
+            "key" : "Comment",
+            "value" : "This is a test image from KImageFormats"
+        },
+        {
+            "key" : "Owner",
+            "value" : "KDE project"
+        },
+        {
+            "key" : "LensSerialNumber",
+            "value" : "LEN123456789"
+        },
+        {
+            "key" : "SerialNumber",
+            "value" : "CAM123456789"
+        },
+        {
+            "key" : "ISOSpeedRatings",
+            "value" : "102"
+        },
+        {
+            "key" : "ExposureTime",
+            "value" : "0.015"
+        },
+        {
+            "key" : "FNumber",
+            "value" : "1.85"
+        },
+        {
+            "key" : "FocalLength",
+            "value" : "6.81"
         }
     ],
     "resolution" : {
