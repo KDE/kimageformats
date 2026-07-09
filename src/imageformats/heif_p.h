@@ -33,10 +33,13 @@ public:
     static bool isHej2DecoderAvailable();
     static bool isHej2EncoderAvailable();
     static bool isAVCIDecoderAvailable();
+    static bool isAVCIEncoderAvailable();
+    static bool isJPEGDecoderAvailable();
 
     static bool isSupportedBMFFType(const QByteArray &header);
     static bool isSupportedHEJ2(const QByteArray &header);
     static bool isSupportedAVCI(const QByteArray &header);
+    static bool isSupportedJPEG(const QByteArray &header);
 
 private:
     bool ensureParsed() const;
@@ -67,7 +70,7 @@ private:
      * Read the crop information.
      * \return True on success, otherwise false.
      */
-    bool read_crop(void *heif_handle, const void *heif_ctx, const QSize& size, QRect &crop);
+    bool read_crop(void *heif_handle, const void *heif_ctx, const QSize &size, QRect &crop);
 
     static void startHeifLib();
     static void finishHeifLib();
@@ -80,6 +83,8 @@ private:
     static bool m_hej2_decoder_available;
     static bool m_hej2_encoder_available;
     static bool m_avci_decoder_available;
+    static bool m_avci_encoder_available;
+    static bool m_jpeg_decoder_available;
 
     static QMutex &getHEIFHandlerMutex();
 };

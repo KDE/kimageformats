@@ -64,6 +64,8 @@ bool HEIFHandler::m_heif_encoder_available = false;
 bool HEIFHandler::m_hej2_decoder_available = false;
 bool HEIFHandler::m_hej2_encoder_available = false;
 bool HEIFHandler::m_avci_decoder_available = false;
+bool HEIFHandler::m_avci_encoder_available = false;
+bool HEIFHandler::m_jpeg_decoder_available = false;
 
 /*!
  * \brief create_heif_reader_for_qiodevice
@@ -76,14 +78,14 @@ static heif_reader create_heif_reader_for_qiodevice()
 
     reader.reader_api_version = 1;
 
-    reader.get_position = [](void* userdata) -> int64_t {
-        QIODevice* device = static_cast<QIODevice*>(userdata);
+    reader.get_position = [](void *userdata) -> int64_t {
+        QIODevice *device = static_cast<QIODevice *>(userdata);
         return device->pos();
     };
 
-    reader.read = [](void* data, size_t size, void* userdata) -> int {
-        QIODevice* device = static_cast<QIODevice*>(userdata);
-        qint64 bytesRead = device->read(static_cast<char*>(data), size);
+    reader.read = [](void *data, size_t size, void *userdata) -> int {
+        QIODevice *device = static_cast<QIODevice *>(userdata);
+        qint64 bytesRead = device->read(static_cast<char *>(data), size);
         if (bytesRead == -1) {
             return -1; // Error
         }
@@ -95,13 +97,13 @@ static heif_reader create_heif_reader_for_qiodevice()
         return 0; // Success
     };
 
-    reader.seek = [](int64_t position, void* userdata) -> int {
-        QIODevice* device = static_cast<QIODevice*>(userdata);
+    reader.seek = [](int64_t position, void *userdata) -> int {
+        QIODevice *device = static_cast<QIODevice *>(userdata);
         return device->seek(position) ? 0 : -1;
     };
 
-    reader.wait_for_file_size = [](int64_t target_size, void* userdata) -> heif_reader_grow_status {
-        QIODevice* device = static_cast<QIODevice*>(userdata);
+    reader.wait_for_file_size = [](int64_t target_size, void *userdata) -> heif_reader_grow_status {
+        QIODevice *device = static_cast<QIODevice *>(userdata);
         if (target_size <= device->size()) {
             return heif_reader_grow_status_size_reached;
         }
@@ -159,7 +161,7 @@ bool HEIFHandler::canRead() const
         if (dev) {
             const QByteArray header = dev->peek(28);
 
-            if (HEIFHandler::isSupportedBMFFType(header)) {
+            if (HEIFHandler::isSupportedBMFFType(header) || HEIFHandler::isSupportedJPEG(header)) {
                 setFormat("heif");
                 return true;
             }
@@ -245,6 +247,12 @@ bool HEIFHandler::write_helper(const QImage &image)
         encoder_codec = heif_compression_JPEG2000;
         save_depth = 8; // for compatibility reasons
     }
+#if LIBHEIF_HAVE_VERSION(1, 21, 0)
+    if (format() == "avci") {
+        encoder_codec = heif_compression_AVC;
+        save_depth = 8; // for compatibility reasons
+    }
+#endif
 
     heif_chroma chroma;
     if (save_depth > 8) {
@@ -382,12 +390,21 @@ bool HEIFHandler::write_helper(const QImage &image)
         return false;
     }
 
-    heif_encoder_set_lossy_quality(encoder, m_quality);
-    if (m_quality > 90) {
-        if (m_quality == 100) {
-            heif_encoder_set_lossless(encoder, true);
+    if (format() == "avci") { // workaround for limited h264 decoders
+        if (m_quality >= 98) { // OpenH264 will fail to decode quality 99 and 100
+            heif_encoder_set_lossy_quality(encoder, 98);
+        } else {
+            heif_encoder_set_lossy_quality(encoder, m_quality);
         }
-        heif_encoder_set_parameter_string(encoder, "chroma", "444");
+    } else {
+        heif_encoder_set_lossy_quality(encoder, m_quality);
+        if (m_quality > 90) {
+            if (m_quality == 100) {
+                heif_encoder_set_lossless(encoder, true);
+            }
+
+            heif_encoder_set_parameter_string(encoder, "chroma", "444");
+        }
     }
 
     struct heif_encoding_options *encoder_options = heif_encoding_options_alloc();
@@ -406,40 +423,141 @@ bool HEIFHandler::write_helper(const QImage &image)
         encoder_options->image_orientation = heif_orientation(m_orientation);
     }
 
-    struct heif_image_handle *handle;
-    err = heif_context_encode_image(context, h_image, encoder, encoder_options, &handle);
+    struct heif_image_handle *handle = nullptr;
 
-    // exif metadata
-    if (err.code == heif_error_Ok) {
-        auto exif = MicroExif::fromImage(tmpimage);
-        if (m_orientation >= 1 && m_orientation <= 8) {
-            // EXIF orientation must be coherent with HEIF orientation
-            exif.setOrientation(m_orientation);
-        }
-        if (!exif.isEmpty()) {
-            auto ba = exif.toByteArray();
-            err = heif_context_add_exif_metadata(context, handle, ba.constData(), ba.size());
-        }
-    }
-    // xmp metadata
-    if (err.code == heif_error_Ok) {
-        auto xmp = image.text(QStringLiteral(META_KEY_XMP_ADOBE));
-        if (!xmp.isEmpty()) {
-            auto ba = xmp.toUtf8();
-            err = heif_context_add_XMP_metadata(context, handle, ba.constData(), ba.size());
-        }
-    }
+    if (format() == "avci" && (tmpimage.width() > 3840 || tmpimage.height() > 2160)) {
+#if LIBHEIF_HAVE_VERSION(1, 21, 0)
+        /* encode as grid so that OpenH264 can decode */
+        const uint32_t nColumns = (tmpimage.width() + 2047) / 2048;
+        const uint32_t nRows = (tmpimage.height() + 2047) / 2048;
 
-    if (encoder_options) {
-        heif_encoding_options_free(encoder_options);
-    }
+        err = heif_context_add_grid_image(context, tmpimage.width(), tmpimage.height(), nColumns, nRows, encoder_options, &handle);
+        if (err.code) {
+            qCWarning(LOG_HEIFPLUGIN) << "heif_context_add_grid_image failed:" << err.message;
+            if (encoder_options) {
+                heif_encoding_options_free(encoder_options);
+            }
+            heif_encoder_release(encoder);
+            heif_image_release(h_image);
+            heif_context_free(context);
+            return false;
+        }
 
-    if (err.code) {
-        qCWarning(LOG_HEIFPLUGIN) << "heif_context_encode_image failed:" << err.message;
+        heif_security_limits *limits = heif_context_get_security_limits(context);
+
+        for (uint32_t rY = 0; rY < nRows; rY++) {
+            for (uint32_t rX = 0; rX < nColumns; rX++) {
+                heif_image *current_tile = nullptr;
+
+                err = heif_image_extract_area(h_image, rX * 2048, rY * 2048, 2048, 2048, limits, &current_tile);
+                if (err.code) {
+                    qCWarning(LOG_HEIFPLUGIN) << "heif_image_extract_area failed:" << err.message;
+                    heif_image_handle_release(handle);
+                    if (encoder_options) {
+                        heif_encoding_options_free(encoder_options);
+                    }
+                    heif_encoder_release(encoder);
+                    heif_image_release(h_image);
+                    heif_context_free(context);
+                    return false;
+                }
+
+                err = heif_image_extend_to_size_fill_with_zero(current_tile, 2048, 2048);
+                if (err.code) {
+                    qCWarning(LOG_HEIFPLUGIN) << "heif_image_extend_to_size_fill_with_zero failed:" << err.message;
+                    heif_image_release(current_tile);
+                    heif_image_handle_release(handle);
+                    if (encoder_options) {
+                        heif_encoding_options_free(encoder_options);
+                    }
+                    heif_encoder_release(encoder);
+                    heif_image_release(h_image);
+                    heif_context_free(context);
+                    return false;
+                }
+
+                if (iccprofile.size() > 0) {
+                    heif_image_set_raw_color_profile(current_tile, "prof", iccprofile.constData(), iccprofile.size());
+                }
+
+                err = heif_context_add_image_tile(context, handle, rX, rY, current_tile, encoder);
+                heif_image_release(current_tile);
+                if (err.code) {
+                    qCWarning(LOG_HEIFPLUGIN) << "heif_context_add_image_tile failed:" << err.message;
+                    heif_image_handle_release(handle);
+                    if (encoder_options) {
+                        heif_encoding_options_free(encoder_options);
+                    }
+                    heif_encoder_release(encoder);
+                    heif_image_release(h_image);
+                    heif_context_free(context);
+                    return false;
+                }
+            }
+        }
+
+        heif_context_set_primary_image(context, handle);
+
+        if (encoder_options) {
+            heif_encoding_options_free(encoder_options);
+        }
+#else
+        qCWarning(LOG_HEIFPLUGIN) << "Cannot encode AVCI image, libheif is too old!";
+        if (encoder_options) {
+            heif_encoding_options_free(encoder_options);
+        }
         heif_encoder_release(encoder);
         heif_image_release(h_image);
         heif_context_free(context);
         return false;
+#endif
+    } else {
+        err = heif_context_encode_image(context, h_image, encoder, encoder_options, &handle);
+
+        if (encoder_options) {
+            heif_encoding_options_free(encoder_options);
+        }
+
+        if (err.code) {
+            qCWarning(LOG_HEIFPLUGIN) << "heif_context_encode_image failed:" << err.message;
+            heif_encoder_release(encoder);
+            heif_image_release(h_image);
+            heif_context_free(context);
+            return false;
+        }
+    }
+
+    // exif metadata
+    auto exif = MicroExif::fromImage(tmpimage);
+    if (m_orientation >= 1 && m_orientation <= 8) {
+        // EXIF orientation must be coherent with HEIF orientation
+        exif.setOrientation(m_orientation);
+    }
+    if (!exif.isEmpty()) {
+        auto ba = exif.toByteArray();
+        err = heif_context_add_exif_metadata(context, handle, ba.constData(), ba.size());
+        if (err.code) {
+            qCWarning(LOG_HEIFPLUGIN) << "heif_context_add_exif_metadata failed:" << err.message;
+            heif_image_handle_release(handle);
+            heif_encoder_release(encoder);
+            heif_image_release(h_image);
+            heif_context_free(context);
+            return false;
+        }
+    }
+    // xmp metadata
+    auto xmp = image.text(QStringLiteral(META_KEY_XMP_ADOBE));
+    if (!xmp.isEmpty()) {
+        auto ba = xmp.toUtf8();
+        err = heif_context_add_XMP_metadata(context, handle, ba.constData(), ba.size());
+        if (err.code) {
+            qCWarning(LOG_HEIFPLUGIN) << "heif_context_add_XMP_metadata failed:" << err.message;
+            heif_image_handle_release(handle);
+            heif_encoder_release(encoder);
+            heif_image_release(h_image);
+            heif_context_free(context);
+            return false;
+        }
     }
 
     struct heif_writer writer;
@@ -448,6 +566,7 @@ bool HEIFHandler::write_helper(const QImage &image)
 
     err = heif_context_write(context, &writer, device());
 
+    heif_image_handle_release(handle);
     heif_encoder_release(encoder);
     heif_image_release(h_image);
 
@@ -596,6 +715,20 @@ bool HEIFHandler::isSupportedAVCI(const QByteArray &header)
     return false;
 }
 
+bool HEIFHandler::isSupportedJPEG(const QByteArray &header)
+{
+    if (header.size() < 28) {
+        return false;
+    }
+
+    const char *buffer = header.constData();
+    if (memcmp(buffer + 4, "ftypjpeg", 8) == 0) {
+        return true;
+    }
+
+    return false;
+}
+
 QVariant HEIFHandler::option(ImageOption option) const
 {
     if (option == Quality) {
@@ -682,7 +815,8 @@ bool HEIFHandler::ensureDecoder()
     }
 
     QByteArray buffer = dev->peek(28);
-    if (!HEIFHandler::isSupportedBMFFType(buffer) && !HEIFHandler::isSupportedHEJ2(buffer) && !HEIFHandler::isSupportedAVCI(buffer)) {
+    if (!HEIFHandler::isSupportedBMFFType(buffer) && !HEIFHandler::isSupportedHEJ2(buffer) && !HEIFHandler::isSupportedAVCI(buffer)
+        && !HEIFHandler::isSupportedJPEG(buffer)) {
         m_parseState = ParseHeicError;
         return false;
     }
@@ -1134,8 +1268,7 @@ bool HEIFHandler::ensureDecoder()
                 break;
             default:
                 qCWarning(LOG_HEIFPLUGIN) << "CICP color_primaries: %d, transfer_characteristics: %d\nThe colorspace is unsupported by this plug-in yet."
-                                          << nclx->color_primaries
-                                          << nclx->transfer_characteristics;
+                                          << nclx->color_primaries << nclx->transfer_characteristics;
                 q_trc = QColorSpace::TransferFunction::SRgb;
                 break;
             }
@@ -1239,6 +1372,20 @@ bool HEIFHandler::isAVCIDecoderAvailable()
     return m_avci_decoder_available;
 }
 
+bool HEIFHandler::isAVCIEncoderAvailable()
+{
+    HEIFHandler::queryHeifLib();
+
+    return m_avci_encoder_available;
+}
+
+bool HEIFHandler::isJPEGDecoderAvailable()
+{
+    HEIFHandler::queryHeifLib();
+
+    return m_jpeg_decoder_available;
+}
+
 void HEIFHandler::queryHeifLib()
 {
     QMutexLocker locker(&getHEIFHandlerMutex());
@@ -1255,6 +1402,11 @@ void HEIFHandler::queryHeifLib()
 #if LIBHEIF_HAVE_VERSION(1, 19, 6)
         m_avci_decoder_available = heif_have_decoder_for_format(heif_compression_AVC);
 #endif
+#if LIBHEIF_HAVE_VERSION(1, 21, 0)
+        m_avci_encoder_available = heif_have_encoder_for_format(heif_compression_AVC);
+#endif
+        m_jpeg_decoder_available = heif_have_decoder_for_format(heif_compression_JPEG);
+
         m_plugins_queried = true;
 
         if (m_initialized_count == 0) {
@@ -1323,6 +1475,9 @@ QImageIOPlugin::Capabilities HEIFPlugin::capabilities(QIODevice *device, const Q
         if (HEIFHandler::isAVCIDecoderAvailable()) {
             format_cap |= CanRead;
         }
+        if (HEIFHandler::isAVCIEncoderAvailable()) {
+            format_cap |= CanWrite;
+        }
         return format_cap;
     }
 
@@ -1339,12 +1494,13 @@ QImageIOPlugin::Capabilities HEIFPlugin::capabilities(QIODevice *device, const Q
 
         if ((HEIFHandler::isSupportedBMFFType(header) && HEIFHandler::isHeifDecoderAvailable())
             || (HEIFHandler::isSupportedHEJ2(header) && HEIFHandler::isHej2DecoderAvailable())
-            || (HEIFHandler::isSupportedAVCI(header) && HEIFHandler::isAVCIDecoderAvailable())) {
+            || (HEIFHandler::isSupportedAVCI(header) && HEIFHandler::isAVCIDecoderAvailable())
+            || (HEIFHandler::isSupportedJPEG(header) && HEIFHandler::isJPEGDecoderAvailable())) {
             cap |= CanRead;
         }
     }
 
-    if (device->isWritable() && (HEIFHandler::isHeifEncoderAvailable() || HEIFHandler::isHej2EncoderAvailable())) {
+    if (device->isWritable() && (HEIFHandler::isHeifEncoderAvailable() || HEIFHandler::isHej2EncoderAvailable() || HEIFHandler::isAVCIEncoderAvailable())) {
         cap |= CanWrite;
     }
     return cap;
