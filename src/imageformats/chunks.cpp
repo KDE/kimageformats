@@ -3501,6 +3501,17 @@ QByteArray RBODChunk::strideRead(QIODevice *d, qint32 y, const RGHDChunk *header
     for (auto nextPos = nextChunkPos(); !d->atEnd() && d->pos() < nextPos && planes.size() < readSize;) {
         if (header->compression() == RGHDChunk::Compression::Uncompressed) {
             planes = d->read(readSize);
+        } else if (header->compression() == RGHDChunk::Compression::Zip) {
+            if (_readBuffer.isEmpty()) {
+                auto size = nextPos - d->pos();
+                if (size < kMaxQVectorSize) {
+                    // I have no control over qUncompress() so, I have to decompress the whole chunk
+                    _readBuffer = qUncompress(deviceRead(d, size));
+                    // Reset the position to avoid falling into the `d->pos() < nextPos` check
+                    seek(d, 0);
+                }
+            }
+            planes = _readBuffer.mid(y * readSize, readSize);
         } else {
             qCDebug(LOG_IFFPLUGIN) << "RBODChunk::strideRead(): unknown compression" << header->compression();
         }
@@ -3514,6 +3525,7 @@ QByteArray RBODChunk::strideRead(QIODevice *d, qint32 y, const RGHDChunk *header
 
 bool RBODChunk::resetStrideRead(QIODevice *d) const
 {
+    _readBuffer.clear();
     return seek(d);
 }
 

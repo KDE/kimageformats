@@ -1964,6 +1964,9 @@ private:
     QByteArray deinterleave(const QByteArray &planes, qint32 y, const RGHDChunk *header, const RSCMChunk *rcsm = nullptr, const RCOLChunk *rcol = nullptr) const;
 
     quint32 strideSize(const RGHDChunk *header) const;
+
+private:
+    mutable QByteArray _readBuffer;
 };
 
 
