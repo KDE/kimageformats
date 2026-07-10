@@ -252,6 +252,24 @@ public:
     void setCopyright(const QString& s);
 
     /*!
+     * \brief keywords
+     * Keywords tag used by Windows.
+     * \note Non-standard, added by Windows Explorer.
+     * \return The list of tags.
+     */
+    QStringList keywords() const;
+    void setKeywords(const QStringList& k);
+
+    /*!
+     * \brief rating
+     * Rating tag used by Windows.
+     * \note Non-standard, added by Windows Explorer.
+     * \return The rating. Usually between 0 (not set) and 5.
+     */
+    quint16 rating() const;
+    void setRating(quint16 rating);
+
+    /*!
      * \brief make
      * \return The manufacturer of the recording equipment.
      */
@@ -319,7 +337,7 @@ public:
      * \return The title of the image.
      */
     QString title() const;
-    void setImageTitle(const QString &s);
+    void setTitle(const QString &s);
 
     /*!
      * \brief uniqueId
@@ -554,6 +572,9 @@ private:
 
     static void setString(Tags &tags, quint16 tagId, const QString &s);
     static QString string(const Tags &tags, quint16 tagId);
+
+    static void setUtf16String(Tags &tags, quint16 tagId, const QString &s);
+    static QString utf16String(const Tags &tags, quint16 tagId);
 
 private:
     Tags m_tiffTags;

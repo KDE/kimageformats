@@ -59,6 +59,14 @@
             {
                 "key" : "Model",
                 "value" : "KImageFormats"
+            },
+            {
+                "key" : "Keywords",
+                "value" : "broacast;test;kde"
+            },
+            {
+                "key" : "Rating",
+                "value" : "5"
             }
         ],
         "resolution" : {

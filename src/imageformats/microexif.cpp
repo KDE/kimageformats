@@ -30,6 +30,9 @@
 #define TIFF_ARTIST 0x013B
 #define TIFF_DATETIME 0x0132
 #define TIFF_COPYRIGHT 0x8298
+#define TIFF_XPRATING 0x4746  // added by Windows Explorer Image Properties
+#define TIFF_XPTITLE 0x9C9B // added by Windows Explorer Image Properties
+#define TIFF_XPKEYWORDS 0x9C9E // added by Windows Explorer Image Properties
 
 #define TIFF_VAL_URES_NOABSOLUTE 1
 #define TIFF_VAL_URES_INCH 2
@@ -134,6 +137,9 @@ static const KnownTags staticTagTypes = {
     TagInfo(TIFF_ARTIST, ExifTagType::Utf8),
     TagInfo(TIFF_DATETIME, ExifTagType::Ascii),
     TagInfo(TIFF_COPYRIGHT, ExifTagType::Utf8),
+    TagInfo(TIFF_XPRATING, ExifTagType::Short),
+    TagInfo(TIFF_XPTITLE, ExifTagType::Byte),
+    TagInfo(TIFF_XPKEYWORDS, ExifTagType::Byte),
     TagInfo(EXIF_EXPOSURETIME, ExifTagType::Rational),
     TagInfo(EXIF_FNUMBER, ExifTagType::Rational),
     TagInfo(EXIF_EXIFIFD, ExifTagType::Long),
@@ -206,8 +212,8 @@ static const QList<std::pair<quint16, QString>> exifStrMap = {
     std::pair<quint16, QString>(EXIF_BODYSERIALNUMBER, QStringLiteral(META_KEY_SERIALNUMBER)),
     std::pair<quint16, QString>(EXIF_LENSMAKE, QStringLiteral(META_KEY_LENS_MANUFACTURER)),
     std::pair<quint16, QString>(EXIF_LENSMODEL, QStringLiteral(META_KEY_LENS_MODEL)),
-    std::pair<quint16, QString>(EXIF_LENSSERIALNUMBER, QStringLiteral(META_KEY_LENS_SERIALNUMBER)),
-    std::pair<quint16, QString>(EXIF_IMAGETITLE, QStringLiteral(META_KEY_TITLE)),
+    std::pair<quint16, QString>(EXIF_LENSSERIALNUMBER, QStringLiteral(META_KEY_LENS_SERIALNUMBER))
+    // std::pair<quint16, QString>(EXIF_IMAGETITLE, QStringLiteral(META_KEY_TITLE)) // using functions due to XP title fallback
 };
 // clang-format on
 
@@ -842,6 +848,32 @@ void MicroExif::setCopyright(const QString &s)
     setTiffString(TIFF_COPYRIGHT, s);
 }
 
+QStringList MicroExif::keywords() const
+{
+    auto val = utf16String(m_tiffTags, TIFF_XPKEYWORDS);
+    if (val.isEmpty())
+        return {};
+    return val.split(QChar(u';'), Qt::SkipEmptyParts);
+}
+
+void MicroExif::setKeywords(const QStringList &k)
+{
+    setUtf16String(m_tiffTags, TIFF_XPKEYWORDS, k.join(QChar(u';')));
+}
+
+quint16 MicroExif::rating() const
+{
+    return m_tiffTags.value(TIFF_XPRATING).toUInt();
+}
+
+void MicroExif::setRating(quint16 rating)
+{
+    if (rating == 0)
+        m_tiffTags.remove(TIFF_XPRATING);
+    else
+        m_tiffTags.insert(TIFF_XPRATING, rating);
+}
+
 QString MicroExif::make() const
 {
     return tiffString(TIFF_MAKE);
@@ -964,12 +996,18 @@ void MicroExif::setDateTimeDigitized(const QDateTime &dt)
 
 QString MicroExif::title() const
 {
-    return exifString(EXIF_IMAGETITLE);
+    auto s = exifString(EXIF_IMAGETITLE);
+    if (s.isEmpty()) { // fall back to XP title
+        s = utf16String(m_tiffTags, TIFF_XPTITLE);
+    }
+    return s;
 }
 
-void MicroExif::setImageTitle(const QString &s)
+void MicroExif::setTitle(const QString &s)
 {
     setExifString(EXIF_IMAGETITLE, s);
+    // Since there is an official title tag, I never write the non-standard Microsoft one.
+    setUtf16String(m_tiffTags, TIFF_XPTITLE, QString());
 }
 
 QUuid MicroExif::uniqueId() const
@@ -1337,6 +1375,11 @@ void MicroExif::updateImageMetadata(QImage &targetImage, bool replaceExisting) c
         if (!s.isEmpty())
             targetImage.setText(p.second, s);
     }
+    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_TITLE)).isEmpty()) {
+        auto s = title();
+        if (!s.isEmpty())
+            targetImage.setText(QStringLiteral(META_KEY_TITLE), s);
+    }
 
     // set date and time
     if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_MODIFICATIONDATE)).isEmpty()) {
@@ -1422,6 +1465,18 @@ void MicroExif::updateImageMetadata(QImage &targetImage, bool replaceExisting) c
         auto v = whiteBalance();
         if (v != WhiteBalance::NotSet)
             targetImage.setText(QStringLiteral(META_KEY_WHITEBALANCE), QStringLiteral("%1").arg(quint16(v)));
+    }
+
+    // set Microsoft tags
+    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_KEYWORDS)).isEmpty()) {
+        auto keywords = this->keywords();
+        if (!keywords.isEmpty())
+            targetImage.setText(QStringLiteral(META_KEY_KEYWORDS), keywords.join(QChar(u';')));
+    }
+    if (replaceExisting || targetImage.text(QStringLiteral(META_KEY_RATING)).isEmpty()) {
+        auto v = rating();
+        if (v != 0)
+            targetImage.setText(QStringLiteral(META_KEY_RATING), QStringLiteral("%1").arg(quint16(v)));
     }
 }
 
@@ -1518,6 +1573,7 @@ MicroExif MicroExif::fromImage(const QImage &image)
     for (auto &&p : exifStrMap) {
         exif.setExifString(p.first, image.text(p.second));
     }
+    exif.setTitle(image.text(QStringLiteral(META_KEY_TITLE)));
 
     // TIFF Software
     if (exif.software().isEmpty()) {
@@ -1586,6 +1642,13 @@ MicroExif MicroExif::fromImage(const QImage &image)
     auto whtb = image.text(QStringLiteral(META_KEY_WHITEBALANCE)).toUShort(&ok);
     if (ok)
         exif.setWhiteBalance(WhiteBalance(whtb));
+
+    // Microsoft tags
+    exif.setKeywords(image.text(QStringLiteral(META_KEY_KEYWORDS)).split(QChar(u';'), Qt::SkipEmptyParts));
+
+    auto rating = image.text(QStringLiteral(META_KEY_RATING)).toUInt(&ok);
+    if (ok)
+        exif.setRating(rating);
 
     return exif;
 }
@@ -1675,4 +1738,30 @@ void MicroExif::setString(Tags &tags, quint16 tagId, const QString &s)
 QString MicroExif::string(const Tags &tags, quint16 tagId)
 {
     return tags.value(tagId).toString();
+}
+
+void MicroExif::setUtf16String(Tags &tags, quint16 tagId, const QString &s)
+{
+    if (s.isEmpty()) {
+        tags.remove(tagId);
+        return;
+    }
+    auto s16 = s.toStdU16String();
+    QList<quint8> uba;
+    auto ba = QByteArrayView(reinterpret_cast<char*>(s16.data()), s.size() * 2);
+    for(auto&& c : ba)
+        uba.append(quint8(c));
+    uba.append(quint8('\0'));
+    uba.append(quint8('\0'));
+    tags.insert(tagId, QVariant::fromValue(uba));
+}
+
+QString MicroExif::utf16String(const Tags &tags, quint16 tagId)
+{
+    auto ba = tags.value(tagId).value<QList<quint8>>();
+    if (ba.isEmpty())
+        return {};
+    auto p16 = reinterpret_cast<char16_t*>(ba.data());
+    auto sz = std::max(ba.size() / 2 - 1, qsizetype());
+    return QString::fromUtf16(p16, sz);
 }

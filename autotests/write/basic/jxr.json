@@ -30,6 +30,10 @@
             "value" : "TV broadcast test image."
         },
         {
+            "key" : "Rating",
+            "value" : "4"
+        },
+        {
             "key" : "Latitude",
             "value" : "44.6478"
         },

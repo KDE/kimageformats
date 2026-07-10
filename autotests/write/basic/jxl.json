@@ -38,6 +38,14 @@
             "value" : "テレビ放送テスト映像。(TV broadcast test image.)"
         },
         {
+            "key" : "Keywords",
+            "value" : "kde;test"
+        },
+        {
+            "key" : "Rating",
+            "value" : "5"
+        },
+        {
             "key" : "Latitude",
             "value" : "44.6478"
         },

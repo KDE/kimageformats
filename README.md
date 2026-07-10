@@ -146,6 +146,7 @@ About the image:
   scanned.
 - `HostComputer`: The computer and/or operating system in use at the time 
   of image creation.
+- `Keywords`: Keywords, separated by semicolons, that represent the image.
 - `Latitude`: Floating-point number indicating the latitude in degrees 
   north of the equator (e.g. 27.717).
 - `Longitude`: Floating-point number indicating the longitude in degrees 
@@ -154,6 +155,8 @@ About the image:
   without milliseconds (e.g. 2024-03-23T15:30:43). This value should be 
   updated every time the image is saved.
 - `Owner`: Name of the owner of the image.
+- `Rating`: Integer number indicating the image rating (usually between 1 
+  and 5).
 - `Software`: Name and version number of the software package(s) used to 
   create the image.
 - `Speed`: Floating-point number indicating the speed of GPS receiver 

@@ -13,6 +13,14 @@
                 "value" : "2025-01-05T10:18:16"
             },
             {
+                "key" : "Keywords",
+                "value" : "kde;w11"
+            },
+            {
+                "key" : "Rating",
+                "value" : "4"
+            },
+            {
                 "key" : "Software" ,
                 "value" : "GIMP 3.0.0-RC2"
             }

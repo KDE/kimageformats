@@ -739,6 +739,13 @@ public:
         DESCRIPTIVEMETADATA meta;
         memset(&meta, 0, sizeof(meta));
 
+        auto ok = false;
+        auto rating = image.text(QStringLiteral(META_KEY_RATING)).toUInt(&ok);
+        if (ok) {
+            meta.pvarRatingStars.vt = DPKVT_UI2;
+            meta.pvarRatingStars.VT.uiVal = quint16(rating);
+        }
+
 #define META_CTEXT(name, field)                                                                                                                                \
     auto field = image.text(QStringLiteral(name)).toUtf8();                                                                                                    \
     if (!field.isEmpty()) {                                                                                                                                    \
@@ -1015,6 +1022,10 @@ private:
         DESCRIPTIVEMETADATA meta = {};
         if (pDecoder->GetDescriptiveMetadata(pDecoder, &meta)) {
             return false;
+        }
+
+        if (meta.pvarRatingStars.vt == DPKVT_UI2) {
+            m_txtMeta.insert(QStringLiteral(META_KEY_RATING), QStringLiteral("%1").arg(meta.pvarRatingStars.VT.uiVal));
         }
 
 #define META_TEXT(name, field)                                                                                                                                 \
