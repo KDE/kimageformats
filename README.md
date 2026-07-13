@@ -357,12 +357,18 @@ plugin:
 
 **If you are interested in compiling the plugin without running the tests, 
 also use the following string options:**
-- `KIMAGEFORMATS_HEIF_TEST` to change the behaviour of HEIF tests. Set to 
+- `KIMAGEFORMATS_HEIC_TEST` to change the behaviour of HEIC tests. Set to
 `"OFF"` (no test at all) or `"READ_ONLY"` (run read tests only).
+Required codecs: HEVC / H.265.
+- `KIMAGEFORMATS_HEIF_TEST` to change the behaviour of HEIF tests. Set to
+`"OFF"` (no test at all).
+Required codecs: uncompressed, deflate, zlib, brotli, jpeg.
 - `KIMAGEFORMATS_HEJ2_TEST` to change the behaviour of HEJ2 tests. Set to 
 `"OFF"` (no test at all) or `"READ_ONLY"` (run read tests only).
+Required codecs: JPEG 2000.
 - `KIMAGEFORMATS_AVCI_TEST` to change the behaviour of AVCI tests. Set to 
 `"OFF"` (no test at all).
+Required codecs: Advanced Video Coding / H.264.
 
 ### The EXR plugin
 

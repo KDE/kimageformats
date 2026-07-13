@@ -119,15 +119,21 @@ if (TARGET avif)
 endif()
 
 if (LibHeif_FOUND)
-    if (KIMAGEFORMATS_HEIF_TEST STREQUAL "ALL" OR KIMAGEFORMATS_HEIF_TEST STREQUAL "READ_ONLY")
+    if (KIMAGEFORMATS_HEIC_TEST STREQUAL "ALL" OR KIMAGEFORMATS_HEIC_TEST STREQUAL "READ_ONLY")
         kimageformats_read_tests(
-            heif
+            heic
         )
     endif()
-    if (KIMAGEFORMATS_HEIF_TEST STREQUAL "ALL")
+    if (KIMAGEFORMATS_HEIC_TEST STREQUAL "ALL")
         # because the plug-ins use RGB->YUV conversion which sometimes results in 1 value difference.
         kimageformats_write_tests(FUZZ 1
-            heif-nodatacheck-lossless
+            heic-nodatacheck-lossless
+        )
+    endif()
+
+    if (KIMAGEFORMATS_HEIF_TEST STREQUAL "ALL")
+        kimageformats_read_tests(
+            heif
         )
     endif()
 
