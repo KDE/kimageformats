@@ -845,7 +845,8 @@ bool HEIFHandler::ensureDecoder()
         buffer = deviceRead(dev, kMaxQVectorSize);
         err = heif_context_read_from_memory(ctx, static_cast<const void *>(buffer.constData()), buffer.size(), nullptr);
     } else {
-        heif_reader reader = create_heif_reader_for_qiodevice();
+        // Must not be destroyed until decoding ends
+        static const heif_reader reader = create_heif_reader_for_qiodevice();
         err = heif_context_read_from_reader(ctx, &reader, dev, nullptr);
     }
     if (err.code) {
