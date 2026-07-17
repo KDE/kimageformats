@@ -828,6 +828,11 @@ bool HEIFHandler::ensureDecoder()
     if (auto heif_limits = heif_context_get_security_limits(ctx)) {
         heif_limits->max_image_size_pixels = quint64(HEIF_MAX_IMAGE_WIDTH) * HEIF_MAX_IMAGE_HEIGHT;
         heif_limits->max_memory_block_size = quint64(QImageReader::allocationLimit()) * 1024 * 1024;
+
+        static constexpr uint32_t relaxed_childboxes_limit = 360;
+        if (heif_limits->max_children_per_box > 0 && heif_limits->max_children_per_box < relaxed_childboxes_limit) {
+            heif_limits->max_children_per_box = relaxed_childboxes_limit;
+        }
 #if LIBHEIF_HAVE_VERSION(1, 20, 0)
         heif_limits->max_total_memory = heif_limits->max_memory_block_size;
 #endif
