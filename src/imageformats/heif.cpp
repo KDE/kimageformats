@@ -1465,6 +1465,14 @@ QImageIOPlugin::Capabilities HEIFPlugin::capabilities(QIODevice *device, const Q
         return format_cap;
     }
 
+    if (format == "hif") {
+        Capabilities format_cap;
+        if (HEIFHandler::isHeifDecoderAvailable()) {
+            format_cap |= CanRead;
+        }
+        return format_cap;
+    }
+
     if (format == "hej2") {
         Capabilities format_cap;
         if (HEIFHandler::isHej2DecoderAvailable()) {

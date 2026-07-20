@@ -1,4 +1,16 @@
 {
-    "Keys": [ "heif", "heic", "hej2", "avci" ],
-    "MimeTypes": [ "image/heif", "image/heif", "image/hej2k", "image/avci" ]
+    "Keys": [
+        "heif",
+        "heic",
+        "hif",
+        "hej2",
+        "avci"
+    ],
+    "MimeTypes": [
+        "image/heif",
+        "image/heif",
+        "image/heif",
+        "image/hej2k",
+        "image/avci"
+    ]
 }
