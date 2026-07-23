@@ -27,8 +27,8 @@ apt-get update && \
 git clone --depth 1 https://github.com/madler/zlib.git
 git clone --depth 1 -b v1.5.7 https://github.com/facebook/zstd.git
 wget https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz
-git clone https://github.com/tukaani-project/xz.git
-git clone --depth 1 --branch=RB-3.3 https://github.com/AcademySoftwareFoundation/openexr.git
+git clone --depth 1 https://github.com/tukaani-project/xz.git
+git clone --depth 1 --branch=RB-3.4 https://github.com/AcademySoftwareFoundation/openexr.git
 git clone --depth 1 -b master https://invent.kde.org/frameworks/extra-cmake-modules.git
 git clone --depth 1 --branch=dev git://code.qt.io/qt/qtbase.git
 git clone --depth 1 --branch=dev git://code.qt.io/qt/qttools.git
