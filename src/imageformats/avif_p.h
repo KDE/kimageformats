@@ -47,6 +47,7 @@ private:
     static QPointF CompatibleChromacity(qreal chrX, qreal chrY);
     bool ensureParsed() const;
     bool ensureOpened() const;
+    bool initDecoder(bool ignore_exif);
     bool ensureDecoder();
     bool decode_one_frame();
 

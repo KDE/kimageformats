@@ -1,0 +1,7 @@
+[
+    {
+        "fileName": "invalid-exif.jpg",
+        "fuzziness": 30,
+        "description": "Minimum fuzziness value to pass the test on all architectures."
+    }
+]
