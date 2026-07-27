@@ -14,7 +14,7 @@
 #include <QMetaEnum>
 #include <QVersionNumber>
 
-static QJsonObject searchObject(const QFileInfo& file)
+static QJsonObject searchObject(const QFileInfo &file)
 {
     auto fi = QFileInfo(QStringLiteral("%1.json").arg(file.filePath()));
     if (!fi.exists()) {
@@ -56,17 +56,15 @@ static QJsonObject searchObject(const QFileInfo& file)
     return {};
 }
 
-
-TemplateImage::TemplateImage(const QFileInfo &fi) :
-    m_fi(fi)
+TemplateImage::TemplateImage(const QFileInfo &fi)
+    : m_fi(fi)
 {
-
 }
 
 bool TemplateImage::isTemplate() const
 {
     auto list = suffixes();
-    for (auto&& suffix : list) {
+    for (auto &&suffix : list) {
         if (!m_fi.suffix().compare(suffix, Qt::CaseInsensitive))
             return true;
     }
@@ -87,7 +85,7 @@ bool TemplateImage::skipSequentialDeviceTest() const
     return obj.value("skipSequential").toBool();
 }
 
-QFileInfo TemplateImage::compareImage(TestFlags &flags, QString& comment) const
+QFileInfo TemplateImage::compareImage(TestFlags &flags, QString &comment) const
 {
     auto fi = jsonImage(flags, comment);
     if ((flags & TestFlag::SkipTest) == TestFlag::SkipTest) {
@@ -99,7 +97,7 @@ QFileInfo TemplateImage::compareImage(TestFlags &flags, QString& comment) const
     return legacyImage();
 }
 
-bool TemplateImage::checkOptionaInfo(const QImage& image, QString& error) const
+bool TemplateImage::checkOptionaInfo(const QImage &image, QString &error) const
 {
     auto obj = searchObject(m_fi);
     if (obj.isEmpty()) {
@@ -196,13 +194,13 @@ bool TemplateImage::perceptiveFuzziness() const
 
 QStringList TemplateImage::suffixes()
 {
-    return QStringList({"png", "tif", "tiff", "json"});
+    return QStringList({"png", "tif", "tiff", "json", "jpg"});
 }
 
 QFileInfo TemplateImage::legacyImage() const
 {
     auto list = suffixes();
-    for (auto&& suffix : list) {
+    for (auto &&suffix : list) {
         auto fi = QFileInfo(QStringLiteral("%1/%2.%3").arg(m_fi.path(), m_fi.completeBaseName(), suffix));
         if (fi.exists()) {
             return fi;
@@ -211,7 +209,7 @@ QFileInfo TemplateImage::legacyImage() const
     return {};
 }
 
-QFileInfo TemplateImage::jsonImage(TestFlags &flags, QString& comment) const
+QFileInfo TemplateImage::jsonImage(TestFlags &flags, QString &comment) const
 {
     flags = TestFlag::None;
 
@@ -224,7 +222,7 @@ QFileInfo TemplateImage::jsonImage(TestFlags &flags, QString& comment) const
     auto unsupportedFormat = obj.value("unsupportedFormat").toBool();
     comment = obj.value("comment").toString();
 
-    if(obj.value("disableAutoTransform").toBool()) {
+    if (obj.value("disableAutoTransform").toBool()) {
         flags |= TestFlag::DisableAutotransform;
     }
 
@@ -235,4 +233,3 @@ QFileInfo TemplateImage::jsonImage(TestFlags &flags, QString& comment) const
 
     return QFileInfo(QStringLiteral("%1/%2").arg(m_fi.path(), name));
 }
-
