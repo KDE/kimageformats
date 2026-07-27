@@ -471,7 +471,7 @@ QVariant QOIHandler::option(ImageOption option) const
 
 QImageIOPlugin::Capabilities QOIPlugin::capabilities(QIODevice *device, const QByteArray &format) const
 {
-    if (format == "qoi" || format == "QOI") {
+    if (format == "qoi") {
         return Capabilities(CanRead | CanWrite);
     }
     if (!format.isEmpty()) {
