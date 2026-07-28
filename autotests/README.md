@@ -23,7 +23,11 @@ e.g. PSD plugin).
 The reading tests are mainly based on comparing the image read by the plugin 
 with a template in a known and working format. For this reason, the template 
 formats chosen are those distributed by the Qt project: PNG in the first 
-instance and TIFF for image formats not supported by PNG (e.g. CMYK images).
+instance, TIFF for image formats not supported by PNG (e.g. CMYK images) and, 
+as a last choice, lossy JPG for large images.
+
+> [!important]
+> Keep the size of individual test images on the order of a few tens of KiB.
 
 Some image options such as `QImageIOHandler::Size`, 
 `QImageIOHandler::ImageFormat` and `QImageIOHandler::ImageTransformation` are 
