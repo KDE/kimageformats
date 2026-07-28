@@ -31,19 +31,24 @@ The following image formats have read-only support:
 
 The following image formats have read and write support:
 
-- AV1 Image File Format (avif)
+- AV1 Image File Format (avif, avifs<sup>1</sup>)
 - DirectDraw Surface (dds)
 - Encapsulated PostScript (eps)
-- High Efficiency Image File Format (heif)
-- JPEG 2000 (jp2, j2k, jpf)
+- High Efficiency Image File Format (avci<sup>2</sup>, heic<sup>2</sup>, heif<sup>2</sup>, hej2<sup>2</sup>, hif<sup>2</sup>)
+- JPEG 2000 (jp2, j2k, jpf<sup>1</sup>)
 - JPEG XL (jxl)
-- JPEG XR (jxr)
+- JPEG XR (jxr, hdp<sup>1</sup>, wdp<sup>1</sup>)
 - OpenEXR (exr)
 - Personal Computer Exchange (pcx)
 - Quite OK Image format (qoi)
 - SGI images (rgb, rgba, sgi, bw)
 - Softimage PIC (pic)
 - Targa (tga): supports more formats than Qt's version
+
+Footnotes:
+1. Read only support.
+2. It depends on the HEIF plugins installed. 
+
 
 ## Contributing
 
