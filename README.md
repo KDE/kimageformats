@@ -493,16 +493,10 @@ plugin:
   this format an hack is activated to guarantee total compatibility of the 
   plugin with Windows.
 
-### The KRA plugin
+### The KRA and ORA plugin
 
-The KRA format is a ZIP archive containing image data. In particular, the
-rendered image in PNG format is saved in the root: the plugin reads this 
-image.
-
-### The ORA plugin
-
-The ORA format is a ZIP archive containing image data. In particular, the
-rendered image in PNG format is saved in the root: the plugin reads this 
+Both KRA and ORA formats are ZIP archives containing image data. Specifically,
+the rendered PNG image is saved in the root directory: the plugin reads this
 image.
 
 ### The PSD plugin

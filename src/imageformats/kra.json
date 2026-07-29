@@ -1,4 +1,4 @@
 {
-    "Keys": [ "kra" ],
-    "MimeTypes": [ "application/x-krita" ]
+    "Keys": [ "kra", "ora" ],
+    "MimeTypes": [ "application/x-krita", "image/openraster" ]
 }

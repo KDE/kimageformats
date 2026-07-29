@@ -23,7 +23,7 @@
   Usage:
     python infra/helper.py build_image kimageformats
     python infra/helper.py build_fuzzers --sanitizer undefined|address|memory kimageformats
-    python infra/helper.py run_fuzzer kimageformats kimgio_[ani|avif|dds|exr|ff|hdr|heif|iff|jp2|jxl|jxr|kra|ora|pcx|pfm|pic|psd|pxr|qoi|ras|raw|rgb|sct|tim|tga|xcf]_fuzzer
+    python infra/helper.py run_fuzzer kimageformats kimgio_[ani|avif|dds|exr|ff|hdr|heif|iff|jp2|jxl|jxr|kra|pcx|pfm|pic|psd|pxr|qoi|ras|raw|rgb|sct|tim|tga|xcf]_fuzzer
 */
 
 #include <QBuffer>
@@ -65,11 +65,8 @@
 #include "jxr_p.h"
 #define HANDLER JXRHandler
 #elif defined KIMG_FUZZER_kra
-#include "kra.h"
+#include "kra_p.h"
 #define HANDLER KraHandler
-#elif defined KIMG_FUZZER_ora
-#include "ora.h"
-#define HANDLER OraHandler
 #elif defined KIMG_FUZZER_pcx
 #include "pcx_p.h"
 #define HANDLER PCXHandler

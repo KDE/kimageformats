@@ -182,7 +182,4 @@ if (KF6Archive_FOUND)
     kimageformats_add_plugin(kimg_kra SOURCES kra.cpp)
     target_link_libraries(kimg_kra PRIVATE KF6::Archive)
 
-    kimageformats_add_plugin(kimg_ora SOURCES ora.cpp)
-    target_link_libraries(kimg_ora PRIVATE KF6::Archive)
-
 endif()

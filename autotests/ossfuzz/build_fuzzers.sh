@@ -165,7 +165,6 @@ HANDLER_TYPES="ani
         jxl
         jxr
         kra
-        ora
         pcx
         pfm
         pic
