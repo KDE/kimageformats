@@ -402,7 +402,8 @@ When writing, it is also possible to specify a subtype:
   subsampling or loss of chromatic detail.
 - `YC`: converts RGB data into luminance (Y) and 2x2 subsampled chroma 
   (RY, BY), cutting raw color data by ~50% for significantly smaller file 
-  sizes.
+  sizes. **If the image does not have a height and width that are multiples 
+  of 2, `RGB` is used.**
 
 > [!note]
 > When writing grayscale images, the subtype makes no difference.

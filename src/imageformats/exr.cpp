@@ -230,7 +230,7 @@ bool EXRHandler::canRead() const
 static QImage::Format imageFormat(const Imf::RgbaInputFile &file)
 {
     auto isRgba = file.channels() & Imf::RgbaChannels::WRITE_A;
-    return (isRgba ? QImage::Format_RGBA16FPx4 : QImage::Format_RGBX16FPx4);
+    return (isRgba ? QImage::Format_RGBA16FPx4_Premultiplied : QImage::Format_RGBX16FPx4);
 }
 
 /*!
@@ -519,9 +519,9 @@ bool makePreview(const QImage &image, Imf::Array2D<Imf::PreviewRgba> &pixels)
 
     QImage preview;
     if (w > h) {
-        preview = image.scaledToWidth(256).convertToFormat(QImage::Format_ARGB32);
+        preview = image.scaledToWidth(256).convertToFormat(QImage::Format_ARGB32_Premultiplied);
     } else {
-        preview = image.scaledToHeight(256).convertToFormat(QImage::Format_ARGB32);
+        preview = image.scaledToHeight(256).convertToFormat(QImage::Format_ARGB32_Premultiplied);
     }
     if (preview.isNull()) {
         return false;
@@ -693,7 +693,8 @@ bool EXRHandler::write(const QImage &image)
         // write the EXR
         K_OStream ostr(device());
         auto channelsType = image.hasAlphaChannel() ? Imf::RgbaChannels::WRITE_RGBA : Imf::RgbaChannels::WRITE_RGB;
-        if (m_subType == EXR_SUBFORMAT_YC) {
+        if (m_subType == EXR_SUBFORMAT_YC && !(width % 2) && !(height % 2)) {
+            // Works only with images with height and width that are multiples of 2.
             channelsType = channelsType == Imf::RgbaChannels::WRITE_RGBA ? Imf::RgbaChannels::WRITE_YCA : Imf::RgbaChannels::WRITE_YC;
         }
         if (image.format() == QImage::Format_Mono ||
@@ -707,7 +708,7 @@ bool EXRHandler::write(const QImage &image)
         pixels.resizeErase(EXR_LINES_PER_BLOCK, width);
 
         // convert the image and write into the stream
-        auto convFormat = image.hasAlphaChannel() ? QImage::Format_RGBA32FPx4 : QImage::Format_RGBX32FPx4;
+        auto convFormat = image.hasAlphaChannel() ? QImage::Format_RGBA32FPx4_Premultiplied : QImage::Format_RGBX32FPx4;
         ScanLineConverter slc(convFormat);
         slc.setDefaultSourceColorSpace(QColorSpace(QColorSpace::SRgb));
         slc.setTargetColorSpace(QColorSpace(QColorSpace::SRgbLinear));
