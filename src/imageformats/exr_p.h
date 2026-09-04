@@ -118,6 +118,14 @@ private:
      * The initial device position to allow multi image load (cache value).
      */
     qint64 m_startPos;
+
+    /*!
+     * \brief m_subType
+     * The EXR subtype to use when writing:
+     * - RGB: preserves full-resolution color data (R, G, B) without subsampling or loss of chromatic detail (default).
+     * - YC: converts RGB data into luminance (Y) and 2x2 subsampled chroma (RY, BY), cutting raw color data by ~50% for significantly smaller file sizes.
+     */
+    QByteArray m_subType;
 };
 
 class EXRPlugin : public QImageIOPlugin

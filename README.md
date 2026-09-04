@@ -392,6 +392,21 @@ The plugin can set the following additional metadata:
 - `EXRLayerName`: A string containing the name of the EXR layer used to decode 
    the image.
 
+When writing, it is possible to specify compression ratio and quality. The 
+values ​​you can set depend on the version of the OpenEXR library you're using.
+Please check the [exr_p.h](./src/imageformats/exr_p.h) for more 
+info.
+
+When writing, it is also possible to specify a subtype:
+- `RGB` (default): preserves full-resolution color data (R, G, B) without 
+  subsampling or loss of chromatic detail.
+- `YC`: converts RGB data into luminance (Y) and 2x2 subsampled chroma 
+  (RY, BY), cutting raw color data by ~50% for significantly smaller file 
+  sizes.
+
+> [!note]
+> When writing grayscale images, the subtype makes no difference.
+
 ### The EPS plugin
 
 The plugin uses `Ghostscript` to convert the raster image. When reading it

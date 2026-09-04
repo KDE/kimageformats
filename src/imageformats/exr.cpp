@@ -200,12 +200,17 @@ void K_OStream::seekg(Imf::Int64 pos)
     m_dev->seek(pos);
 }
 
+#define EXR_SUBFORMAT_RGB QByteArray("RGB")
+
+#define EXR_SUBFORMAT_YC QByteArray("YC")
+
 EXRHandler::EXRHandler()
     : m_compressionRatio(-1)
     , m_quality(-1)
     , m_imageNumber(0)
     , m_imageCount(0)
     , m_startPos(-1)
+    , m_subType(EXR_SUBFORMAT_RGB)
 {
     // Set the number of threads to use (0 is allowed)
     Imf::setGlobalThreadCount(QThread::idealThreadCount() / 2);
@@ -688,6 +693,9 @@ bool EXRHandler::write(const QImage &image)
         // write the EXR
         K_OStream ostr(device());
         auto channelsType = image.hasAlphaChannel() ? Imf::RgbaChannels::WRITE_RGBA : Imf::RgbaChannels::WRITE_RGB;
+        if (m_subType == EXR_SUBFORMAT_YC) {
+            channelsType = channelsType == Imf::RgbaChannels::WRITE_RGBA ? Imf::RgbaChannels::WRITE_YCA : Imf::RgbaChannels::WRITE_YC;
+        }
         if (image.format() == QImage::Format_Mono ||
             image.format() == QImage::Format_MonoLSB ||
             image.format() == QImage::Format_Grayscale16 ||
@@ -743,6 +751,15 @@ void EXRHandler::setOption(ImageOption option, const QVariant &value)
             m_quality = q;
         }
     }
+    if (option == QImageIOHandler::SubType) {
+        auto subType = value.toByteArray();
+        auto list = EXRHandler::option(QImageIOHandler::SupportedSubTypes).value<QList<QByteArray>>();
+        if (list.contains(subType)) {
+            m_subType = subType;
+        } else {
+            m_subType = EXR_SUBFORMAT_RGB;
+        }
+    }
 }
 
 bool EXRHandler::supportsOption(ImageOption option) const
@@ -759,6 +776,12 @@ bool EXRHandler::supportsOption(ImageOption option) const
         return true;
     }
     if (option == QImageIOHandler::Quality) {
+        return true;
+    }
+    if (option == QImageIOHandler::SubType) {
+        return true;
+    }
+    if (option == QImageIOHandler::SupportedSubTypes) {
         return true;
     }
     return false;
@@ -813,6 +836,14 @@ QVariant EXRHandler::option(ImageOption option) const
 
     if (option == QImageIOHandler::Quality) {
         v = QVariant(m_quality);
+    }
+
+    if (option == QImageIOHandler::SupportedSubTypes) {
+        return QVariant::fromValue(QList<QByteArray>() << EXR_SUBFORMAT_RGB << EXR_SUBFORMAT_YC);
+    }
+
+    if (option == QImageIOHandler::SubType) {
+        return QVariant::fromValue(m_subType);
     }
 
     return v;
