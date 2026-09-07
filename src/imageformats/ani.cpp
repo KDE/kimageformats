@@ -12,6 +12,7 @@
 #include <QScopeGuard>
 #include <QVariant>
 #include <QtEndian>
+#include <QtNumeric>
 
 #include <cstring>
 
@@ -267,7 +268,17 @@ int ANIHandler::nextImageDelay() const
         rate = m_displayRates.at(previousImage);
     }
 
-    return rate * 1000 / 60;
+    int delayNumerator;
+    if (qMulOverflow(rate, 1000, &delayNumerator)) {
+        int delay;
+        // We're losing a bit of precision by dividing first and multiplying later
+        // but this is most probably a broken file so not much of an issue
+        if (qMulOverflow(rate / 60, 1000, &delay)) {
+            return 0;
+        }
+        return delay;
+    }
+    return delayNumerator / 60;
 }
 
 bool ANIHandler::supportsOption(ImageOption option) const
