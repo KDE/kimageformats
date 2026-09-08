@@ -1,0 +1,7 @@
+[
+    {
+        "fileName": "grid.png",
+        "fuzziness": 2,
+        "description": "Minimum fuzziness value to pass the test on all architectures."
+    }
+]
