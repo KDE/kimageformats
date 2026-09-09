@@ -7,9 +7,19 @@
             "transferFunction" : "Linear",
             "gamma" : 1
         },
+        "metadata" : [
+            {
+                "key" : "ModificationDate",
+                "value" : "2026-04-15T10:48:48"
+            },
+            {
+                "key" : "Software" ,
+                "value" : "Adobe Photoshop 27.5 (Windows)"
+            }
+        ],
         "resolution" : {
-            "dotsPerMeterX" : 3937,
-            "dotsPerMeterY" : 3937
+            "dotsPerMeterX" : 11811,
+            "dotsPerMeterY" : 11811
         }
     }
 ]

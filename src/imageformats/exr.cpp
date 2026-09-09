@@ -8,6 +8,8 @@
 */
 
 #include "exr_p.h"
+#include "microexif_p.h"
+#include "photoshop_p.h"
 #include "scanlineconverter_p.h"
 #include "util_p.h"
 
@@ -384,6 +386,34 @@ static void readMetadata(const Imf::Header &header, QImage &image)
     }
     if (auto focalLen = header.findTypedAttribute<Imf::FloatAttribute>("effectiveFocalLength")) {
         image.setText(QStringLiteral(META_KEY_FOCALLENGTH), QLocale::c().toString(focalLen->value()));
+    }
+
+    // Photoshop image resource section
+    if (auto adobe = header.findTypedAttribute<Imf::OpaqueAttribute>("adobe_rsrc")) {
+        auto &&data = adobe->data();
+        auto ba = QByteArray(data, data.size());
+        ba.prepend((data.size()) & 0xFF);
+        ba.prepend((data.size() >> 8) & 0xFF);
+        ba.prepend((data.size() >> 16) & 0xFF);
+        ba.prepend((data.size() >> 24) & 0xFF);
+        QDataStream ds(ba);
+        ds.setByteOrder(QDataStream::BigEndian);
+        auto ok = false;
+        auto irs = readImageResourceSection(ds, &ok);
+        if (ok) {
+            if (irs.contains(IRI_EXIFDATA1)) {
+                auto exif = MicroExif::fromByteArray(irs.value(IRI_EXIFDATA1).data);
+                exif.updateImageMetadata(image);
+                exif.updateImageResolution(image);
+            }
+
+            if (irs.contains(IRI_XMPMETADATA)) {
+                auto irb = irs.value(IRI_XMPMETADATA);
+                auto xmp = QString::fromUtf8(irb.data);
+                if (!xmp.isEmpty())
+                    image.setText(QStringLiteral(META_KEY_XMP_ADOBE), xmp);
+            }
+        }
     }
 }
 

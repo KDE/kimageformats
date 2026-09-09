@@ -29,12 +29,12 @@
 #include "fastmath_p.h"
 #include "microexif_p.h"
 #include "packbits_p.h"
+#include "photoshop_p.h"
 #include "psd_p.h"
 #include "scanlineconverter_p.h"
 #include "util_p.h"
 
 #include <QColorSpace>
-#include <QDataStream>
 #include <QImage>
 #include <QLoggingCategory>
 
@@ -99,41 +99,6 @@ namespace // Private.
 
 #define NATIVE_CMYK (CMYK_FORMAT != QImage::Format_Invalid)
 
-enum Signature : quint32 {
-    S_8BIM = 0x3842494D, // '8BIM'
-    S_8B64 = 0x38423634, // '8B64'
-
-    S_MeSa = 0x4D655361   // 'MeSa'
-};
-
-enum ColorMode : quint16 {
-    CM_BITMAP = 0,
-    CM_GRAYSCALE = 1,
-    CM_INDEXED = 2,
-    CM_RGB = 3,
-    CM_CMYK = 4,
-    CM_MULTICHANNEL = 7,
-    CM_DUOTONE = 8,
-    CM_LABCOLOR = 9,
-};
-
-enum ImageResourceId : quint16 {
-    IRI_RESOLUTIONINFO = 0x03ED,
-    IRI_ICCPROFILE = 0x040F,
-    IRI_TRANSPARENCYINDEX = 0x0417,
-    IRI_ALPHAIDENTIFIERS = 0x041D,
-    IRI_VERSIONINFO = 0x0421,
-    IRI_EXIFDATA1 = 0x0422,
-    IRI_EXIFDATA3 = 0x0423, // never seen
-    IRI_XMPMETADATA = 0x0424
-};
-
-enum LayerId : quint32 {
-    LI_MT16 = 0x4D743136,   // 'Mt16',
-    LI_MT32 = 0x4D743332,   // 'Mt32',
-    LI_MTRN = 0x4D74726E    // 'Mtrn'
-};
-
 struct PSDHeader {
     PSDHeader() {
         memset(this, 0, sizeof(PSDHeader));
@@ -147,11 +112,6 @@ struct PSDHeader {
     uint width;
     ushort depth;
     ushort color_mode;
-};
-
-struct PSDImageResourceBlock {
-    QString name;
-    QByteArray data;
 };
 
 /*!
@@ -172,7 +132,6 @@ struct PSDColorModeDataSection {
     QList<QRgb> palette;
 };
 
-using PSDImageResourceSection = QHash<quint16, PSDImageResourceBlock>;
 
 struct PSDLayerInfo {
     qint64 size = -1;
@@ -271,145 +230,6 @@ static bool skip_section(QDataStream &s, bool psb = false)
     if (section_length < 0)
         return false;
     return skip_data(s, section_length);
-}
-
-/*!
- * \brief readPascalString
- * Reads the Pascal string as defined in the PSD specification.
- * \param s The stream.
- * \param alignBytes Alignment of the string.
- * \param size Number of stream bytes used.
- * \return The string read.
- */
-static QString readPascalString(QDataStream &s, qint32 alignBytes = 1, qint32 *size = nullptr)
-{
-    qint32 tmp = 0;
-    if (size == nullptr)
-        size = &tmp;
-
-    quint8 stringSize;
-    s >> stringSize;
-    *size = sizeof(stringSize);
-
-    QString str;
-    if (stringSize > 0) {
-        QByteArray ba;
-        ba.resize(stringSize);
-        auto read = s.readRawData(ba.data(), ba.size());
-        if (read > 0) {
-            *size += read;
-            str = QString::fromLatin1(ba);
-        }
-    }
-
-    // align
-    if (alignBytes > 1)
-        if (auto pad = *size % alignBytes)
-            *size += s.skipRawData(alignBytes - pad);
-
-    return str;
-}
-
-/*!
- * \brief readImageResourceSection
- * Reads the image resource section.
- * \param s The stream.
- * \param ok Pointer to the operation result variable.
- * \return The image resource section raw data.
- */
-static PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok = nullptr)
-{
-    PSDImageResourceSection irs;
-
-    bool tmp = true;
-    if (ok == nullptr)
-        ok = &tmp;
-    *ok = true;
-
-    // Section size
-    quint32 tmpSize;
-    s >> tmpSize;
-    qint64 sectioSize = tmpSize;
-
-    // Reading Image resource block
-    for (auto size = sectioSize; size > 0;) {
-
-#define DEC_SIZE(value) \
-        if ((size -= qint64(value)) < 0) { \
-            *ok = false; \
-            break; }
-
-        // Length      Description
-        // -------------------------------------------------------------------
-        // 4           Signature: '8BIM'
-        // 2           Unique identifier for the resource. Image resource IDs
-        //             contains a list of resource IDs used by Photoshop.
-        // Variable    Name: Pascal string, padded to make the size even
-        //             (a null name consists of two bytes of 0)
-        // 4           Actual size of resource data that follows
-        // Variable    The resource data, described in the sections on the
-        //             individual resource types. It is padded to make the size
-        //             even.
-
-        quint32 signature;
-        s >> signature;
-        DEC_SIZE(sizeof(signature))
-        // NOTE: MeSa signature is not documented but found in some old PSD take from Photoshop 7.0 CD.
-        if (signature != S_8BIM && signature != S_MeSa) { // 8BIM and MeSa
-            qCDebug(LOG_PSDPLUGIN) << "Invalid Image Resource Block Signature!";
-            *ok = false;
-            break;
-        }
-
-        // id
-        quint16 id;
-        s >> id;
-        DEC_SIZE(sizeof(id))
-
-        // getting data
-        PSDImageResourceBlock irb;
-
-        // name
-        qint32 bytes = 0;
-        irb.name = readPascalString(s, 2, &bytes);
-        DEC_SIZE(bytes)
-
-        // data read
-        quint32 dataSize;
-        s >> dataSize;
-        DEC_SIZE(sizeof(dataSize))
-        if (auto dev = s.device()) {
-            if (dataSize > size) {
-                qCDebug(LOG_PSDPLUGIN) << "Invalid Image Resource Block Data Size!";
-                *ok = false;
-                break;
-            }
-            irb.data = deviceRead(dev, dataSize);
-        }
-        auto read = irb.data.size();
-        if (read > 0) {
-            DEC_SIZE(read)
-        }
-        if (read != qint64(dataSize)) {
-            qCDebug(LOG_PSDPLUGIN) << "Image Resource Block Read Error!";
-            *ok = false;
-            break;
-        }
-
-        if (auto pad = dataSize % 2) {
-            auto skipped = s.skipRawData(pad);
-            if (skipped > 0) {
-                DEC_SIZE(skipped);
-            }
-        }
-
-        // insert IRB
-        irs.insert(id, irb);
-
-#undef DEC_SIZE
-    }
-
-    return irs;
 }
 
 PSDAdditionalLayerInfo readAdditionalLayer(QDataStream &s, bool *ok = nullptr)

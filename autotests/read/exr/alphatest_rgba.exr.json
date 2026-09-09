@@ -1,0 +1,33 @@
+[
+    {
+        "fileName" : "alphatest_rgba.tif",
+        "colorSpace" : {
+            "description" : "sRGB build-in (Profilo RGB lineare)",
+            "primaries" : "SRgb",
+            "transferFunction" : "Linear",
+            "gamma" : 1
+        },
+        "metadata" : [
+            {
+                "key" : "ModificationDate",
+                "value" : "2026-09-04T11:45:06"
+            },
+            {
+                "key" : "Software" ,
+                "value" : "Adobe Photoshop 27.10 (Windows)"
+            },
+            {
+                "key" : "Author",
+                "value" : "Mirco Miranda"
+            },
+            {
+                "key" : "Description",
+                "value" : "This test is designed to detect problems with alpha encoding. Specifically, it detects incorrect use of associated values ​​(premultiplied alpha) and unassociated values ​​(normal alpha)."
+            }
+        ],
+        "resolution" : {
+            "dotsPerMeterX" : 11811,
+            "dotsPerMeterY" : 11811
+        }
+    }
+]

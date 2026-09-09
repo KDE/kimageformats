@@ -57,7 +57,7 @@ endif()
 ##################################
 
 if(OpenEXR_FOUND)
-    kimageformats_add_plugin(kimg_exr SOURCES exr.cpp scanlineconverter.cpp)
+    kimageformats_add_plugin(kimg_exr SOURCES exr.cpp microexif.cpp photoshop.cpp scanlineconverter.cpp)
     if(TARGET OpenEXR::OpenEXR)
         target_link_libraries(kimg_exr PRIVATE OpenEXR::OpenEXR)
     else()
@@ -117,7 +117,7 @@ kimageformats_add_plugin(kimg_pfm SOURCES pfm.cpp)
 
 ##################################
 
-kimageformats_add_plugin(kimg_psd SOURCES psd.cpp microexif.cpp scanlineconverter.cpp)
+kimageformats_add_plugin(kimg_psd SOURCES psd.cpp microexif.cpp photoshop.cpp scanlineconverter.cpp)
 
 ##################################
 
