@@ -126,6 +126,12 @@ private:
      * - YC: converts RGB data into luminance (Y) and 2x2 subsampled chroma (RY, BY), cutting raw color data by ~50% for significantly smaller file sizes.
      */
     QByteArray m_subType;
+
+    /*!
+     * \brief m_transformation
+     * The Qt image transformation.
+     */
+    QImageIOHandler::Transformation m_transformation;
 };
 
 class EXRPlugin : public QImageIOPlugin

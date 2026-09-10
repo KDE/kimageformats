@@ -84,6 +84,8 @@
 #define EXIF_TAG_SIZEOF(dataType) (quint16(dataType) & 0x3F)
 #define EXIF_TAG_DATATYPE(dataType) (quint16(dataType) >> 6)
 
+#define GPS_GPSVERSION_VALUE QList<quint8>{0x02, 0x04, 0x00, 0x00}
+
 enum class ExifTagType : quint16 {
     // Base data types
     Byte = EXIF_TAG_VALUE(1, 1),
@@ -1325,7 +1327,7 @@ QByteArray MicroExif::gpsIfdByteArray(const QDataStream::ByteOrder &byteOrder, c
         QDataStream ds(&ba, QIODevice::WriteOnly);
         ds.setByteOrder(byteOrder);
         auto gpsTags = m_gpsTags;
-        gpsTags.insert(GPS_GPSVERSION, QByteArray("2400"));
+        gpsTags.insert(GPS_GPSVERSION, QVariant::fromValue(GPS_GPSVERSION_VALUE));
         TagPos positions;
         if (!writeIfd(ds, version, gpsTags, positions, 0, staticGpsTagTypes))
             return {};
@@ -1723,7 +1725,7 @@ void MicroExif::updateTags(Tags &tiffTags, Tags &exifTags, Tags &gpsTags, const 
         tiffTags.remove(EXIF_GPSIFD);
     } else {
         tiffTags.insert(EXIF_GPSIFD, quint32());
-        gpsTags.insert(GPS_GPSVERSION, QByteArray("2400"));
+        gpsTags.insert(GPS_GPSVERSION, QVariant::fromValue(GPS_GPSVERSION_VALUE));
     }
 }
 

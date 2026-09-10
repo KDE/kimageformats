@@ -44,6 +44,23 @@ QString readPascalString(QDataStream &s, qint32 alignBytes, qint32 *size)
     return str;
 }
 
+bool writePascalString(const QString &str, QDataStream &s, qint32 alignBytes)
+{
+    auto data = str.toLatin1();
+    if(data.size() > 250) {
+        data = data.left(250);
+    }
+    auto sz = data.size();
+    s << quint8(sz);
+    if (sz && s.writeRawData(data.data(), sz) != sz) {
+        return false;
+    }
+    for(alignBytes = std::max(1, alignBytes), sz += 1; sz % alignBytes; ++sz) {
+        s << char();
+    }
+    return s.status() == QDataStream::Ok;
+}
+
 PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok)
 {
     PSDImageResourceSection irs;
@@ -137,4 +154,112 @@ PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok)
     }
 
     return irs;
+}
+
+bool writeImageResourceSection(const PSDImageResourceSection &irs, QDataStream &s)
+{
+    bool ok = false;
+    auto ba = irs.toByteArray(&ok);
+    if (!ok) {
+        return false;
+    }
+    s << quint32(ba.size());
+    if (s.writeRawData(ba.data(), ba.size()) != ba.size()) {
+        return false;
+    }
+    return (s.status() == QDataStream::Ok);
+}
+
+
+QByteArray PSDImageResourceSection::toByteArray(bool *ok) const
+{
+    QByteArray ba;
+
+    bool tmp = true;
+    if (ok == nullptr)
+        ok = &tmp;
+    *ok = true;
+
+    if (!isEmpty()) {
+        QDataStream s(&ba, QDataStream::WriteOnly);
+        s.setByteOrder(QDataStream::BigEndian);
+
+        auto ids = keys();
+        for(auto &&id : ids) {
+            auto irb = value(id);
+            if (irb.data.isEmpty()) {
+                continue;
+            }
+
+            // signature
+            s << quint32(S_8BIM);
+
+            // resource id
+            s << quint16(id);
+
+            // resource name (2 bytes aligned)
+            if (!writePascalString(irb.name, s, 2)) {
+                *ok = false;
+                return{};
+            }
+
+            // data (2 bytes aligned)
+            auto sz = irb.data.size();
+            s << quint32(sz);
+            if (s.writeRawData(irb.data.data(), sz) != sz) {
+                *ok = false;
+                return{};
+            }
+            if (sz % 2) {
+                s << char();
+            }
+
+            if (s.status() != QDataStream::Ok) {
+                *ok = false;
+                return{};
+            }
+        }
+    }
+
+    Q_ASSERT(ba.size() % 2 == 0);
+    return ba;
+}
+
+PSDResolutionInfoBlock::PSDResolutionInfoBlock(qint32 ppmX, qint32 ppmY)
+    : m_ppmX(ppmX)
+    , m_ppmY(ppmY)
+{
+
+}
+
+bool PSDResolutionInfoBlock::isValid() const
+{
+    return m_ppmX > 0 && m_ppmY > 0;
+}
+
+PSDResolutionInfoBlock PSDResolutionInfoBlock::fromImage(const QImage &image)
+{
+    return PSDResolutionInfoBlock(image.dotsPerMeterX(), image.dotsPerMeterY());
+}
+
+QByteArray PSDResolutionInfoBlock::toByteArray() const
+{
+    QByteArray ba;
+    QDataStream ds(&ba, QIODevice::WriteOnly);
+    ds.setByteOrder(QDataStream::BigEndian);
+
+    auto hres = qRoundOrZero(dppm2dpi(m_ppmX) * 65536);
+    ds << hres;
+    ds << quint16(1); // dpi
+    ds << quint16(2); // cm (display)
+    auto vres = qRoundOrZero(dppm2dpi(m_ppmY) * 65536);
+    ds << vres;
+    ds << quint16(1);
+    ds << quint16(2);
+
+    if (hres == 0 || vres == 0) {
+        return{};
+    }
+
+    return ba;
 }

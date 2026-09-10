@@ -9,6 +9,7 @@
 
 #include <QDataStream>
 #include <QHash>
+#include <QImage>
 #include <QString>
 
 enum Signature : quint32 {
@@ -55,7 +56,50 @@ struct PSDImageResourceBlock {
     QByteArray data;
 };
 
-using PSDImageResourceSection = QHash<ImageResourceId, PSDImageResourceBlock>;
+class PSDImageResourceSection : public QHash<ImageResourceId, PSDImageResourceBlock>
+{
+public:
+    PSDImageResourceSection() : QHash<ImageResourceId, PSDImageResourceBlock>() {}
+    PSDImageResourceSection(const PSDImageResourceSection& other) = default;
+    PSDImageResourceSection& operator =(const PSDImageResourceSection& other) = default;
+
+    /*!
+     * \brief toByteArray
+     * \param ok Pointer to the operation result variable.
+     * \return The binary IRB to be written into the PSD file.
+     */
+    QByteArray toByteArray(bool *ok = nullptr) const;
+};
+
+class PSDResolutionInfoBlock
+{
+public:
+    PSDResolutionInfoBlock(qint32 ppmX, qint32 ppmY);
+    PSDResolutionInfoBlock(const PSDResolutionInfoBlock& other) = default;
+    PSDResolutionInfoBlock& operator =(const PSDResolutionInfoBlock& other) = default;
+
+    /*!
+     * \brief isValid
+     * \return true if both m_ppmX and m_ppmY are grater than 0. Otherwise false.
+     */
+    bool isValid() const;
+
+    /*!
+     * \brief fromImage
+     * Initialize the class using the image resolution.
+     */
+    static PSDResolutionInfoBlock fromImage(const QImage& image);
+
+    /*!
+     * \brief toByteArray
+     * \return The binary data ready for the IMage Resource Section.
+     */
+    QByteArray toByteArray() const;
+
+private:
+    qint32 m_ppmX;
+    qint32 m_ppmY;
+};
 
 
 /*!
@@ -69,6 +113,16 @@ using PSDImageResourceSection = QHash<ImageResourceId, PSDImageResourceBlock>;
 QString readPascalString(QDataStream &s, qint32 alignBytes = 1, qint32 *size = nullptr);
 
 /*!
+ * \brief writePascalString
+ * Writes the Pascal string as defined in the PSD specification.
+ * \param str The string to be written.
+ * \param s The stream.
+ * \param alignBytes Alignment of the string.
+ * \return True on success, otherwise false.
+ */
+bool writePascalString(const QString& str, QDataStream &s, qint32 alignBytes = 1);
+
+/*!
  * \brief readImageResourceSection
  * Reads the image resource section.
  * \param s The stream.
@@ -76,5 +130,14 @@ QString readPascalString(QDataStream &s, qint32 alignBytes = 1, qint32 *size = n
  * \return The image resource section raw data.
  */
 PSDImageResourceSection readImageResourceSection(QDataStream &s, bool *ok = nullptr);
+
+/*!
+ * \brief writeImageResourceSection
+ * Writes the image resource section.
+ * \param irs The image resource section raw data.
+ * \param s The stream.
+ * \return True on success, otherwise false.
+ */
+bool writeImageResourceSection(const PSDImageResourceSection& irs, QDataStream &s);
 
 #endif // PHOTOSHOP_P_H

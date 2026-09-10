@@ -384,9 +384,12 @@ The following defines can be defined in cmake to modify the behavior of the
 plugin:
 - `EXR_CONVERT_TO_SRGB`: the linear data is converted to sRGB on read to 
   accommodate programs that do not support color profiles.
-- `EXR_DISABLE_XMP_ATTRIBUTE`: disables the stores XMP values in a non-standard 
-  attribute named "xmp". Note that Gimp reads the "xmp" attribute and Darktable 
-  writes it as well.
+- `EXR_DISABLE_XMP_ATTRIBUTE`: disables the storage of XMP values in a 
+  non-standard attribute named "xmp". Note that Gimp reads the "xmp" attribute
+  and Darktable writes it as well.
+- `EXR_DISABLE_ADOBE_ATTRIBUTE`: disables the storage of non-standard 
+  attribute "adobe_rsrc". Note that Photoshop uses "adobe_rsrc" attribute to 
+  read and write XMP/EXIF/IPTC data.
 
 The plugin can set the following additional metadata:
 - `EXRLayerName`: A string containing the name of the EXR layer used to decode 
