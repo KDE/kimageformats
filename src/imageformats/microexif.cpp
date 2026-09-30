@@ -13,6 +13,7 @@
 #include <QDataStream>
 #include <QHash>
 #include <QStringDecoder>
+#include <QStringEncoder>
 #include <QTimeZone>
 
 // TIFF 6 specs
@@ -1748,9 +1749,10 @@ void MicroExif::setUtf16String(Tags &tags, quint16 tagId, const QString &s)
         tags.remove(tagId);
         return;
     }
-    auto s16 = s.toStdU16String();
+
+    QStringEncoder fromUtf16(QStringEncoder::Utf16LE, QStringEncoder::Flag::Stateless);
+    QByteArray ba = fromUtf16(s);
     QList<quint8> uba;
-    auto ba = QByteArrayView(reinterpret_cast<char*>(s16.data()), s.size() * 2);
     for(auto&& c : ba)
         uba.append(quint8(c));
     uba.append(quint8('\0'));
@@ -1763,7 +1765,6 @@ QString MicroExif::utf16String(const Tags &tags, quint16 tagId)
     auto ba = tags.value(tagId).value<QList<quint8>>();
     if (ba.isEmpty())
         return {};
-    auto p16 = reinterpret_cast<char16_t*>(ba.data());
-    auto sz = std::max(ba.size() / 2 - 1, qsizetype());
-    return QString::fromUtf16(p16, sz);
+    QStringDecoder toUtf16(QStringDecoder::Utf16LE, QStringDecoder::Flag::Stateless);
+    return toUtf16(QByteArrayView(ba.data(), std::max(ba.size() - 2, qsizetype())));
 }
