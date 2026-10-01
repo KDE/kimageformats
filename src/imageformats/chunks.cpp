@@ -1271,33 +1271,34 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, qint32 y, const BMH
         // from the PNG format into the Amiga (ILBM) bitmap format.
 
         ba = QByteArray(rowLen * 64, char()); // the RGBX QT format is 64-bits
+        quint16 *data = reinterpret_cast<quint16*>(ba.data());
         const qint32 order[] = { 1, 0, 3, 2, 5, 4, 7, 6 };
         for (qint32 i = 0, cnt = 0, p = bitplanes / 8; i < rowLen; ++i) {
             for (qint32 j = 0; j < 8; ++j, cnt += 8) {
                 for (qint32 k = 0; k < p; ++k) {
                     auto k8 = k * 8;
                     auto msk = (1 << (7 - j));
-                    auto idx = cnt + order[k];
+                    auto idx = (cnt + order[k]) / 2;
+                    auto shift = (order[k] % 2) * 8;
                     if (planes.at(k8 * rowLen + i) & msk)
-                        ba[idx] |= 0x01;
+                        data[idx] |= 0x01 << shift;
                     if (planes.at((1 + k8) * rowLen + i) & msk)
-                        ba[idx] |= 0x02;
+                        data[idx] |= 0x02 << shift;
                     if (planes.at((2 + k8) * rowLen + i) & msk)
-                        ba[idx] |= 0x04;
+                        data[idx] |= 0x04 << shift;
                     if (planes.at((3 + k8) * rowLen + i) & msk)
-                        ba[idx] |= 0x08;
+                        data[idx] |= 0x08 << shift;
                     if (planes.at((4 + k8) * rowLen + i) & msk)
-                        ba[idx] |= 0x10;
+                        data[idx] |= 0x10 << shift;
                     if (planes.at((5 + k8) * rowLen + i) & msk)
-                        ba[idx] |= 0x20;
+                        data[idx] |= 0x20 << shift;
                     if (planes.at((6 + k8) * rowLen + i) & msk)
-                        ba[idx] |= 0x40;
+                        data[idx] |= 0x40 << shift;
                     if (planes.at((7 + k8) * rowLen + i) & msk)
-                        ba[idx] |= 0x80;
+                        data[idx] |= 0x80 << shift;
                 }
                 if (p == 6) { // RGBX wants unused X data set to 0xFF
-                    ba[cnt + 6] = char(0xFF);
-                    ba[cnt + 7] = char(0xFF);
+                    data[cnt / 2 + 3] = 0xFFFF;
                 }
             }
         }
