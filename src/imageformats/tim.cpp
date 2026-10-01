@@ -311,6 +311,9 @@ bool TIMHandler::read(QImage *image)
             qCWarning(LOG_TIMPLUGIN) << "TIMHandler::read() error while reading image scanline";
             return false;
         }
+        if (img.format() == QImage::Format_RGB555) {
+            qFromLittleEndian<quint16>(line, size / 2, line);
+        }
         if (conv_4bpp) {
             for (auto x = 0, w = qint32(tmpBuff.size()); x < w; ++x) {
                 auto &&v = tmpBuff.at(x);
