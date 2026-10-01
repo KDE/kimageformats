@@ -176,11 +176,7 @@ bool FFHandler::read(QImage *image)
             qCWarning(LOG_FFPLUGIN) << "FFHandler::read() error while reading image scanline";
             return false;
         }
-#if Q_LITTLE_ENDIAN
-        for (auto i = 0; i < size; i += 2) {
-            std::swap(line[i], line[i + 1]);
-        }
-#endif
+        qFromBigEndian<quint16>(line, size / 2, line);
     }
 
     img.setColorSpace(QColorSpace(QColorSpace::SRgb));
