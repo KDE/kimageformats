@@ -4083,6 +4083,7 @@ QByteArray DBODChunk::strideRead(QIODevice *d, qint32, const DGBLChunk *header, 
         return {};
     }
 
+#if Q_BYTE_ORDER == Q_LITTLE_ENDIAN
     // byte swap
     if (auto count = pel->count()) {
         if (pel->depth() / count == 16) {
@@ -4091,6 +4092,7 @@ QByteArray DBODChunk::strideRead(QIODevice *d, qint32, const DGBLChunk *header, 
             }
         }
     }
+#endif
 
     return planes;
 }
