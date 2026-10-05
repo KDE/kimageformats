@@ -428,7 +428,7 @@ int formatTest(const QString &suffix, bool createTemplates)
         // This comparison is only to understand if the plugin has written a completely wrong image. I therefore have no
         // qualms about converting them to a more convenient format or to tolerate slightly different pixels.
         auto compareFormat = writtenImage.hasAlphaChannel() ? QImage::Format_ARGB32 : QImage::Format_RGB32;
-        if (!fuzzyeq(writtenImage.convertToFormat(compareFormat), tmplImage.convertToFormat(compareFormat), 5)) {
+        if (!fuzzyeq(writtenImage.convertToFormat(compareFormat), tmplImage.convertToFormat(compareFormat), 5, true)) {
             ++failed;
             QTextStream(stdout) << "FAIL : re-reading the data resulted in a different image " << formatName << "\n";
             continue;
