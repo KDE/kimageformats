@@ -21,8 +21,10 @@
 ################################################################################
 
 apt-get update && \
-    apt-get install -y cmake make autoconf automake autopoint libtool \
+    apt-get install -y make autoconf automake autopoint libtool \
     wget po4a ninja-build pkgconf
+
+pip install cmake
 
 git clone --depth 1 https://github.com/madler/zlib.git
 git clone --depth 1 -b v1.5.7 https://github.com/facebook/zstd.git
