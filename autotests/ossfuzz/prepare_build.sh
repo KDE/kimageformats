@@ -30,12 +30,12 @@ git clone --depth 1 https://github.com/madler/zlib.git
 git clone --depth 1 -b v1.5.7 https://github.com/facebook/zstd.git
 wget https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz
 git clone --depth 1 https://github.com/tukaani-project/xz.git
-git clone --depth 1 --branch=RB-3.4 https://github.com/AcademySoftwareFoundation/openexr.git
+git clone --depth 1 --branch=RB-3.5 https://github.com/AcademySoftwareFoundation/openexr.git
 git clone --depth 1 -b master https://invent.kde.org/frameworks/extra-cmake-modules.git
 git clone --depth 1 --branch=dev git://code.qt.io/qt/qtbase.git
 git clone --depth 1 --branch=dev git://code.qt.io/qt/qttools.git
 git clone --depth 1 -b master https://invent.kde.org/frameworks/karchive.git
-git clone --depth 1 -b v3.15.0 https://aomedia.googlesource.com/aom
+git clone --depth 1 -b v3.15.1 https://aomedia.googlesource.com/aom
 git clone --depth 1 -b v1.4.2 https://github.com/AOMediaCodec/libavif.git
 git clone --depth 1 https://github.com/strukturag/libde265.git
 git clone --depth 1 -b v2.5.4 https://github.com/uclouvain/openjpeg.git
@@ -44,3 +44,4 @@ git clone --depth=1 --recursive --shallow-submodules https://github.com/libjxl/l
 git clone --depth 1 https://github.com/LibRaw/LibRaw
 git clone --depth 1 https://github.com/mircomir/jxrlib.git
 git clone --depth 1 -b v2.6.0 https://github.com/cisco/openh264.git
+git clone --depth 1 -b 3.2.0 https://github.com/libjpeg-turbo/libjpeg-turbo.git

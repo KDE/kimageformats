@@ -62,9 +62,16 @@ make install -j$(nproc)
 export CFLAGS="${ORIG_CFLAGS}"
 export CXXFLAGS="${ORIG_CXXFLAGS}"
 
+# Build libjpeg-turbo
+cd $SRC/libjpeg-turbo
+mkdir build
+cd build
+cmake -G Ninja -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=OFF -DENABLE_SHARED=0 -DENABLE_STATIC=1 -DWITH_TOOLS=0 -DWITH_TESTS=0 -DWITH_JPEG8=1 ..
+ninja install
+
 # Build qt
 cd $SRC/qtbase
-./configure -no-glib -qt-libpng -qt-pcre -opensource -confirm-license -static -no-opengl -no-icu -platform linux-clang-libc++ -debug -prefix /usr -no-feature-widgets -no-feature-sql -no-feature-network  -no-feature-xml -no-feature-dbus -no-feature-printsupport
+./configure -no-glib -qt-libpng -qt-pcre -opensource -confirm-license -static -no-opengl -no-icu -platform linux-clang-libc++ -debug -prefix /usr -no-feature-widgets -no-feature-sql -no-feature-network  -no-feature-xml -no-feature-dbus -no-feature-printsupport -system-libjpeg
 cmake --build . --parallel $(nproc)
 cmake --install .
 
@@ -89,7 +96,7 @@ TMP_CXXFLAGS=$CXXFLAGS
 CFLAGS="$CFLAGS -fno-sanitize=function,vptr"
 CXXFLAGS="$CXXFLAGS -fno-sanitize=function,vptr"
 autoreconf --install
-./configure --disable-examples
+./configure --disable-examples --disable-shared
 make -j$(nproc)
 make install -j$(nproc)
 CFLAGS=$TMP_CFLAGS
@@ -144,12 +151,9 @@ ninja install
 
 # Build libheif
 cd $SRC/libheif
-#Reduce max width and height to avoid allocating too much memory
-sed -i "s/static const int MAX_IMAGE_WIDTH = 32768;/static const int MAX_IMAGE_WIDTH = 8192;/g" libheif/security_limits.h
-sed -i "s/static const int MAX_IMAGE_HEIGHT = 32768;/static const int MAX_IMAGE_HEIGHT = 8192;/g" libheif/security_limits.h
 mkdir build
 cd build
-cmake -G Ninja -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF -DENABLE_PLUGIN_LOADING=OFF -DWITH_EXAMPLES=OFF -DBUILD_DOCUMENTATION=OFF -DWITH_LIBSHARPYUV=OFF -DWITH_UNCOMPRESSED_CODEC=ON -DWITH_DAV1D=OFF -DWITH_EXAMPLES=OFF -DWITH_LIBDE265=ON -DWITH_RAV1E=OFF -DWITH_RAV1E_PLUGIN=OFF -DWITH_SvtEnc=OFF -DWITH_SvtEnc_PLUGIN=OFF -DWITH_X265=OFF -DWITH_X264=OFF -DWITH_OpenJPEG_DECODER=ON -DWITH_OpenH264_DECODER=ON ..
+cmake -G Ninja -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF -DENABLE_PLUGIN_LOADING=OFF -DWITH_EXAMPLES=OFF -DBUILD_DOCUMENTATION=OFF -DWITH_LIBSHARPYUV=OFF -DWITH_UNCOMPRESSED_CODEC=ON -DWITH_DAV1D=OFF -DWITH_EXAMPLES=OFF -DWITH_LIBDE265=ON -DWITH_RAV1E=OFF -DWITH_RAV1E_PLUGIN=OFF -DWITH_SvtEnc=OFF -DWITH_SvtEnc_PLUGIN=OFF -DWITH_X265=OFF -DWITH_X264=OFF -DWITH_OpenJPEG_DECODER=ON -DWITH_OpenH264_DECODER=ON -DWITH_JPEG_DECODER=ON ..
 ninja install
 
 cd $SRC/kimageformats
@@ -186,7 +190,7 @@ echo "$HANDLER_TYPES" | while read format; do
   /usr/libexec/moc $SRC/kimageformats/src/imageformats/$format.cpp -o $format.moc
   header=`ls $SRC/kimageformats/src/imageformats/$format*.h`
   /usr/libexec/moc $header -o moc_`basename $header .h`.cpp
-  $CXX $CXXFLAGS $LDFLAGS -fPIC -DKIMG_FUZZER_${format}=1 -std=c++17 autotests/ossfuzz/kimgio_fuzzer.cc $SRC/kimageformats/src/imageformats/$format.cpp $SRC/kimageformats/src/imageformats/scanlineconverter.cpp $SRC/kimageformats/src/imageformats/photoshop.cpp $SRC/kimageformats/src/imageformats/microexif.cpp $SRC/kimageformats/src/imageformats/chunks.cpp -o $OUT/$fuzz_target_name -DJXL_STATIC_DEFINE -DJXL_THREADS_STATIC_DEFINE -DJXL_CMS_STATIC_DEFINE -D__ANSI__ -I $SRC/kimageformats/src/imageformats/ -I $SRC/libavif/include/ -I $SRC/libjxl/build/lib/include/ -I $SRC/libjxl/lib/include/ -I /usr/local/include/OpenEXR/ -I /usr/local/include/KF6/KArchive/ -I /usr/local/include/openjpeg-2.5 -I /usr/local/include/Imath -I $SRC/jxrlib/common/include -I $SRC/jxrlib/jxrgluelib -I $SRC/jxrlib/image/sys -I /usr/include/QtCore/ -I /usr/include/QtGui/ -I . $SRC/libavif/build/libavif.a /usr/local/lib/libheif.a /usr/local/lib/libde265.a /usr/local/lib/libopenh264.a $SRC/aom/build.libavif/libaom.a $SRC/libjxl/build/lib/libjxl_threads.a $SRC/libjxl/build/lib/libjxl.a $SRC/libjxl/build/lib/libjxl_cms.a $SRC/libjxl/build/third_party/highway/libhwy.a $SRC/libjxl/build/third_party/brotli/libbrotlidec.a $SRC/libjxl/build/third_party/brotli/libbrotlienc.a $SRC/libjxl/build/third_party/brotli/libbrotlicommon.a -lQt6Gui -lQt6Core -lQt6BundledLibpng -lQt6BundledHarfbuzz -lm -lQt6BundledPcre2 -ldl -lpthread $LIB_FUZZING_ENGINE /usr/local/lib/libz.a /usr/local/lib/x86_64-linux-gnu/libKF6Archive.a /usr/local/lib/libz.a /usr/local/lib/libraw.a /usr/local/lib/libOpenEXR-3_4.a /usr/local/lib/libIex-3_4.a /usr/local/lib/libImath-3_2.a /usr/local/lib/libIlmThread-3_4.a /usr/local/lib/libOpenEXRCore-3_4.a /usr/local/lib/libOpenEXRUtil-3_4.a /usr/local/lib/libopenjp2.a /usr/local/lib/libzstd.a $SRC/jxrlib/build/libjxrglue.a $SRC/jxrlib/build/libjpegxr.a /usr/local/lib/liblzma.a /usr/local/lib/libbz2.a -lclang_rt.builtins
+  $CXX $CXXFLAGS $LDFLAGS -fPIC -DKIMG_FUZZER_${format}=1 -std=c++17 autotests/ossfuzz/kimgio_fuzzer.cc $SRC/kimageformats/src/imageformats/$format.cpp $SRC/kimageformats/src/imageformats/scanlineconverter.cpp $SRC/kimageformats/src/imageformats/photoshop.cpp $SRC/kimageformats/src/imageformats/microexif.cpp $SRC/kimageformats/src/imageformats/chunks.cpp -o $OUT/$fuzz_target_name -DJXL_STATIC_DEFINE -DJXL_THREADS_STATIC_DEFINE -DJXL_CMS_STATIC_DEFINE -D__ANSI__ -I $SRC/kimageformats/src/imageformats/ -I $SRC/libavif/include/ -I $SRC/libjxl/build/lib/include/ -I $SRC/libjxl/lib/include/ -I /usr/local/include/OpenEXR/ -I /usr/local/include/KF6/KArchive/ -I /usr/local/include/openjpeg-2.5 -I /usr/local/include/Imath -I $SRC/jxrlib/common/include -I $SRC/jxrlib/jxrgluelib -I $SRC/jxrlib/image/sys -I /usr/include/QtCore/ -I /usr/include/QtGui/ -I . $SRC/libavif/build/libavif.a /usr/local/lib/libheif.a /usr/local/lib/libde265.a /usr/local/lib/libopenh264.a $SRC/aom/build.libavif/libaom.a $SRC/libjxl/build/lib/libjxl_threads.a $SRC/libjxl/build/lib/libjxl.a $SRC/libjxl/build/lib/libjxl_cms.a $SRC/libjxl/build/third_party/highway/libhwy.a $SRC/libjxl/build/third_party/brotli/libbrotlidec.a $SRC/libjxl/build/third_party/brotli/libbrotlienc.a $SRC/libjxl/build/third_party/brotli/libbrotlicommon.a -lQt6Gui -lQt6Core -lQt6BundledLibpng -lQt6BundledHarfbuzz -lm -lQt6BundledPcre2 -ldl -lpthread $LIB_FUZZING_ENGINE /usr/local/lib/libz.a /usr/local/lib/x86_64-linux-gnu/libKF6Archive.a /usr/local/lib/libz.a /usr/local/lib/libraw.a /usr/local/lib/libOpenEXR-3_5.a /usr/local/lib/libIex-3_5.a /usr/local/lib/libImath-3_2.a /usr/local/lib/libIlmThread-3_5.a /usr/local/lib/libOpenEXRCore-3_5.a /usr/local/lib/libOpenEXRUtil-3_5.a /usr/local/lib/libopenjp2.a /usr/local/lib/libzstd.a $SRC/jxrlib/build/libjxrglue.a $SRC/jxrlib/build/libjpegxr.a /usr/local/lib/liblzma.a /usr/local/lib/libbz2.a /usr/local/lib/libjpeg.a -lclang_rt.builtins
 
   # -lclang_rt.builtins in the previous line is a temporary workaround to avoid a linker error "undefined reference to __truncsfhf2". Investigate why this is needed here, but not anywhere else, and possibly remove it.
 
