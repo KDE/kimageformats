@@ -642,6 +642,11 @@ public:
         if (int(m_jp2_image->numcomps) != ncomp) {
             return false; // paranoia
         }
+        // Flag the alpha component so that the encoder emits a 'cdef' box. Without it,
+        // some decoders (e.g. Photoshop) may interpret a 4-component image as CMYK.
+        if (ncomp == 4 && cs != OPJ_CLRSPC_CMYK) {
+            m_jp2_image->comps[3].alpha = 1;
+        }
         m_jp2_image->x1 = image.width();
         m_jp2_image->y1 = image.height();
 
@@ -675,12 +680,15 @@ public:
         }
 
         if (opjVersion() >= QT_VERSION_CHECK(2, 5, 4)) {
-            auto colorSpace = scl.targetColorSpace().iccProfile();
-            if (!colorSpace.isEmpty()) {
-                m_jp2_image->icc_profile_buf = reinterpret_cast<OPJ_BYTE *>(malloc(colorSpace.size()));
-                if (m_jp2_image->icc_profile_buf) {
-                    memcpy(m_jp2_image->icc_profile_buf, colorSpace.data(), colorSpace.size());
-                    m_jp2_image->icc_profile_len = colorSpace.size();
+            // If the OpenJPEG color space is sRGB, it is not necessary to write the sRGB ICC profile as well.
+            if (cs != OPJ_CLRSPC_SRGB) {
+                auto colorSpace = scl.targetColorSpace().iccProfile();
+                if (!colorSpace.isEmpty()) {
+                    m_jp2_image->icc_profile_buf = reinterpret_cast<OPJ_BYTE *>(malloc(colorSpace.size()));
+                    if (m_jp2_image->icc_profile_buf) {
+                        memcpy(m_jp2_image->icc_profile_buf, colorSpace.data(), colorSpace.size());
+                        m_jp2_image->icc_profile_len = colorSpace.size();
+                    }
                 }
             }
         }
@@ -702,10 +710,10 @@ public:
         }
         enableThreads(codec.get());
 #ifdef QT_DEBUG
-        // opj_set_info_handler(m_jp2_codec, info_callback, nullptr);
-        // opj_set_warning_handler(m_jp2_codec, warning_callback, nullptr);
+        // opj_set_info_handler(codec.get(), info_callback, nullptr);
+        // opj_set_warning_handler(codec.get(), warning_callback, nullptr);
 #endif
-        opj_set_error_handler(m_jp2_codec, error_callback, nullptr);
+        opj_set_error_handler(codec.get(), error_callback, nullptr);
 
         if (!opj_setup_encoder(codec.get(), &m_cparameters, m_jp2_image)) {
             return false;
