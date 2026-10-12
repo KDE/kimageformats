@@ -608,22 +608,67 @@ bool HEIFHandler::read_orientation_helper(void *heif_handle, const void *heif_ct
 
     if (rotation_ccw == -1 && mirror == heif_transform_mirror_direction::heif_transform_mirror_direction_invalid) {
         m_orientation = 0;
-    } else if (rotation_ccw == 0 && mirror == heif_transform_mirror_direction::heif_transform_mirror_direction_invalid) {
-        m_orientation = 1;
-    } else if (rotation_ccw <= 0 && mirror == heif_transform_mirror_direction::heif_transform_mirror_direction_horizontal) {
-        m_orientation = 2;
-    } else if (rotation_ccw == 180 && mirror == heif_transform_mirror_direction::heif_transform_mirror_direction_invalid) {
-        m_orientation = 3;
-    } else if (rotation_ccw <= 0 && mirror == heif_transform_mirror_direction::heif_transform_mirror_direction_vertical) {
-        m_orientation = 4;
-    } else if (rotation_ccw == 270 && mirror == heif_transform_mirror_direction::heif_transform_mirror_direction_horizontal) {
-        m_orientation = 5;
-    } else if (rotation_ccw == 270 && mirror == heif_transform_mirror_direction::heif_transform_mirror_direction_invalid) {
-        m_orientation = 6;
-    } else if (rotation_ccw == 270 && mirror == heif_transform_mirror_direction::heif_transform_mirror_direction_vertical) {
-        m_orientation = 7;
-    } else if (rotation_ccw == 90 && mirror == heif_transform_mirror_direction::heif_transform_mirror_direction_invalid) {
-        m_orientation = 8;
+        return true;
+    }
+
+    // The rotation is applied first, then the mirroring (the order required by MIAF)
+    switch (rotation_ccw) {
+    case -1:
+    case 0:
+        switch (mirror) {
+        case heif_transform_mirror_direction::heif_transform_mirror_direction_horizontal:
+            m_orientation = 2;
+            break;
+        case heif_transform_mirror_direction::heif_transform_mirror_direction_vertical:
+            m_orientation = 4;
+            break;
+        default:
+            m_orientation = 1;
+            break;
+        }
+        break;
+    case 90:
+        switch (mirror) {
+        case heif_transform_mirror_direction::heif_transform_mirror_direction_horizontal:
+            m_orientation = 7;
+            break;
+        case heif_transform_mirror_direction::heif_transform_mirror_direction_vertical:
+            m_orientation = 5;
+            break;
+        default:
+            m_orientation = 8;
+            break;
+        }
+        break;
+    case 180:
+        switch (mirror) {
+        case heif_transform_mirror_direction::heif_transform_mirror_direction_horizontal:
+            m_orientation = 4;
+            break;
+        case heif_transform_mirror_direction::heif_transform_mirror_direction_vertical:
+            m_orientation = 2;
+            break;
+        default:
+            m_orientation = 3;
+            break;
+        }
+        break;
+    case 270:
+        switch (mirror) {
+        case heif_transform_mirror_direction::heif_transform_mirror_direction_horizontal:
+            m_orientation = 5;
+            break;
+        case heif_transform_mirror_direction::heif_transform_mirror_direction_vertical:
+            m_orientation = 7;
+            break;
+        default:
+            m_orientation = 6;
+            break;
+        }
+        break;
+    default:
+        // let libheif apply the transformations
+        return false;
     }
 
     return true;
