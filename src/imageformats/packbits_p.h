@@ -66,28 +66,31 @@ inline qint64 packbitsDecompress(QIODevice *input, char *output, qint64 olen, bo
 {
     qint64  j = 0;
     for (qint64 rr = 0, available = olen; j < olen; available = olen - j) {
-        char n;
+        char cn;
+        signed char n;
 
         // check the output buffer space for the next run
         if (available < 129) {
-            if (input->peek(&n, 1) != 1) { // end of data (or error)
+            if (input->peek(&cn, 1) != 1) { // end of data (or error)
                 break;
             }
-            if (static_cast<signed char>(n) != -128 || allowN128)
-                if ((static_cast<signed char>(n) >= 0 ? qint64(n) + 1 : qint64(1 - n)) > available)
+            n = static_cast<signed char>(cn);
+            if (n != -128 || allowN128)
+                if ((n >= 0 ? qint64(n) + 1 : qint64(1 - n)) > available)
                     break;
         }
 
         // decompress
-        if (input->read(&n, 1) != 1) { // end of data (or error)
+        if (input->read(&cn, 1) != 1) { // end of data (or error)
             break;
         }
+        n = static_cast<signed char>(cn);
 
-        if (static_cast<signed char>(n) == -128 && !allowN128) {
+        if (n == -128 && !allowN128) {
             continue;
         }
 
-        if (static_cast<signed char>(n) >= 0) {
+        if (n >= 0) {
             rr = input->read(output + j, qint64(n) + 1);
             if (rr == -1) {
                 return -1;
@@ -98,7 +101,7 @@ inline qint64 packbitsDecompress(QIODevice *input, char *output, qint64 olen, bo
             if (input->read(&b, 1) != 1) {
                 break;
             }
-            rr = qint64(1 - static_cast<signed char>(n));
+            rr = qint64(1 - n);
             std::memset(output + j, b, size_t(rr));
         }
 
