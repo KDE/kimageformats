@@ -891,11 +891,21 @@ bool HEIFHandler::ensureDecoder()
         return false;
     }
 
-    if ((heif_image_handle_get_width(handle) == 0) || (heif_image_handle_get_height(handle) == 0)) {
+    const int handle_width = heif_image_handle_get_width(handle);
+    const int handle_height = heif_image_handle_get_height(handle);
+    if ((handle_width < 1) || (handle_height < 1)) {
         m_parseState = ParseHeicError;
         heif_image_handle_release(handle);
         heif_context_free(ctx);
-        qCWarning(LOG_HEIFPLUGIN) << "HEIC image has zero dimension";
+        qCWarning(LOG_HEIFPLUGIN) << "HEIF image has zero or invalid dimension";
+        return false;
+    }
+
+    if ((handle_width > HEIF_MAX_IMAGE_WIDTH) || (handle_height > HEIF_MAX_IMAGE_HEIGHT)) {
+        m_parseState = ParseHeicError;
+        heif_image_handle_release(handle);
+        heif_context_free(ctx);
+        qCWarning(LOG_HEIFPLUGIN) << "HEIF image signals large dimensions:" << handle_width << "x" << handle_height;
         return false;
     }
 
@@ -984,7 +994,7 @@ bool HEIFHandler::ensureDecoder()
         heif_image_handle_release(handle);
         heif_context_free(ctx);
         m_parseState = ParseHeicError;
-        qCWarning(LOG_HEIFPLUGIN) << "HEIC image size invalid:" << imageWidth << "x" << imageHeight;
+        qCWarning(LOG_HEIFPLUGIN) << "HEIF image size invalid:" << imageWidth << "x" << imageHeight;
         return false;
     }
 
@@ -996,7 +1006,7 @@ bool HEIFHandler::ensureDecoder()
         heif_image_handle_release(handle);
         heif_context_free(ctx);
         m_parseState = ParseHeicError;
-        qCWarning(LOG_HEIFPLUGIN) << "HEIC data pixels information not valid!";
+        qCWarning(LOG_HEIFPLUGIN) << "HEIF data pixels information not valid!";
         return false;
     }
 
@@ -1223,7 +1233,7 @@ bool HEIFHandler::ensureDecoder()
             } else {
                 QColorSpace colorspace = QColorSpace::fromIccProfile(ba);
                 if (!colorspace.isValid()) {
-                    qCWarning(LOG_HEIFPLUGIN) << "HEIC image has Qt-unsupported or invalid ICC profile!";
+                    qCWarning(LOG_HEIFPLUGIN) << "HEIF image has Qt-unsupported or invalid ICC profile!";
                 } else if (colorspace.colorModel() == QColorSpace::ColorModel::Cmyk) {
                     qCWarning(LOG_HEIFPLUGIN) << "CMYK ICC profile is not expected for HEIF, discarding the ICCprofile!";
                     colorspace = QColorSpace();
@@ -1317,7 +1327,7 @@ bool HEIFHandler::ensureDecoder()
             heif_nclx_color_profile_free(nclx);
 
             if (!m_current_image.colorSpace().isValid()) {
-                qCWarning(LOG_HEIFPLUGIN) << "HEIC plugin created invalid QColorSpace from NCLX!";
+                qCWarning(LOG_HEIFPLUGIN) << "HEIF plugin created invalid QColorSpace from NCLX!";
             }
         }
 
