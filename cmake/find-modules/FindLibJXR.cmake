@@ -6,19 +6,26 @@
 #
 # Based on cmake code found at https://github.com/microsoft/vcpkg/blob/master/ports/jxrlib/FindJXR.cmake
 
-find_path(LIBJXR_INCLUDE_DIRS
-    NAMES JXRGlue.h
-    PATH_SUFFIXES jxrlib
-)
-mark_as_advanced(LIBJXR_INCLUDE_DIRS)
+find_package(PkgConfig QUIET)
+if(PKG_CONFIG_FOUND)
+    pkg_check_modules(LIBJXR QUIET libjxr)
+endif()
 
-include(SelectLibraryConfigurations)
+if(NOT LIBJXR_FOUND)
+    find_path(LIBJXR_INCLUDE_DIRS
+        NAMES JXRGlue.h
+        PATH_SUFFIXES jxrlib
+    )
+    mark_as_advanced(LIBJXR_INCLUDE_DIRS)
 
-find_library(LIBJPEGXR_LIBRARY NAMES jpegxr)
-find_library(LIBJXRGLUE_LIBRARY NAMES jxrglue)
+    include(SelectLibraryConfigurations)
 
-set(LIBJXR_LIBRARIES ${LIBJPEGXR_LIBRARY} ${LIBJXRGLUE_LIBRARY})
-mark_as_advanced(LIBJXR_LIBRARIES)
+    find_library(LIBJPEGXR_LIBRARY NAMES jpegxr)
+    find_library(LIBJXRGLUE_LIBRARY NAMES jxrglue)
+
+    set(LIBJXR_LIBRARIES ${LIBJPEGXR_LIBRARY} ${LIBJXRGLUE_LIBRARY})
+    mark_as_advanced(LIBJXR_LIBRARIES)
+endif()
 
 include(FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(LibJXR DEFAULT_MSG LIBJXR_INCLUDE_DIRS LIBJXR_LIBRARIES)
