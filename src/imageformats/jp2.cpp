@@ -342,6 +342,11 @@ public:
 
         img.setColorSpace(colorSpace());
 
+#ifdef KIF_EXPOSE_LIBVER
+        quint32 ver = opjVersion();
+        img.setText(QStringLiteral(META_KEY_LIBRARY), QStringLiteral("OpenJPEG %1.%2.%3").arg((ver >> 16) & 0xff).arg((ver >> 8) & 0xff).arg(ver & 0xff));
+#endif
+
         return img;
     }
 

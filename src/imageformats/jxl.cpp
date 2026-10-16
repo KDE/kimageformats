@@ -842,6 +842,13 @@ bool QJpegXLHandler::read(QImage *image)
     }
 
     if (decode_one_frame()) {
+#ifdef KIF_EXPOSE_LIBVER
+        quint32 ver = JxlDecoderVersion();
+        int maj = ver / 1000000;
+        int min = (ver % 1000000) / 1000;
+        int pat = ver  % 1000;
+        m_current_image.setText(QStringLiteral(META_KEY_LIBRARY), QStringLiteral("LibJXL %1.%2.%3").arg(maj).arg(min).arg(pat));
+#endif
         *image = m_current_image;
         return true;
     } else {

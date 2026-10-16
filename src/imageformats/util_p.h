@@ -77,6 +77,9 @@
 #define META_KEY_LENS_MODEL "LensModel"
 #define META_KEY_LENS_SERIALNUMBER "LensSerialNumber"
 
+// The name and version of the library used (e.g. OpenEXR 3.4.2)
+#define META_KEY_LIBRARY "Library"
+
 // QList uses some extra space for stuff, hence the 32 here suggested by Thiago Macieira
 static constexpr int kMaxQVectorSize = std::numeric_limits<int>::max() - 32;
 

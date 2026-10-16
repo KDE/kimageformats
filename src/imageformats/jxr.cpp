@@ -159,6 +159,19 @@ public:
         }
     }
 
+    quint32 jxrVersion() const
+    {
+        quint32 ver = 0;
+#ifdef JXR_VERSION
+#   if JXR_VERSION < JXR_MAKEVERSION(1, 4, 0)
+        ver = JXR_VERSION;
+#   else
+        PKLibJxr_GetVersion(&ver);
+#   endif
+#endif
+        return ver;
+    }
+
     QString fileName() const
     {
         return m_jxrFile->fileName();
@@ -1161,6 +1174,12 @@ bool JXRHandler::read(QImage *outImage)
         if (!img.colorSpace().isValid()) {
             img.setColorSpace(QColorSpace(QColorSpace::SRgbLinear));
         }
+    }
+#endif
+
+#ifdef KIF_EXPOSE_LIBVER
+    if (auto ver = d->jxrVersion()) {
+        img.setText(QStringLiteral(META_KEY_LIBRARY), QStringLiteral("JXRlib %1.%2.%3").arg((ver >> 16) & 0xff).arg((ver >> 8) & 0xff).arg(ver & 0xff));
     }
 #endif
 

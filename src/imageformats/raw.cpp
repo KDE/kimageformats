@@ -941,6 +941,10 @@ bool RAWHandler::read(QImage *image)
         return false;
     }
 
+#ifdef KIF_EXPOSE_LIBVER
+    img.setText(QStringLiteral(META_KEY_LIBRARY), QStringLiteral("LibRAW %1").arg(libraw_version()));
+#endif
+
     *image = img;
     return true;
 }

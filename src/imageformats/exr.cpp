@@ -83,6 +83,10 @@
 #include <ImfStandardAttributes.h>
 #include <ImfVersion.h>
 
+#ifdef KIF_EXPOSE_LIBVER
+#include <openexr.h>
+#endif
+
 #include <iostream>
 
 #include <QColorSpace>
@@ -552,6 +556,12 @@ bool EXRHandler::read(QImage *outImage)
         readMetadata(header, image);
         // final color operations
         readColorSpace(header, image);
+
+#ifdef KIF_EXPOSE_LIBVER
+        int maj = 0, min = 0, pat = 0;
+        exr_get_library_version(&maj, &min, &pat, nullptr);
+        image.setText(QStringLiteral(META_KEY_LIBRARY), QStringLiteral("OpenEXR %1.%2.%3").arg(maj).arg(min).arg(pat));
+#endif
 
         *outImage = image;
 

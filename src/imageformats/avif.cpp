@@ -609,6 +609,10 @@ bool QAVIFHandler::read(QImage *image)
         jumpToNextImage();
     }
 
+#ifdef KIF_EXPOSE_LIBVER
+    m_current_image.setText(QStringLiteral(META_KEY_LIBRARY), QStringLiteral("LibAVIF %1").arg(avifVersion()));
+#endif
+
     *image = m_current_image;
     if (imageCount() >= 2) {
         m_must_jump_to_next_image = true;

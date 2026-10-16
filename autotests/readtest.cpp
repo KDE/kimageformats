@@ -198,7 +198,7 @@ int main(int argc, char **argv)
     QCoreApplication::removeLibraryPath(QStringLiteral(PLUGIN_DIR));
     QCoreApplication::addLibraryPath(QStringLiteral(PLUGIN_DIR));
     QCoreApplication::setApplicationName(QStringLiteral("readtest"));
-    QCoreApplication::setApplicationVersion(QStringLiteral("1.3.0"));
+    QCoreApplication::setApplicationVersion(QStringLiteral("1.3.1"));
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("Performs basic image conversion checking."));
@@ -350,6 +350,12 @@ int main(int argc, char **argv)
                 QTextStream(stdout) << "FAIL : " << fi.fileName() << ": failed to load: " << inputReader.errorString() << "\n";
                 ++failed;
                 continue;
+            }
+
+            // version of the underlying library used, if any
+            QString libVer = inputImage.text(QStringLiteral("Library"));
+            if (!libVer.isEmpty()) {
+                QTextStream(stdout) << "INFO : using " << libVer << "\n";
             }
 
             if (!optionTest.compare(&inputReader)) {

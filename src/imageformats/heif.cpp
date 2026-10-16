@@ -191,6 +191,10 @@ bool HEIFHandler::read(QImage *outImage)
         return false;
     }
 
+#ifdef KIF_EXPOSE_LIBVER
+    m_current_image.setText(QStringLiteral(META_KEY_LIBRARY), QStringLiteral("LibHEIF %1").arg(heif_get_version()));
+#endif
+
     *outImage = m_current_image;
     return true;
 }
