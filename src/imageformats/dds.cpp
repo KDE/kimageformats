@@ -128,6 +128,10 @@ enum Format {
     FormatP4,
     FormatA4P4,
 
+    FormatBC4,
+    FormatBC5,
+    FormatBC7,
+
     FormatLast                 = 0x7fffffff
 };
 
@@ -391,7 +395,27 @@ static const DXGIFormatToFormat knownDXGIFormat[] = {
     { DXGIFormatR16G16_FLOAT, FormatG16R16F },
     { DXGIFormatR32G32_FLOAT, FormatG32R32F },
     { DXGIFormatR16_FLOAT, FormatR16F },
-    { DXGIFormatR32_FLOAT, FormatR32F }
+    { DXGIFormatR32_FLOAT, FormatR32F },
+
+    // BC1/BC2/BC3 are the DXGI counterparts of the DXTn formats.
+    { DXGIFormatBC1_TYPELESS, FormatDXT1 },
+    { DXGIFormatBC1_UNORM, FormatDXT1 },
+    { DXGIFormatBC1_UNORM_SRGB, FormatDXT1 },
+    { DXGIFormatBC2_TYPELESS, FormatDXT3 },
+    { DXGIFormatBC2_UNORM, FormatDXT3 },
+    { DXGIFormatBC2_UNORM_SRGB, FormatDXT3 },
+    { DXGIFormatBC3_TYPELESS, FormatDXT5 },
+    { DXGIFormatBC3_UNORM, FormatDXT5 },
+    { DXGIFormatBC3_UNORM_SRGB, FormatDXT5 },
+
+    { DXGIFormatBC4_TYPELESS, FormatBC4 },
+    { DXGIFormatBC4_UNORM, FormatBC4 },
+    { DXGIFormatBC5_TYPELESS, FormatBC5 },
+    { DXGIFormatBC5_UNORM, FormatBC5 },
+
+    { DXGIFormatBC7_TYPELESS, FormatBC7 },
+    { DXGIFormatBC7_UNORM, FormatBC7 },
+    { DXGIFormatBC7_UNORM_SRGB, FormatBC7 }
 };
 static const size_t knownDXGIFormatSize = sizeof(knownDXGIFormat)/sizeof(DXGIFormatToFormat);
 
@@ -486,7 +510,11 @@ static const FormatName formatNames[] = {
     { FormatBinaryBuffer, "BinaryBuffer" },
 
     { FormatP4, "P4" },
-    { FormatA4P4, "A4P4" }
+    { FormatA4P4, "A4P4" },
+
+    { FormatBC4, "BC4" },
+    { FormatBC5, "BC5" },
+    { FormatBC7, "BC7" }
 };
 static const size_t formatNamesSize = sizeof(formatNames)/sizeof(FormatName);
 
@@ -969,6 +997,403 @@ static QImage readATI2(QDataStream &s, quint32 width, quint32 height)
             }
         }
     }
+    return image;
+}
+
+/* *** BC4 ***
+ * Stores a single (unsigned) channel. It uses the same encoding of the DXT5/BC5 alpha block.
+ */
+static QImage readBC4(QDataStream &s, quint32 width, quint32 height)
+{
+    QImage image = imageAlloc(width, height, QImage::Format_Grayscale8);
+    if (image.isNull()) {
+        return image;
+    }
+
+    for (quint32 i = 0; i < height; i += 4) {
+        for (quint32 j = 0; j < width; j += 4) {
+            quint64 block;
+            s >> block;
+            if (s.status() != QDataStream::Ok)
+                return QImage();
+
+            QRgb arr[16];
+            memset(arr, 0, sizeof(QRgb) * 16);
+            setAlphaDXT<Five>(arr, block);
+
+            const quint32 kMax = qMin<quint32>(4, height - i);
+            const quint32 lMax = qMin<quint32>(4, width - j);
+            for (quint32 k = 0; k < kMax; k++) {
+                quint8 *line = reinterpret_cast<quint8 *>(image.scanLine(i + k));
+                for (quint32 l = 0; l < lMax; l++) {
+                    line[j + l] = qAlpha(arr[k * 4 + l]);
+                }
+            }
+        }
+    }
+
+    return image;
+}
+
+/* *** BC7 ***
+ * The decoder is implemented following the "BC7 Format" specification
+ * (https://learn.microsoft.com/en-us/windows/win32/direct3d11/bc7-format).
+ * The partition tables are the same described in the OpenGL ARB_texture_compression_bptc
+ * extension (the ones on the Khronos registry data format page contain errors).
+ */
+
+static inline quint64 bc7ReadU64(const quint8 *p)
+{
+    return quint64(p[0]) | (quint64(p[1]) << 8) | (quint64(p[2]) << 16) | (quint64(p[3]) << 24)
+         | (quint64(p[4]) << 32) | (quint64(p[5]) << 40) | (quint64(p[6]) << 48) | (quint64(p[7]) << 56);
+}
+
+struct BC7BitStream {
+    quint64 low = 0;
+    quint64 high = 0;
+};
+
+static inline int bc7ReadBits(BC7BitStream *bstream, int numBits)
+{
+    const quint64 mask = (quint64(1) << numBits) - 1;
+    const quint32 bits = bstream->low & mask;
+    bstream->low >>= numBits;
+    bstream->low |= (bstream->high & mask) << (64 - numBits);
+    bstream->high >>= numBits;
+    return bits;
+}
+
+static inline int bc7Interpolate(int a, int b, const int *weights, int index)
+{
+    return (a * (64 - weights[index]) + b * weights[index] + 32) >> 6;
+}
+
+static QImage readBC7(QDataStream &s, quint32 width, quint32 height)
+{
+    // Number of bits used to encode each endpoint per mode (RGB, Alpha).
+    static const quint8 actualBitsCount[2][8] = {
+        { 4, 6, 5, 7, 5, 7, 7, 5 }, // RGBA
+        { 0, 0, 0, 0, 6, 8, 7, 5 }  // Alpha
+    };
+
+    // Modes that explicitly store P-bits.
+    static const quint8 modesWithPBits = 0b11001011;
+
+    // Interpolation weights for 2, 3 and 4 bit indices.
+    static const int weight2[] = { 0, 21, 43, 64 };
+    static const int weight3[] = { 0, 9, 18, 27, 37, 46, 55, 64 };
+    static const int weight4[] = { 0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64 };
+
+    // Partition tables for the 2-subset and 3-subset modes. The MSB of each
+    // value marks the fix-up index of the subset (the subset is in the low bits).
+    static const quint8 partitionSets[2][64][4][4] = {
+        {   // 2-subset
+            { {128, 0,   1, 1}, {0, 0,   1, 1}, {  0, 0, 1, 1}, {0, 0, 1, 129} },
+            { {128, 0,   0, 1}, {0, 0,   0, 1}, {  0, 0, 0, 1}, {0, 0, 0, 129} },
+            { {128, 1,   1, 1}, {0, 1,   1, 1}, {  0, 1, 1, 1}, {0, 1, 1, 129} },
+            { {128, 0,   0, 1}, {0, 0,   1, 1}, {  0, 0, 1, 1}, {0, 1, 1, 129} },
+            { {128, 0,   0, 0}, {0, 0,   0, 1}, {  0, 0, 0, 1}, {0, 0, 1, 129} },
+            { {128, 0,   1, 1}, {0, 1,   1, 1}, {  0, 1, 1, 1}, {1, 1, 1, 129} },
+            { {128, 0,   0, 1}, {0, 0,   1, 1}, {  0, 1, 1, 1}, {1, 1, 1, 129} },
+            { {128, 0,   0, 0}, {0, 0,   0, 1}, {  0, 0, 1, 1}, {0, 1, 1, 129} },
+            { {128, 0,   0, 0}, {0, 0,   0, 0}, {  0, 0, 0, 1}, {0, 0, 1, 129} },
+            { {128, 0,   1, 1}, {0, 1,   1, 1}, {  1, 1, 1, 1}, {1, 1, 1, 129} },
+            { {128, 0,   0, 0}, {0, 0,   0, 1}, {  0, 1, 1, 1}, {1, 1, 1, 129} },
+            { {128, 0,   0, 0}, {0, 0,   0, 0}, {  0, 0, 0, 1}, {0, 1, 1, 129} },
+            { {128, 0,   0, 1}, {0, 1,   1, 1}, {  1, 1, 1, 1}, {1, 1, 1, 129} },
+            { {128, 0,   0, 0}, {0, 0,   0, 0}, {  1, 1, 1, 1}, {1, 1, 1, 129} },
+            { {128, 0,   0, 0}, {1, 1,   1, 1}, {  1, 1, 1, 1}, {1, 1, 1, 129} },
+            { {128, 0,   0, 0}, {0, 0,   0, 0}, {  0, 0, 0, 0}, {1, 1, 1, 129} },
+            { {128, 0,   0, 0}, {1, 0,   0, 0}, {  1, 1, 1, 0}, {1, 1, 1, 129} },
+            { {128, 1, 129, 1}, {0, 0,   0, 1}, {  0, 0, 0, 0}, {0, 0, 0,   0} },
+            { {128, 0,   0, 0}, {0, 0,   0, 0}, {129, 0, 0, 0}, {1, 1, 1,   0} },
+            { {128, 1, 129, 1}, {0, 0,   1, 1}, {  0, 0, 0, 1}, {0, 0, 0,   0} },
+            { {128, 0, 129, 1}, {0, 0,   0, 1}, {  0, 0, 0, 0}, {0, 0, 0,   0} },
+            { {128, 0,   0, 0}, {1, 0,   0, 0}, {129, 1, 0, 0}, {1, 1, 1,   0} },
+            { {128, 0,   0, 0}, {0, 0,   0, 0}, {129, 0, 0, 0}, {1, 1, 0,   0} },
+            { {128, 1,   1, 1}, {0, 0,   1, 1}, {  0, 0, 1, 1}, {0, 0, 0, 129} },
+            { {128, 0, 129, 1}, {0, 0,   0, 1}, {  0, 0, 0, 1}, {0, 0, 0,   0} },
+            { {128, 0,   0, 0}, {1, 0,   0, 0}, {129, 0, 0, 0}, {1, 1, 0,   0} },
+            { {128, 1, 129, 0}, {0, 1,   1, 0}, {  0, 1, 1, 0}, {0, 1, 1,   0} },
+            { {128, 0, 129, 1}, {0, 1,   1, 0}, {  0, 1, 1, 0}, {1, 1, 0,   0} },
+            { {128, 0,   0, 1}, {0, 1,   1, 1}, {129, 1, 1, 0}, {1, 0, 0,   0} },
+            { {128, 0,   0, 0}, {1, 1,   1, 1}, {129, 1, 1, 1}, {0, 0, 0,   0} },
+            { {128, 1, 129, 1}, {0, 0,   0, 1}, {  1, 0, 0, 0}, {1, 1, 1,   0} },
+            { {128, 0, 129, 1}, {1, 0,   0, 1}, {  1, 0, 0, 1}, {1, 1, 0,   0} },
+            { {128, 1,   0, 1}, {0, 1,   0, 1}, {  0, 1, 0, 1}, {0, 1, 0, 129} },
+            { {128, 0,   0, 0}, {1, 1,   1, 1}, {  0, 0, 0, 0}, {1, 1, 1, 129} },
+            { {128, 1,   0, 1}, {1, 0, 129, 0}, {  0, 1, 0, 1}, {1, 0, 1,   0} },
+            { {128, 0,   1, 1}, {0, 0,   1, 1}, {129, 1, 0, 0}, {1, 1, 0,   0} },
+            { {128, 0, 129, 1}, {1, 1,   0, 0}, {  0, 0, 1, 1}, {1, 1, 0,   0} },
+            { {128, 1,   0, 1}, {0, 1,   0, 1}, {129, 0, 1, 0}, {1, 0, 1,   0} },
+            { {128, 1,   1, 0}, {1, 0,   0, 1}, {  0, 1, 1, 0}, {1, 0, 0, 129} },
+            { {128, 1,   0, 1}, {1, 0,   1, 0}, {  1, 0, 1, 0}, {0, 1, 0, 129} },
+            { {128, 1, 129, 1}, {0, 0,   1, 1}, {  1, 1, 0, 0}, {1, 1, 1,   0} },
+            { {128, 0,   0, 1}, {0, 0,   1, 1}, {129, 1, 0, 0}, {1, 0, 0,   0} },
+            { {128, 0, 129, 1}, {0, 0,   1, 0}, {  0, 1, 0, 0}, {1, 1, 0,   0} },
+            { {128, 0, 129, 1}, {1, 0,   1, 1}, {  1, 1, 0, 1}, {1, 1, 0,   0} },
+            { {128, 1, 129, 0}, {1, 0,   0, 1}, {  1, 0, 0, 1}, {0, 1, 1,   0} },
+            { {128, 0,   1, 1}, {1, 1,   0, 0}, {  1, 1, 0, 0}, {0, 0, 1, 129} },
+            { {128, 1,   1, 0}, {0, 1,   1, 0}, {  1, 0, 0, 1}, {1, 0, 0, 129} },
+            { {128, 0,   0, 0}, {0, 1, 129, 0}, {  0, 1, 1, 0}, {0, 0, 0,   0} },
+            { {128, 1,   0, 0}, {1, 1, 129, 0}, {  0, 1, 0, 0}, {0, 0, 0,   0} },
+            { {128, 0, 129, 0}, {0, 1,   1, 1}, {  0, 0, 1, 0}, {0, 0, 0,   0} },
+            { {128, 0,   0, 0}, {0, 0, 129, 0}, {  0, 1, 1, 1}, {0, 0, 1,   0} },
+            { {128, 0,   0, 0}, {0, 1,   0, 0}, {129, 1, 1, 0}, {0, 1, 0,   0} },
+            { {128, 1,   1, 0}, {1, 1,   0, 0}, {  1, 0, 0, 1}, {0, 0, 1, 129} },
+            { {128, 0,   1, 1}, {0, 1,   1, 0}, {  1, 1, 0, 0}, {1, 0, 0, 129} },
+            { {128, 1, 129, 0}, {0, 0,   1, 1}, {  1, 0, 0, 1}, {1, 1, 0,   0} },
+            { {128, 0, 129, 1}, {1, 0,   0, 1}, {  1, 1, 0, 0}, {0, 1, 1,   0} },
+            { {128, 1,   1, 0}, {1, 1,   0, 0}, {  1, 1, 0, 0}, {1, 0, 0, 129} },
+            { {128, 1,   1, 0}, {0, 0,   1, 1}, {  0, 0, 1, 1}, {1, 0, 0, 129} },
+            { {128, 1,   1, 1}, {1, 1,   1, 0}, {  1, 0, 0, 0}, {0, 0, 0, 129} },
+            { {128, 0,   0, 1}, {1, 0,   0, 0}, {  1, 1, 1, 0}, {0, 1, 1, 129} },
+            { {128, 0,   0, 0}, {1, 1,   1, 1}, {  0, 0, 1, 1}, {0, 0, 1, 129} },
+            { {128, 0, 129, 1}, {0, 0,   1, 1}, {  1, 1, 1, 1}, {0, 0, 0,   0} },
+            { {128, 0, 129, 0}, {0, 0,   1, 0}, {  1, 1, 1, 0}, {1, 1, 1,   0} },
+            { {128, 1,   0, 0}, {0, 1,   0, 0}, {  0, 1, 1, 1}, {0, 1, 1, 129} }
+        },
+        {   // 3-subset
+            { {128, 0, 1, 129}, {0,   0,   1, 1}, {  0,   2,   2, 1}, {  2,   2, 2, 130} },
+            { {128, 0, 0, 129}, {0,   0,   1, 1}, {130,   2,   1, 1}, {  2,   2, 2,   1} },
+            { {128, 0, 0,   0}, {2,   0,   0, 1}, {130,   2,   1, 1}, {  2,   2, 1, 129} },
+            { {128, 2, 2, 130}, {0,   0,   2, 2}, {  0,   0,   1, 1}, {  0,   1, 1, 129} },
+            { {128, 0, 0,   0}, {0,   0,   0, 0}, {129,   1,   2, 2}, {  1,   1, 2, 130} },
+            { {128, 0, 1, 129}, {0,   0,   1, 1}, {  0,   0,   2, 2}, {  0,   0, 2, 130} },
+            { {128, 0, 2, 130}, {0,   0,   2, 2}, {  1,   1,   1, 1}, {  1,   1, 1, 129} },
+            { {128, 0, 1,   1}, {0,   0,   1, 1}, {130,   2,   1, 1}, {  2,   2, 1, 129} },
+            { {128, 0, 0,   0}, {0,   0,   0, 0}, {129,   1,   1, 1}, {  2,   2, 2, 130} },
+            { {128, 0, 0,   0}, {1,   1,   1, 1}, {129,   1,   1, 1}, {  2,   2, 2, 130} },
+            { {128, 0, 0,   0}, {1,   1, 129, 1}, {  2,   2,   2, 2}, {  2,   2, 2, 130} },
+            { {128, 0, 1,   2}, {0,   0, 129, 2}, {  0,   0,   1, 2}, {  0,   0, 1, 130} },
+            { {128, 1, 1,   2}, {0,   1, 129, 2}, {  0,   1,   1, 2}, {  0,   1, 1, 130} },
+            { {128, 1, 2,   2}, {0, 129,   2, 2}, {  0,   1,   2, 2}, {  0,   1, 2, 130} },
+            { {128, 0, 1, 129}, {0,   1,   1, 2}, {  1,   1,   2, 2}, {  1,   2, 2, 130} },
+            { {128, 0, 1, 129}, {2,   0,   0, 1}, {130,   2,   0, 0}, {  2,   2, 2,   0} },
+            { {128, 0, 0, 129}, {0,   0,   1, 1}, {  0,   1,   1, 2}, {  1,   1, 2, 130} },
+            { {128, 1, 1, 129}, {0,   0,   1, 1}, {130,   0,   0, 1}, {  2,   2, 0,   0} },
+            { {128, 0, 0,   0}, {1,   1,   2, 2}, {129,   1,   2, 2}, {  1,   1, 2, 130} },
+            { {128, 0, 2, 130}, {0,   0,   2, 2}, {  0,   0,   2, 2}, {  1,   1, 1, 129} },
+            { {128, 1, 1, 129}, {0,   1,   1, 1}, {  0,   2,   2, 2}, {  0,   2, 2, 130} },
+            { {128, 0, 0, 129}, {0,   0,   0, 1}, {130,   2,   2, 1}, {  2,   2, 2,   1} },
+            { {128, 0, 0,   0}, {0,   0, 129, 1}, {  0,   1,   2, 2}, {  0,   1, 2, 130} },
+            { {128, 0, 0,   0}, {1,   1,   0, 0}, {130,   2, 129, 0}, {  2,   2, 1,   0} },
+            { {128, 1, 2, 130}, {0, 129,   2, 2}, {  0,   0,   1, 1}, {  0,   0, 0,   0} },
+            { {128, 0, 1,   2}, {0,   0,   1, 2}, {129,   1,   2, 2}, {  2,   2, 2, 130} },
+            { {128, 1, 1,   0}, {1,   2, 130, 1}, {129,   2,   2, 1}, {  0,   1, 1,   0} },
+            { {128, 0, 0,   0}, {0,   1, 129, 0}, {  1,   2, 130, 1}, {  1,   2, 2,   1} },
+            { {128, 0, 2,   2}, {1,   1,   0, 2}, {129,   1,   0, 2}, {  0,   0, 2, 130} },
+            { {128, 1, 1,   0}, {0, 129,   1, 0}, {  2,   0,   0, 2}, {  2,   2, 2, 130} },
+            { {128, 0, 1,   1}, {0,   1,   2, 2}, {  0,   1, 130, 2}, {  0,   0, 1, 129} },
+            { {128, 0, 0,   0}, {2,   0,   0, 0}, {130,   2,   1, 1}, {  2,   2, 2, 129} },
+            { {128, 0, 0,   0}, {0,   0,   0, 2}, {129,   1,   2, 2}, {  1,   2, 2, 130} },
+            { {128, 2, 2, 130}, {0,   0,   2, 2}, {  0,   0,   1, 2}, {  0,   0, 1, 129} },
+            { {128, 0, 1, 129}, {0,   0,   1, 2}, {  0,   0,   2, 2}, {  0,   2, 2, 130} },
+            { {128, 1, 2,   0}, {0, 129,   2, 0}, {  0,   1, 130, 0}, {  0,   1, 2,   0} },
+            { {128, 0, 0,   0}, {1,   1, 129, 1}, {  2,   2, 130, 2}, {  0,   0, 0,   0} },
+            { {128, 1, 2,   0}, {1,   2,   0, 1}, {130,   0, 129, 2}, {  0,   1, 2,   0} },
+            { {128, 1, 2,   0}, {2,   0,   1, 2}, {129, 130,   0, 1}, {  0,   1, 2,   0} },
+            { {128, 0, 1,   1}, {2,   2,   0, 0}, {  1,   1, 130, 2}, {  0,   0, 1, 129} },
+            { {128, 0, 1,   1}, {1,   1, 130, 2}, {  2,   2,   0, 0}, {  0,   0, 1, 129} },
+            { {128, 1, 0, 129}, {0,   1,   0, 1}, {  2,   2,   2, 2}, {  2,   2, 2, 130} },
+            { {128, 0, 0,   0}, {0,   0,   0, 0}, {130,   1,   2, 1}, {  2,   1, 2, 129} },
+            { {128, 0, 2,   2}, {1, 129,   2, 2}, {  0,   0,   2, 2}, {  1,   1, 2, 130} },
+            { {128, 0, 2, 130}, {0,   0,   1, 1}, {  0,   0,   2, 2}, {  0,   0, 1, 129} },
+            { {128, 2, 2,   0}, {1,   2, 130, 1}, {  0,   2,   2, 0}, {  1,   2, 2, 129} },
+            { {128, 1, 0,   1}, {2,   2, 130, 2}, {  2,   2,   2, 2}, {  0,   1, 0, 129} },
+            { {128, 0, 0,   0}, {2,   1,   2, 1}, {130,   1,   2, 1}, {  2,   1, 2, 129} },
+            { {128, 1, 0, 129}, {0,   1,   0, 1}, {  0,   1,   0, 1}, {  2,   2, 2, 130} },
+            { {128, 2, 2, 130}, {0,   1,   1, 1}, {  0,   2,   2, 2}, {  0,   1, 1, 129} },
+            { {128, 0, 0,   2}, {1, 129,   1, 2}, {  0,   0,   0, 2}, {  1,   1, 1, 130} },
+            { {128, 0, 0,   0}, {2, 129,   1, 2}, {  2,   1,   1, 2}, {  2,   1, 1, 130} },
+            { {128, 2, 2,   2}, {0, 129,   1, 1}, {  0,   1,   1, 1}, {  0,   2, 2, 130} },
+            { {128, 0, 0,   2}, {1,   1,   1, 2}, {129,   1,   1, 2}, {  0,   0, 0, 130} },
+            { {128, 1, 1,   0}, {0, 129,   1, 0}, {  0,   1,   1, 0}, {  2,   2, 2, 130} },
+            { {128, 0, 0,   0}, {0,   0,   0, 0}, {  2,   1, 129, 2}, {  2,   1, 1, 130} },
+            { {128, 1, 1,   0}, {0, 129,   1, 0}, {  2,   2,   2, 2}, {  2,   2, 2, 130} },
+            { {128, 0, 2,   2}, {0,   0,   1, 1}, {  0,   0, 129, 1}, {  0,   0, 2, 130} },
+            { {128, 0, 2,   2}, {1,   1,   2, 2}, {129,   1,   2, 2}, {  0,   0, 2, 130} },
+            { {128, 0, 0,   0}, {0,   0,   0, 0}, {  0,   0,   0, 0}, {  2, 129, 1, 130} },
+            { {128, 0, 0, 130}, {0,   0,   0, 1}, {  0,   0,   0, 2}, {  0,   0, 0, 129} },
+            { {128, 2, 2,   2}, {1,   2,   2, 2}, {  0,   2,   2, 2}, {129,   2, 2, 130} },
+            { {128, 1, 0, 129}, {2,   2,   2, 2}, {  2,   2,   2, 2}, {  2,   2, 2, 130} },
+            { {128, 1, 1, 129}, {2,   0,   1, 1}, {130,   2,   0, 1}, {  2,   2, 2,   0} }
+        }
+    };
+
+    QImage image = imageAlloc(width, height, QImage::Format_ARGB32);
+    if (image.isNull()) {
+        return image;
+    }
+
+    quint8 block[16];
+    quint8 texel[4][4][4];
+    for (quint32 by = 0; by < height; by += 4) {
+        for (quint32 bx = 0; bx < width; bx += 4) {
+            if (s.readRawData(reinterpret_cast<char *>(block), sizeof(block)) != int(sizeof(block)))
+                return QImage();
+
+            memset(texel, 0, sizeof(texel));
+
+            BC7BitStream bstream;
+            bstream.low = bc7ReadU64(block);
+            bstream.high = bc7ReadU64(block + 8);
+
+            // The mode is the number of leading zero bits.
+            int mode = 0;
+            while (mode < 8 && bc7ReadBits(&bstream, 1) == 0)
+                ++mode;
+
+            // Reserved mode: the decompressed block is transparent black.
+            if (mode < 8) {
+                int partition = 0;
+                int numPartitions = 1;
+                int rotation = 0;
+                int indexSelectionBit = 0;
+
+                if (mode == 0 || mode == 1 || mode == 2 || mode == 3 || mode == 7) {
+                    numPartitions = (mode == 0 || mode == 2) ? 3 : 2;
+                    partition = bc7ReadBits(&bstream, (mode == 0) ? 4 : 6);
+                }
+
+                const int numEndpoints = numPartitions * 2;
+
+                if (mode == 4 || mode == 5) {
+                    rotation = bc7ReadBits(&bstream, 2);
+
+                    if (mode == 4)
+                        indexSelectionBit = bc7ReadBits(&bstream, 1);
+                }
+
+                int endpoints[6][4];
+                memset(endpoints, 0, sizeof(endpoints));
+
+                for (int c = 0; c < 3; ++c)
+                    for (int e = 0; e < numEndpoints; ++e)
+                        endpoints[e][c] = bc7ReadBits(&bstream, actualBitsCount[0][mode]);
+
+                if (actualBitsCount[1][mode] > 0)
+                    for (int e = 0; e < numEndpoints; ++e)
+                        endpoints[e][3] = bc7ReadBits(&bstream, actualBitsCount[1][mode]);
+
+                if (mode == 0 || mode == 1 || mode == 3 || mode == 6 || mode == 7) {
+                    for (int e = 0; e < numEndpoints; ++e)
+                        for (int c = 0; c < 4; ++c)
+                            endpoints[e][c] <<= 1;
+
+                    if (mode == 1) {
+                        // The two subsets share one P-bit each.
+                        const int p0 = bc7ReadBits(&bstream, 1);
+                        const int p1 = bc7ReadBits(&bstream, 1);
+                        for (int c = 0; c < 3; ++c) {
+                            endpoints[0][c] |= p0;
+                            endpoints[1][c] |= p0;
+                            endpoints[2][c] |= p1;
+                            endpoints[3][c] |= p1;
+                        }
+                    } else if (modesWithPBits & (1 << mode)) {
+                        // One P-bit per endpoint.
+                        for (int e = 0; e < numEndpoints; ++e) {
+                            const int p = bc7ReadBits(&bstream, 1);
+                            for (int c = 0; c < 4; ++c)
+                                endpoints[e][c] |= p;
+                        }
+                    }
+                }
+
+                for (int e = 0; e < numEndpoints; ++e) {
+                    int bits = actualBitsCount[0][mode] + ((modesWithPBits >> mode) & 1);
+                    for (int c = 0; c < 3; ++c) {
+                        endpoints[e][c] <<= (8 - bits);
+                        endpoints[e][c] |= (endpoints[e][c] >> bits);
+                    }
+
+                    bits = actualBitsCount[1][mode] + ((modesWithPBits >> mode) & 1);
+                    endpoints[e][3] <<= (8 - bits);
+                    endpoints[e][3] |= (endpoints[e][3] >> bits);
+                }
+
+                // If the mode does not store alpha, then alpha is opaque.
+                if (actualBitsCount[1][mode] == 0)
+                    for (int e = 0; e < numEndpoints; ++e)
+                        endpoints[e][3] = 0xff;
+
+                const int indexBits = (mode == 0 || mode == 1) ? 3 : ((mode == 6) ? 4 : 2);
+                const int indexBits2 = (mode == 4) ? 3 : ((mode == 5) ? 2 : 0);
+                const int *weights = (indexBits == 2) ? weight2 : ((indexBits == 3) ? weight3 : weight4);
+                const int *weights2 = (indexBits2 == 2) ? weight2 : weight3;
+
+                // The color indices are stored before the alpha indices.
+                int indices[4][4];
+                for (int i = 0; i < 4; ++i) {
+                    for (int j = 0; j < 4; ++j) {
+                        const int partitionSet = (numPartitions == 1) ? ((i | j) ? 0 : 128)
+                                                                      : partitionSets[numPartitions - 2][partition][i][j];
+                        int bits = indexBits;
+                        if (partitionSet & 0x80) // fix-up index
+                            bits--;
+                        indices[i][j] = bc7ReadBits(&bstream, bits);
+                    }
+                }
+
+                for (int i = 0; i < 4; ++i) {
+                    for (int j = 0; j < 4; ++j) {
+                        const int partitionSet = ((numPartitions == 1) ? ((i | j) ? 0 : 128)
+                                                                       : partitionSets[numPartitions - 2][partition][i][j]) & 0x03;
+
+                        const int index = indices[i][j];
+                        int r, g, b, a;
+                        if (indexBits2 == 0) {
+                            r = bc7Interpolate(endpoints[partitionSet * 2][0], endpoints[partitionSet * 2 + 1][0], weights, index);
+                            g = bc7Interpolate(endpoints[partitionSet * 2][1], endpoints[partitionSet * 2 + 1][1], weights, index);
+                            b = bc7Interpolate(endpoints[partitionSet * 2][2], endpoints[partitionSet * 2 + 1][2], weights, index);
+                            a = bc7Interpolate(endpoints[partitionSet * 2][3], endpoints[partitionSet * 2 + 1][3], weights, index);
+                        } else {
+                            const int index2 = bc7ReadBits(&bstream, (i | j) ? indexBits2 : (indexBits2 - 1));
+                            if (indexSelectionBit == 0) {
+                                r = bc7Interpolate(endpoints[partitionSet * 2][0], endpoints[partitionSet * 2 + 1][0], weights, index);
+                                g = bc7Interpolate(endpoints[partitionSet * 2][1], endpoints[partitionSet * 2 + 1][1], weights, index);
+                                b = bc7Interpolate(endpoints[partitionSet * 2][2], endpoints[partitionSet * 2 + 1][2], weights, index);
+                                a = bc7Interpolate(endpoints[partitionSet * 2][3], endpoints[partitionSet * 2 + 1][3], weights2, index2);
+                            } else {
+                                r = bc7Interpolate(endpoints[partitionSet * 2][0], endpoints[partitionSet * 2 + 1][0], weights2, index2);
+                                g = bc7Interpolate(endpoints[partitionSet * 2][1], endpoints[partitionSet * 2 + 1][1], weights2, index2);
+                                b = bc7Interpolate(endpoints[partitionSet * 2][2], endpoints[partitionSet * 2 + 1][2], weights2, index2);
+                                a = bc7Interpolate(endpoints[partitionSet * 2][3], endpoints[partitionSet * 2 + 1][3], weights, index);
+                            }
+                        }
+
+                        switch (rotation) {
+                        case 1: // swap A and R
+                            std::swap(a, r);
+                            break;
+                        case 2: // swap A and G
+                            std::swap(a, g);
+                            break;
+                        case 3: // swap A and B
+                            std::swap(a, b);
+                            break;
+                        }
+
+                        texel[i][j][0] = quint8(r);
+                        texel[i][j][1] = quint8(g);
+                        texel[i][j][2] = quint8(b);
+                        texel[i][j][3] = quint8(a);
+                    }
+                }
+            }
+
+            const quint32 kMax = qMin<quint32>(4, height - by);
+            const quint32 lMax = qMin<quint32>(4, width - bx);
+            for (quint32 i = 0; i < kMax; i++) {
+                QRgb *line = reinterpret_cast<QRgb *>(image.scanLine(by + i));
+                for (quint32 j = 0; j < lMax; j++) {
+                    line[bx + j] = qRgba(texel[i][j][0], texel[i][j][1], texel[i][j][2], texel[i][j][3]);
+                }
+            }
+        }
+    }
+
     return image;
 }
 
@@ -1694,6 +2119,12 @@ static QImage readLayer(QDataStream &s, const DDSHeader &dds, const int format, 
         return readRXGB(s, width, height);
     case FormatATI2:
         return readATI2(s, width, height);
+    case FormatBC4:
+        return readBC4(s, width, height);
+    case FormatBC5:
+        return readATI2(s, width, height);
+    case FormatBC7:
+        return readBC7(s, width, height);
     case FormatR16F:
         return readR16F(s, width, height);
     case FormatG16R16F:
@@ -1796,6 +2227,11 @@ static qint64 mipmapSize(const DDSHeader &dds, const int format, const int level
     case FormatDXT3:
     case FormatDXT4:
     case FormatDXT5:
+        return ((w + 3)/4) * ((h + 3)/4) * 16;
+    case FormatBC4:
+        return ((w + 3)/4) * ((h + 3)/4) * 8;
+    case FormatBC5:
+    case FormatBC7:
         return ((w + 3)/4) * ((h + 3)/4) * 16;
     case FormatD16Lockable:
     case FormatD32:
