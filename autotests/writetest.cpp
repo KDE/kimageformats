@@ -230,6 +230,10 @@ int basicTest(const QString &suffix, bool lossless, bool ignoreDataCheck, bool s
                     reReadImage.convertToColorSpace(QColorSpace(QColorSpace::SRgb));
                 }
             }
+            // fuzzyeq() compares images of 24, 32 or 64 bits per pixel only (e.g. not the indexed ones)
+            if (pngImage.depth() < 24) {
+                pngImage.convertTo(pngImage.hasAlphaChannel() ? QImage::Format_ARGB32 : QImage::Format_RGB32);
+            }
             reReadImage = reReadImage.convertToFormat(pngImage.format());
         }
 

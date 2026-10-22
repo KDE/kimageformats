@@ -645,12 +645,14 @@ static bool writeImage1(const QImage &image, QDataStream &s, PCXHEADER &header)
 
     auto rgb = image.color(0);
     auto minIsBlack = (qRed(rgb) + qGreen(rgb) + qBlue(rgb)) / 3 < 127;
+    // only the bytes used by the pixels are copied: the scanline padding is not initialized
+    const int bpl = std::min(int(header.BytesPerLine), (header.width() + 7) / 8);
     QByteArray buf(header.BytesPerLine, 0);
     for (int y = 0; y < header.height(); ++y) {
         auto p = scl.convertedScanLine(image, y);
 
         // Invert as QImage uses reverse palette for monochrome images?
-        for (int i = 0; i < header.BytesPerLine; ++i) {
+        for (int i = 0; i < bpl; ++i) {
             buf[i] = minIsBlack ? p[i] : ~p[i];
         }
 
@@ -665,13 +667,14 @@ static bool writeImage4(const QImage &image, QDataStream &s, PCXHEADER &header)
 {
     header.Bpp = 1;
     header.NPlanes = 4;
-    header.BytesPerLine = header.width() / 8;
+    header.BytesPerLine = (header.width() + 7) / 8;
     if (header.BytesPerLine == 0) {
         return false;
     }
 
+    const auto colorTable = image.colorTable();
     for (int i = 0; i < 16; ++i) {
-        header.ColorMap.setColor(i, image.color(i));
+        header.ColorMap.setColor(i, i < colorTable.size() ? colorTable.at(i) : qRgb(0, 0, 0));
     }
 
     s << header;
@@ -729,12 +732,14 @@ static bool writeImage8(const QImage &image, QDataStream &s, PCXHEADER &header)
 
     s << header;
 
+    // only the bytes used by the pixels are copied: the scanline padding is not initialized
+    const int bpl = std::min(int(header.BytesPerLine), header.width());
     QByteArray buf(header.BytesPerLine, 0);
 
     for (int y = 0; y < header.height(); ++y) {
         auto p = scl.convertedScanLine(image, y);
 
-        for (int i = 0; i < header.BytesPerLine; ++i) {
+        for (int i = 0; i < bpl; ++i) {
             buf[i] = p[i];
         }
 
@@ -748,11 +753,12 @@ static bool writeImage8(const QImage &image, QDataStream &s, PCXHEADER &header)
     s << byte;
 
     // Write palette
+    const auto colorTable = image.colorTable();
     for (int i = 0; i < 256; ++i) {
         if (tfmt != QImage::Format_Indexed8)
             s << RGB::from(qRgb(i, i, i));
         else
-            s << RGB::from(image.color(i));
+            s << RGB::from(i < colorTable.size() ? colorTable.at(i) : qRgb(0, 0, 0));
     }
 
     return (s.status() == QDataStream::Ok);
