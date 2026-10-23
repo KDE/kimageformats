@@ -1581,7 +1581,7 @@ MicroExif MicroExif::fromImage(const QImage &image)
     // TIFF Software
     if (exif.software().isEmpty()) {
         auto sw = QCoreApplication::applicationName();
-        auto ver = sw = QCoreApplication::applicationVersion();
+        auto ver = QCoreApplication::applicationVersion();
         if (!sw.isEmpty() && !ver.isEmpty())
             sw.append(QStringLiteral(" %1").arg(ver));
         exif.setSoftware(sw.trimmed());
