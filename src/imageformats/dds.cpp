@@ -973,8 +973,9 @@ static QImage readATI2(QDataStream &s, quint32 width, quint32 height)
             if (s.readRawData(reinterpret_cast<char *>(block), sizeof(block)) != int(sizeof(block)))
                 return QImage();
 
-            // BC5 (ATI2) stores two BC4 blocks: the first one is the second
-            // normal component, the second one is the first normal component.
+            // BC5 (ATI2) stores two BC4 blocks: the first one is the red
+            // channel and the second one is the green channel. The format has
+            // no blue channel, so it is set to zero.
             bcdec_bc5(block, texel, 4 * 2);
 
             const quint32 kMax = qMin<quint32>(4, height - i);
@@ -983,10 +984,7 @@ static QImage readATI2(QDataStream &s, quint32 width, quint32 height)
                 QRgb *line = reinterpret_cast<QRgb *>(image.scanLine(i + k));
                 for (quint32 l = 0; l < lMax; l++) {
                     const quint8 *pixel = texel + (k * 4 + l) * 2;
-                    const quint8 nx = pixel[1];
-                    const quint8 ny = pixel[0];
-                    const quint8 nz = getNormalZ(nx, ny);
-                    line[j + l] = qRgb(nx, ny, nz);
+                    line[j + l] = qRgb(pixel[0], pixel[1], 0);
                 }
             }
         }
