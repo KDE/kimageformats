@@ -2955,7 +2955,7 @@ qint32 PLTEChunk::count() const
     if (!isValid()) {
         return 0;
     }
-    return total() - count();
+    return std::max(0, total() - offset());
 }
 
 qint32 PLTEChunk::offset() const
