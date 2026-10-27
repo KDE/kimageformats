@@ -275,8 +275,17 @@ static bool LoadRAS(QDataStream &s, const RasHeader &ras, QImage &img)
             continue;
         }
 
-        // Image with palette
-        if (ras.ColorMapType == RAS_COLOR_MAP_TYPE_RGB && (ras.Depth == 1 || ras.Depth == 8)) {
+        // Image with palette 1-bit (one bit per index, unpacked to an index per byte)
+        if (ras.ColorMapType == RAS_COLOR_MAP_TYPE_RGB && ras.Depth == 1) {
+            auto scanLine = img.scanLine(y);
+            for (quint32 x = 0; x < ras.Width; x++) {
+                scanLine[x] = (quint8(rasLine.at(x / 8)) >> (7 - (x % 8))) & 1;
+            }
+            continue;
+        }
+
+        // Image with palette 8-bit
+        if (ras.ColorMapType == RAS_COLOR_MAP_TYPE_RGB && ras.Depth == 8) {
             std::memcpy(img.scanLine(y), rasLine.constData(), bytesPerLine);
             continue;
         }
