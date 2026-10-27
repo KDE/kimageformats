@@ -1517,7 +1517,8 @@ QImage::Format FORMChunk::iffFormat() const
             return QImage::Format_RGBA64;
         }
         if (h->bitplanes() >= 1 && h->bitplanes() <= 8) {
-            if (h->bitplanes() >= BITPLANES_HAM_MIN && h->bitplanes() <= BITPLANES_HAM_MAX) {
+            // PBM data are chunky indexes (no HAM decoding)
+            if (h->bitplanes() >= BITPLANES_HAM_MIN && h->bitplanes() <= BITPLANES_HAM_MAX && formType() != PBM__FORM_TYPE) {
                 if (modeId & CAMGChunk::ModeId::Ham)
                     return FORMAT_RGB_8BIT;
             }

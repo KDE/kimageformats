@@ -327,6 +327,24 @@ static QImage convertIPAL(const QImage& img, const IPALChunk *ipal)
     return tmp;
 }
 
+/*!
+ * \brief copyStride
+ * Copies the decoded stride to an image line.
+ * \param img The image.
+ * \param y The line of the image.
+ * \param ba The decoded stride.
+ * \return False if the stride does not hold all the pixels of the line.
+ */
+static bool copyStride(QImage &img, qint32 y, const QByteArray &ba)
+{
+    // the stride must cover every pixel (bytesPerLine() may include padding)
+    if (ba.size() < (qsizetype(img.width()) * img.depth() + 7) / 8) {
+        return false;
+    }
+    memcpy(img.scanLine(y), ba.constData(), std::min(img.bytesPerLine(), ba.size()));
+    return true;
+}
+
 bool IFFHandler::readStandardImage(QImage *image)
 {
     auto forms = d->searchForms<FORMChunk>();
@@ -403,13 +421,11 @@ bool IFFHandler::readStandardImage(QImage *image)
             return false;
         }
         for (auto y = 0, h = img.height(); y < h; ++y) {
-            auto line = reinterpret_cast<char*>(img.scanLine(y));
             auto ba = body->strideRead(device(), y, header, camg, cmap, ipal.get(), form->formType());
-            if (ba.isEmpty()) {
+            if (!copyStride(img, y, ba)) {
                 qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readStandardImage(): error while reading image scanline";
                 return false;
             }
-            memcpy(line, ba.constData(), std::min(img.bytesPerLine(), ba.size()));
         }
     }
 
@@ -442,7 +458,8 @@ bool IFFHandler::readMayaImage(QImage *image)
 
     // create the image
     auto &&header = headers.first();
-    auto img = imageAlloc(header->size(), form->format());
+    // tiles are not required to cover the whole image
+    auto img = imageAlloc(header->size(), form->format(), ImageInitToZero::All);
     if (img.isNull()) {
         qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readMayaImage(): error while allocating the image";
         return false;
@@ -525,15 +542,13 @@ bool IFFHandler::readCDIImage(QImage *image)
         auto pars = IFFChunk::searchT<IPARChunk>(form);
         auto yuvs = IFFChunk::searchT<YUVSChunk>(form);
         for (auto y = 0, h = img.height(); y < h; ++y) {
-            auto line = reinterpret_cast<char*>(img.scanLine(y));
             auto ba = body->strideRead(device(), y, header,
                                        pars.isEmpty() ? nullptr : pars.first(),
                                        yuvs.isEmpty() ? nullptr : yuvs.first());
-            if (ba.isEmpty()) {
+            if (!copyStride(img, y, ba)) {
                 qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readCDIImage(): error while reading image scanline";
                 return false;
             }
-            memcpy(line, ba.constData(), std::min(img.bytesPerLine(), ba.size()));
         }
     }
 
@@ -588,15 +603,13 @@ bool IFFHandler::readRGFXImage(QImage *image)
         auto rcsms = IFFChunk::searchT<RSCMChunk>(form);
         auto rcols = IFFChunk::searchT<RCOLChunk>(form);
         for (auto y = 0, h = img.height(); y < h; ++y) {
-            auto line = reinterpret_cast<char*>(img.scanLine(y));
             auto ba = body->strideRead(device(), y, header,
                                        rcsms.isEmpty() ? nullptr : rcsms.first(),
                                        rcols.isEmpty() ? nullptr : rcols.first());
-            if (ba.isEmpty()) {
+            if (!copyStride(img, y, ba)) {
                 qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readRGFXImage(): error while reading image scanline";
                 return false;
             }
-            memcpy(line, ba.constData(), std::min(img.bytesPerLine(), ba.size()));
         }
     }
 
@@ -651,15 +664,13 @@ bool IFFHandler::readDEEPImage(QImage *image)
         }
         auto tvdcs = IFFChunk::searchT<TVDCChunk>(form);
         for (auto y = 0, h = img.height(); y < h; ++y) {
-            auto line = reinterpret_cast<char*>(img.scanLine(y));
             auto ba = body->strideRead(device(), y, header, pels.first(),
                                        locs.isEmpty() ? nullptr : locs.first(),
                                        tvdcs.isEmpty() ? nullptr : tvdcs.first());
-            if (ba.isEmpty()) {
+            if (!copyStride(img, y, ba)) {
                 qCWarning(LOG_IFFPLUGIN) << "IFFHandler::readDEEPImage(): error while reading image scanline";
                 return false;
             }
-            memcpy(line, ba.constData(), std::min(img.bytesPerLine(), ba.size()));
         }
     }
 
