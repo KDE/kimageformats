@@ -131,6 +131,7 @@ enum Format {
 
     FormatBC4,
     FormatBC5,
+    FormatBC6H,
     FormatBC7,
 
     FormatLast                 = 0x7fffffff
@@ -414,6 +415,10 @@ static const DXGIFormatToFormat knownDXGIFormat[] = {
     { DXGIFormatBC5_TYPELESS, FormatBC5 },
     { DXGIFormatBC5_UNORM, FormatBC5 },
 
+    { DXGIFormatBC6H_TYPELESS, FormatBC6H },
+    { DXGIFormatBC6H_UF16, FormatBC6H },
+    { DXGIFormatBC6H_SF16, FormatBC6H },
+
     { DXGIFormatBC7_TYPELESS, FormatBC7 },
     { DXGIFormatBC7_UNORM, FormatBC7 },
     { DXGIFormatBC7_UNORM_SRGB, FormatBC7 }
@@ -515,6 +520,7 @@ static const FormatName formatNames[] = {
 
     { FormatBC4, "BC4" },
     { FormatBC5, "BC5" },
+    { FormatBC6H, "BC6H" },
     { FormatBC7, "BC7" }
 };
 static const size_t formatNamesSize = sizeof(formatNames)/sizeof(FormatName);
@@ -1022,6 +1028,43 @@ static QImage readBC4(QDataStream &s, quint32 width, quint32 height)
         }
     }
 
+    return image;
+}
+
+/* *** BC6H ***
+ * Stores three (half-float) channels. It has no alpha channel.
+ */
+static QImage readBC6H(QDataStream &s, quint32 width, quint32 height, bool isSigned)
+{
+    QImage image = imageAlloc(width, height, QImage::Format_RGBX16FPx4);
+    if (image.isNull()) {
+        return image;
+    }
+
+    quint8 block[16];
+    qfloat16 texel[16 * 3];
+    for (quint32 i = 0; i < height; i += 4) {
+        for (quint32 j = 0; j < width; j += 4) {
+            if (s.readRawData(reinterpret_cast<char *>(block), sizeof(block)) != int(sizeof(block)))
+                return QImage();
+
+            bcdec_bc6h_half(block, texel, 4 * 3, isSigned);
+
+            const quint32 kMax = qMin<quint32>(4, height - i);
+            const quint32 lMax = qMin<quint32>(4, width - j);
+            for (quint32 k = 0; k < kMax; k++) {
+                qfloat16 *line = reinterpret_cast<qfloat16 *>(image.scanLine(i + k));
+                for (quint32 l = 0; l < lMax; l++) {
+                    line[(j + l) * 4] = texel[(k * 4 + l) * 3];
+                    line[(j + l) * 4 + 1] = texel[(k * 4 + l) * 3 + 1];
+                    line[(j + l) * 4 + 2] = texel[(k * 4 + l) * 3 + 2];
+                    line[(j + l) * 4 + 3] = 1;
+                }
+            }
+        }
+    }
+
+    image.setColorSpace(QColorSpace(QColorSpace::SRgbLinear));
     return image;
 }
 
@@ -1782,6 +1825,8 @@ static QImage readLayer(QDataStream &s, const DDSHeader &dds, const int format, 
         return readBC4(s, width, height);
     case FormatBC5:
         return readATI2(s, width, height);
+    case FormatBC6H:
+        return readBC6H(s, width, height, dds.header10.dxgiFormat == DXGIFormatBC6H_SF16);
     case FormatBC7:
         return readBC7(s, width, height);
     case FormatR16F:
@@ -1890,6 +1935,7 @@ static qint64 mipmapSize(const DDSHeader &dds, const int format, const int level
     case FormatBC4:
         return ((w + 3)/4) * ((h + 3)/4) * 8;
     case FormatBC5:
+    case FormatBC6H:
     case FormatBC7:
         return ((w + 3)/4) * ((h + 3)/4) * 16;
     case FormatD16Lockable:
