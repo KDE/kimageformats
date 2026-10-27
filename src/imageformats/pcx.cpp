@@ -91,7 +91,7 @@ public:
      */
     inline bool isSupported() const
     {
-        return isValid() && format() != QImage::Format_Invalid;
+        return isValid() && format() != QImage::Format_Invalid && BytesPerLine >= (width() * Bpp + 7) / 8;
     }
     inline QImage::Format format() const
     {
@@ -370,11 +370,6 @@ static bool readImage4(QImage &img, QDataStream &s, const PCXHEADER &header)
         return false;
     }
 
-    if (header.BytesPerLine < (header.width() + 7) / 8) {
-        qCWarning(LOG_PCXPLUGIN) << "PCX image has invalid BytesPerLine value";
-        return false;
-    }
-
     for (int y = 0; y < header.height(); ++y) {
         if (s.atEnd()) {
             return false;
@@ -437,12 +432,8 @@ static bool readImage2(QImage &img, QDataStream &s, const PCXHEADER &header)
             return false;
         }
 
-        const unsigned int bpl = std::min(header.BytesPerLine, static_cast<quint16>(header.width() / 4));
-        for (unsigned int x = 0; x < bpl; ++x) {
-            p[x * 4] = (buf[x] >> 6) & 3;
-            p[x * 4 + 1] = (buf[x] >> 4) & 3;
-            p[x * 4 + 2] = (buf[x] >> 2) & 3;
-            p[x * 4 + 3] = buf[x] & 3;
+        for (int x = 0; x < header.width(); ++x) {
+            p[x] = (quint8(buf.at(x / 4)) >> (6 - 2 * (x % 4))) & 3;
         }
     }
 
@@ -480,10 +471,8 @@ static bool readImage4v2(QImage &img, QDataStream &s, const PCXHEADER &header)
             return false;
         }
 
-        const unsigned int bpl = std::min(header.BytesPerLine, static_cast<quint16>(header.width() / 2));
-        for (unsigned int x = 0; x < bpl; ++x) {
-            p[x * 2] = (buf[x] & 240) >> 4;
-            p[x * 2 + 1] = buf[x] & 15;
+        for (int x = 0; x < header.width(); ++x) {
+            p[x] = (quint8(buf.at(x / 2)) >> (x % 2 ? 0 : 4)) & 15;
         }
     }
 
