@@ -1561,7 +1561,7 @@ void XCFImageFormat::setPalette(XCFImage &xcf_image, QImage &image)
 {
     Q_ASSERT(xcf_image.num_colors == xcf_image.palette.size());
 
-    image.setColorTable(xcf_image.palette);
+    image.setColorTable(truncTo8BitColorTable(xcf_image.palette));
 }
 
 /*!

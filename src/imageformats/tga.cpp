@@ -652,7 +652,7 @@ static bool LoadTGA(QIODevice *dev, const TgaHeader &tga, QImage &img)
             return false;
         }
 
-        img.setColorTable(colorTable);
+        img.setColorTable(truncTo8BitColorTable(colorTable));
     }
 
     // Convert image to internal format.

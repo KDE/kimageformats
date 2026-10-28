@@ -565,13 +565,13 @@ QList<QRgb> CMAPChunk::palette(bool halfbride) const
 {
     auto p = innerPalette();
     if (!halfbride) {
-        return p;
+        return truncTo8BitColorTable(p);
     }
     auto tmp = p;
     for (auto &&v : tmp) {
         p << qRgb(qRed(v) / 2, qGreen(v) / 2, qBlue(v) / 2);
     }
-    return p;
+    return truncTo8BitColorTable(p);
 }
 
 bool CMAPChunk::innerReadStructure(QIODevice *d)

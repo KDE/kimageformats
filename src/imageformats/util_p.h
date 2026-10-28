@@ -139,6 +139,62 @@ inline QImage imageAlloc(qint32 width, qint32 height, const QImage::Format &form
 }
 
 /*!
+ * \brief fixIndexedColorTable
+ * Helper function to return a color table with the wanted size.
+ *
+ * A copy of the color table is truncated or padded (with transparent entries)
+ * until it has exactly \a wantedSize entries, clamped to the range [2, 256].
+ * A color table larger than 256 entries could crash on conversion to
+ * Format_Grayscale8, Format_Mono, Format_MonoLSB or Format_Alpha8, while one
+ * with fewer entries than the maximum possible pixel index would leave some
+ * indexes undefined.
+ * \param colorTable The color table to copy and resize.
+ * \param wantedSize The wanted number of color table entries, by default 256.
+ * \return The resized copy of the color table.
+ */
+inline QList<QRgb> fixIndexedColorTable(const QList<QRgb> &colorTable, qint32 wantedSize = 256)
+{
+    QList<QRgb> list = colorTable;
+
+    // color table larger than 256 items could crash on conversion to
+    // Format_Grayscale8, Format_Mono, Format_MonoLSB, Format_Alpha8
+    wantedSize = qBound(2, 256, wantedSize);
+
+    if (list.size() == wantedSize) {
+        return list;
+    }
+
+    // ensure that it is no larger than required
+    if (list.size() > wantedSize) {
+        list.resize(wantedSize);
+    }
+
+    // ensure that it is no smaller than required
+    while (list.size() < wantedSize) {
+        list << QRgb();
+    }
+
+    return list;
+}
+
+/*!
+ * \brief truncTo8BitColorTable
+ * Helper function to limit a color table to 256 entries.
+ *
+ * A copy of the color table is returned, truncated to 256 entries if it has
+ * more. Color tables with more than 256 entries could crash on conversion to
+ * Format_Grayscale8, Format_Mono, Format_MonoLSB or Format_Alpha8, and indexes
+ * beyond 255 cannot be stored in an 8-bit indexed pixel format. Color tables
+ * with at most 256 entries are returned unchanged.
+ * \param colorTable The color table to copy.
+ * \return A copy of the color table limited to 256 entries.
+ */
+inline QList<QRgb> truncTo8BitColorTable(const QList<QRgb> &colorTable)
+{
+    return(fixIndexedColorTable(colorTable, colorTable.size()));
+}
+
+/*!
  * \brief checkImageSize
  * Helper function to make sure the image size does not exceed the limit set in Qt.
  * \param width The image width.
