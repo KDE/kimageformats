@@ -265,7 +265,9 @@ int ANIHandler::nextImageDelay() const
         if (previousImage < 0) {
             previousImage = m_displayRates.count() - 1;
         }
-        rate = m_displayRates.at(previousImage);
+        if (previousImage < m_displayRates.count()) {
+            rate = m_displayRates.at(previousImage);
+        }
     }
 
     int delayNumerator;
