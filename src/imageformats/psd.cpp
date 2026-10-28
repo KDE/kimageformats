@@ -175,8 +175,7 @@ struct PSDLayerAndMaskSection {
         if (globalLayerMaskInfo.size > -1) {
             currentSize += globalLayerMaskInfo.size + 4;
         }
-        auto aliv = additionalLayerInfo.values();
-        for (auto &&v : aliv) {
+        for (const PSDAdditionalLayerInfo &v : additionalLayerInfo) {
             currentSize += (12 + v.size);
             if (v.signature == S_8B64)
                 currentSize += 4;
