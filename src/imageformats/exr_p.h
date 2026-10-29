@@ -76,18 +76,21 @@ private:
      * Value set by QImageWriter::setCompression().
      *
      * The compression scheme is the same as defined by OpenEXR library:
-     * - 0: no compression
-     * - 1: run length encoding
-     * - 2: zlib compression, one scan line at a time
-     * - 3: zlib compression, in blocks of 16 scan lines
-     * - 4: piz-based wavelet compression (default)
-     * - 5: lossy 24-bit float compression
-     * - 6: lossy 4-by-4 pixel block compression, fixed compression rate
-     * - 7: lossy 4-by-4 pixel block compression, fields are compressed more
+     * - 0: no compression.
+     * - 1: run length encoding.
+     * - 2: zlib compression, one scan line at a time.
+     * - 3: zlib compression, in blocks of 16 scan lines.
+     * - 4: piz-based wavelet compression (default).
+     * - 5: lossy 24-bit float compression.
+     * - 6: lossy 4-by-4 pixel block compression, fixed compression rate.
+     * - 7: lossy 4-by-4 pixel block compression, fields are compressed more.
      * - 8: lossy DCT based compression, in blocks of 32 scanlines. More efficient for partial buffer access.
      * - 9: lossy DCT based compression, in blocks of 256 scanlines. More efficient space wise and faster to decode full frames than DWAA_COMPRESSION.
      * - 10: High-Throughput JPEG2000 (HTJ2K), 256 scanlines (requires OpenEXR 3.4+).
      * - 11: High-Throughput JPEG2000 (HTJ2K), 32 scanlines (requires OpenEXR 3.4+).
+     * - 12: High-Throughput JPEG2000 (HTJ2K), lossy, 256 scanlines (requires OpenEXR 3.5+).
+     * - 13: zstd lossless compression, one scan line at a time (requires OpenEXR 3.5+).
+     * \note If compiled with a more recent EXR library, any new compression methods can be used.
      */
     qint32 m_compressionRatio;
 

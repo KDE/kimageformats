@@ -774,9 +774,16 @@ bool EXRHandler::write(const QImage &image)
         // set the DCT quality (used by DCT compressions only)
         if (m_quality > -1 && m_quality <= 100) {
             header.dwaCompressionLevel() = float(m_quality);
+#if QT_VERSION_CHECK(OPENEXR_VERSION_MAJOR, OPENEXR_VERSION_MINOR, OPENEXR_VERSION_PATCH) >= QT_VERSION_CHECK(3, 5, 0)
+            header.lossyHTJ2KQuality() = float(m_quality) * 1.5f; // Lossy J2K max quality is 150
+#endif
         }
         // make ZIP compression fast (used by ZIP compressions)
         header.zipCompressionLevel() = 1;
+#if QT_VERSION_CHECK(OPENEXR_VERSION_MAJOR, OPENEXR_VERSION_MINOR, OPENEXR_VERSION_PATCH) >= QT_VERSION_CHECK(3, 5, 0)
+        // make ZSTD compression fast (used by ZSTD compressions)
+        header.zstdCompressionLevel() = 1; // default is 5 -> 1 is faster
+#endif
 
         // set preview (don't set it for small images)
         if (width > 1024 || height > 1024) {
