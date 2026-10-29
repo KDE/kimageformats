@@ -131,20 +131,33 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         is_animated = handler->option(QImageIOHandler::Animation).toBool();
     }
 
-    if (is_animated) { // animated image
-        if (handler->supportsOption(QImageIOHandler::Size)) {
+    int tryCrash = 2;
+    int maxCount = handler->imageCount() + tryCrash;
+    for (int j = 0; tryCrash && j < maxCount; ++j) {
+        if (is_animated && handler->supportsOption(QImageIOHandler::Size)) {
             handler->option(QImageIOHandler::Size).toSize();
         }
 
         handler->imageCount();
         handler->loopCount();
-        handler->read(&i);
         handler->nextImageDelay();
-        handler->currentImageNumber();
-        handler->jumpToImage(0);
-        handler->jumpToNextImage();
-    } else { // static image
+        if (!handler->read(&i)) {
+            --tryCrash;
+        }
+    }
+
+    tryCrash = 2;
+    for (int j = 0; tryCrash && j < maxCount; ++j) {
+        if (is_animated && handler->supportsOption(QImageIOHandler::Size)) {
+            handler->option(QImageIOHandler::Size).toSize();
+        }
         handler->read(&i);
+        handler->imageCount();
+        handler->loopCount();
+        handler->nextImageDelay();
+        if (!handler->jumpToImage(j)) {
+            --tryCrash;
+        }
     }
 
     delete handler;
