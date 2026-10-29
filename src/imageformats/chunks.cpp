@@ -4107,7 +4107,14 @@ bool DBODChunk::resetStrideRead(QIODevice *d) const
 quint32 DBODChunk::strideSize(const DGBLChunk *header, const DPELChunk *pel, const DLOCChunk *loc) const
 {
     auto width = loc ? loc->width() : header->width();
-    return (width * pel->depth() + 7) / 8;
+    auto depth = pel->depth();
+    const auto sizeInBits = quint64(width) * quint64(depth);
+    const auto sizeInBytes = (sizeInBits + 7) / 8;
+    if (sizeInBytes > std::numeric_limits<quint32>::max()) {
+        qWarning() << "DBODChunk::strideSize(): size overflow" << sizeInBytes;
+        return 0;
+    }
+    return sizeInBytes;
 }
 
 
