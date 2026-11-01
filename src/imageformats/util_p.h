@@ -158,7 +158,7 @@ inline QList<QRgb> fixIndexedColorTable(const QList<QRgb> &colorTable, qint32 wa
 
     // color table larger than 256 items could crash on conversion to
     // Format_Grayscale8, Format_Mono, Format_MonoLSB, Format_Alpha8
-    wantedSize = qBound(2, 256, wantedSize);
+    wantedSize = qBound(2, wantedSize, 256);
 
     if (list.size() == wantedSize) {
         return list;
