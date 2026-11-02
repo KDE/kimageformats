@@ -317,6 +317,8 @@ bool SGIImagePrivate::readImage(QImage &img)
         // start table holds file offsets; raster data follows header + both tables
         const quint32 dataOff = 512 + _numrows * 2 * sizeof(quint32);
         uint l;
+
+        delete[] _starttab;
         _starttab = new (std::nothrow) quint32[_numrows];
         if (_starttab == nullptr) {
             return false;
@@ -335,6 +337,7 @@ bool SGIImagePrivate::readImage(QImage &img)
             _starttab[l] = 0;
         }
 
+        delete[] _lengthtab;
         _lengthtab = new (std::nothrow) quint32[_numrows];
         if (_lengthtab == nullptr) {
             return false;
@@ -802,6 +805,7 @@ bool SGIImagePrivate::writeImage(const QImage &image)
     _pixmax = 0;
     _colormap = NORMAL;
     _numrows = _ysize * _zsize;
+    delete[] _starttab;
     _starttab = new (std::nothrow) quint32[_numrows];
     if (_starttab == nullptr) {
         return false;
