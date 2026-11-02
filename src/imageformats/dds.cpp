@@ -2602,7 +2602,7 @@ int QDDSHandler::imageCount() const
     if (!ensureScanned())
         return 0;
 
-    return qMax<quint32>(1, m_header.mipMapCount);
+    return qBound<quint32>(1, m_header.mipMapCount, 32);
 }
 
 bool QDDSHandler::jumpToImage(int imageNumber)
