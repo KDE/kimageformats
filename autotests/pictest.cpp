@@ -59,6 +59,8 @@ private:
 private Q_SLOTS:
     void initTestCase()
     {
+        // addLibraryPath is a no-op if the path added is already present in the list
+        QCoreApplication::removeLibraryPath(QStringLiteral(PLUGIN_DIR));
         QCoreApplication::addLibraryPath(QStringLiteral(PLUGIN_DIR));
     }
 
