@@ -906,13 +906,6 @@ bool HEIFHandler::ensureDecoder()
 #if LIBHEIF_HAVE_VERSION(1, 20, 0)
         heif_limits->max_total_memory = heif_limits->max_memory_block_size;
 #endif
-        err = heif_context_set_security_limits(ctx, heif_limits);
-        if (err.code) {
-            qCWarning(LOG_HEIFPLUGIN) << "heif_context_set_security_limits error:" << err.message;
-            heif_context_free(ctx);
-            m_parseState = ParseHeicError;
-            return false;
-        }
     }
 #endif
 
