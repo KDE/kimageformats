@@ -1,0 +1,7 @@
+[
+    {
+        "fileName": "lossy_rgb.jpg",
+        "fuzziness": 5,
+        "description": "Minimum fuzziness value to pass the test on all architectures."
+    }
+]
