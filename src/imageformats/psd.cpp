@@ -632,6 +632,10 @@ static QImage::Format imageFormat(const PSDHeader &header, bool alpha)
         }
         break;
     case CM_GRAYSCALE:
+        if (alpha && header.channel_count < 2) {
+            // the alpha channel announced is not in the file
+            break;
+        }
         if (header.depth == 32) {
             format = !alpha ? QImage::Format_RGBX32FPx4 : QImage::Format_RGBA32FPx4_Premultiplied;
         } else if (header.depth == 16) {
