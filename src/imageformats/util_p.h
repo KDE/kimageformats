@@ -10,10 +10,10 @@
 
 #include <limits>
 
+#include <QIODevice>
 #include <QImage>
 #include <QImageIOHandler>
 #include <QImageReader>
-#include <QIODevice>
 #include <QPixelFormat>
 
 // Default maximum number of channels (do not exceed 256).
@@ -86,8 +86,7 @@ static constexpr int kMaxQVectorSize = std::numeric_limits<int>::max() - 32;
 /*!
  * \brief The ImageInitToZero enum
  */
-enum class ImageInitToZero
-{
+enum class ImageInitToZero {
     None, /**< Do not initialize the image. */
     All, /**< Initialize all images. */
     PremulOnly, /**< Initialize only images with premultiplied alpha. */
@@ -103,7 +102,7 @@ enum class ImageInitToZero
  * \param init Whether and which images should be initialized to zero.
  * \return The allocated image or a null image on error.
  */
-inline QImage imageAlloc(const QSize &size, const QImage::Format &format, const ImageInitToZero& init = ImageInitToZero::None)
+inline QImage imageAlloc(const QSize &size, const QImage::Format &format, const ImageInitToZero &init = ImageInitToZero::None)
 {
     QImage img;
     if (!QImageIOHandler::allocateImage(size, format, &img)) {
@@ -133,7 +132,7 @@ inline QImage imageAlloc(const QSize &size, const QImage::Format &format, const 
  * \param init Whether and which images should be initialized to zero.
  * \return The allocated image or a null image on error.
  */
-inline QImage imageAlloc(qint32 width, qint32 height, const QImage::Format &format, const ImageInitToZero& init = ImageInitToZero::None)
+inline QImage imageAlloc(qint32 width, qint32 height, const QImage::Format &format, const ImageInitToZero &init = ImageInitToZero::None)
 {
     return imageAlloc(QSize(width, height), format, init);
 }
@@ -191,7 +190,7 @@ inline QList<QRgb> fixIndexedColorTable(const QList<QRgb> &colorTable, qint32 wa
  */
 inline QList<QRgb> truncTo8BitColorTable(const QList<QRgb> &colorTable)
 {
-    return(fixIndexedColorTable(colorTable, colorTable.size()));
+    return (fixIndexedColorTable(colorTable, colorTable.size()));
 }
 
 /*!
@@ -219,7 +218,7 @@ inline bool checkImageSize(qint32 width, qint32 height, qint32 bytesPerPixel)
  * \param bytesPerPixel The number of bytes for each pixel of the image.
  * \return True if the limit is respected, false otherwise.
  */
-inline bool checkImageSize(const QSize& size, qint32 bytesPerPixel)
+inline bool checkImageSize(const QSize &size, qint32 bytesPerPixel)
 {
     return checkImageSize(size.width(), size.height(), bytesPerPixel);
 }
@@ -306,10 +305,10 @@ inline float fppm2dpi(qint32 ppm, bool *ok = nullptr)
  * \param maxSize The maximum size to read.
  * \return The byte array read.
  */
-static QByteArray deviceRead(QIODevice *d, qint64 maxSize)
+inline QByteArray deviceRead(QIODevice *d, qint64 maxSize)
 {
     if (d == nullptr) {
-        return{};
+        return {};
     }
 
     const qint64 blockSize = 1024 * 1024;
