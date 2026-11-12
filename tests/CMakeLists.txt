@@ -11,6 +11,10 @@ macro(kimageformats_executable_tests)
 endmacro()
 
 kimageformats_executable_tests(
+    colorspacetest
     imageconverter
     imagedump
 )
+
+# the CMYK ICC profile of colorspacetest
+qt_add_resources(colorspacetest "colorspacetest" PREFIX "/" FILES CGATS001Compat-v2-micro.icc)
