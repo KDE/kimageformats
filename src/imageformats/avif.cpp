@@ -732,61 +732,53 @@ bool QAVIFHandler::write(const QImage &image)
         }
         QImage tmpgrayimage = image.convertToFormat(tmpformat);
 
-        avif = avifImageCreate(tmpgrayimage.width(), tmpgrayimage.height(), save_depth, AVIF_PIXEL_FORMAT_YUV400);
-        res = avifImageAllocatePlanes(avif, AVIF_PLANES_YUV);
-        if (res != AVIF_RESULT_OK) {
-            qCWarning(LOG_AVIFPLUGIN, "ERROR in avifImageAllocatePlanes: %s", avifResultToString(res));
-            return false;
-        }
-        // set EXIF and XMP metadata
-        setMetadata(avif, tmpgrayimage);
+        avifMatrixCoefficients gray_matrix_to_save = (avifMatrixCoefficients)2; // unspecified;
+        avifColorPrimaries gray_primaries_to_save = (avifColorPrimaries)2;
+        avifTransferCharacteristics gray_transfer_to_save = (avifTransferCharacteristics)2;
+        QByteArray iccprofile_gray;
 
         if (tmpgrayimage.colorSpace().isValid()) {
-            avif->colorPrimaries = (avifColorPrimaries)1;
-            avif->matrixCoefficients = (avifMatrixCoefficients)1;
+            gray_primaries_to_save = (avifColorPrimaries)1;
+            gray_matrix_to_save = (avifMatrixCoefficients)1;
 
             switch (tmpgrayimage.colorSpace().transferFunction()) {
             case QColorSpace::TransferFunction::Linear:
                 /* AVIF_TRANSFER_CHARACTERISTICS_LINEAR */
-                avif->transferCharacteristics = (avifTransferCharacteristics)8;
+                gray_transfer_to_save = (avifTransferCharacteristics)8;
                 break;
             case QColorSpace::TransferFunction::Gamma:
                 if (qAbs(tmpgrayimage.colorSpace().gamma() - 2.2f) < 0.1f) {
                     /* AVIF_TRANSFER_CHARACTERISTICS_BT470M */
-                    avif->transferCharacteristics = (avifTransferCharacteristics)4;
+                    gray_transfer_to_save = (avifTransferCharacteristics)4;
                 } else if (qAbs(tmpgrayimage.colorSpace().gamma() - 2.8f) < 0.1f) {
                     /* AVIF_TRANSFER_CHARACTERISTICS_BT470BG */
-                    avif->transferCharacteristics = (avifTransferCharacteristics)5;
+                    gray_transfer_to_save = (avifTransferCharacteristics)5;
                 }
                 break;
             case QColorSpace::TransferFunction::SRgb:
                 /* AVIF_TRANSFER_CHARACTERISTICS_SRGB */
-                avif->transferCharacteristics = (avifTransferCharacteristics)13;
+                gray_transfer_to_save = (avifTransferCharacteristics)13;
                 break;
             case QColorSpace::TransferFunction::St2084:
-                avif->transferCharacteristics = (avifTransferCharacteristics)16;
+                gray_transfer_to_save = (avifTransferCharacteristics)16;
                 break;
             case QColorSpace::TransferFunction::Hlg:
-                avif->transferCharacteristics = (avifTransferCharacteristics)18;
+                gray_transfer_to_save = (avifTransferCharacteristics)18;
                 break;
             default:
                 /* AVIF_TRANSFER_CHARACTERISTICS_UNSPECIFIED */
                 break;
             }
 
-            if (avif->transferCharacteristics == 2) { // in case TransferFunction was not identified yet
+            if (gray_transfer_to_save == 2) { // in case TransferFunction was not identified yet
                 if (tmpgrayimage.colorSpace().colorModel() == QColorSpace::ColorModel::Gray && lossless) {
-                    avif->colorPrimaries = (avifColorPrimaries)2;
-                    avif->matrixCoefficients = (avifMatrixCoefficients)6;
+                    gray_primaries_to_save = (avifColorPrimaries)2;
+                    gray_matrix_to_save = (avifMatrixCoefficients)6;
 
-                    QByteArray iccprofile_gray = tmpgrayimage.colorSpace().iccProfile();
+                    iccprofile_gray = tmpgrayimage.colorSpace().iccProfile();
 
-                    if (iccprofile_gray.size() > 0) {
-                        res = avifImageSetProfileICC(avif, reinterpret_cast<const uint8_t *>(iccprofile_gray.constData()), iccprofile_gray.size());
-                        if (res != AVIF_RESULT_OK) {
-                            qCWarning(LOG_AVIFPLUGIN, "ERROR in avifImageSetProfileICC: %s", avifResultToString(res));
-                            return false;
-                        }
+                    if (iccprofile_gray.isEmpty()) {
+                        qCWarning(LOG_AVIFPLUGIN, "Unable to save Gray ICC profile");
                     }
                 } else { // convert to grayscale with SRgb
                     tmpgrayimage.convertToColorSpace(QColorSpace(QPointF(0.3127f, 0.329f), QColorSpace::TransferFunction::SRgb), QImage::Format_Grayscale16);
@@ -796,7 +788,7 @@ bool QAVIFHandler::write(const QImage &image)
                         break;
                     case QImage::Format_Grayscale16:
                         save_depth = 10;
-                        avif->transferCharacteristics = (avifTransferCharacteristics)13;
+                        gray_transfer_to_save = (avifTransferCharacteristics)13;
                         break;
                     default:
                         qCWarning(LOG_AVIFPLUGIN, "Error saving Gray image");
@@ -804,6 +796,27 @@ bool QAVIFHandler::write(const QImage &image)
                         break;
                     }
                 }
+            }
+        }
+
+        avif = avifImageCreate(tmpgrayimage.width(), tmpgrayimage.height(), save_depth, AVIF_PIXEL_FORMAT_YUV400);
+        avif->matrixCoefficients = gray_matrix_to_save;
+        avif->colorPrimaries = gray_primaries_to_save;
+        avif->transferCharacteristics = gray_transfer_to_save;
+
+        res = avifImageAllocatePlanes(avif, AVIF_PLANES_YUV);
+        if (res != AVIF_RESULT_OK) {
+            qCWarning(LOG_AVIFPLUGIN, "ERROR in avifImageAllocatePlanes: %s", avifResultToString(res));
+            return false;
+        }
+        // set EXIF and XMP metadata
+        setMetadata(avif, tmpgrayimage);
+
+        if (iccprofile_gray.size() > 0) {
+            res = avifImageSetProfileICC(avif, reinterpret_cast<const uint8_t *>(iccprofile_gray.constData()), iccprofile_gray.size());
+            if (res != AVIF_RESULT_OK) {
+                qCWarning(LOG_AVIFPLUGIN, "ERROR in avifImageSetProfileICC: %s", avifResultToString(res));
+                return false;
             }
         }
 
