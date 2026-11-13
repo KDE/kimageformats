@@ -652,7 +652,7 @@ static bool LoadTGA(QIODevice *dev, const TgaHeader &tga, QImage &img)
             return false;
         }
 
-        img.setColorTable(truncTo8BitColorTable(colorTable));
+        img.setColorTable(fixIndexedColorTable(colorTable, 256));
     }
 
     // Convert image to internal format.
@@ -684,7 +684,6 @@ static bool LoadTGA(QIODevice *dev, const TgaHeader &tga, QImage &img)
         }
         auto src = tgaLine.data();
         if (info.pal && img.depth() == 8) {
-            // Paletted.
             auto scanline = img.scanLine(y);
             for (int x = x_start; x != x_end; x += x_step) {
                 uchar idx = *src++;

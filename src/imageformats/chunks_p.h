@@ -827,7 +827,38 @@ public:
      */
     static CAMGChunk::ModeIds safeModeId(const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap = nullptr);
 
+    /*!
+     * \brief maxPaletteCount
+     * \param header The header.
+     * \param camg The CAMG chunk.
+     * \param cmap The CMAP chunk.
+     * \return The maximum number of colors the displayed palette can hold
+     *         for the image described by the given chunks, or 0 if the
+     *         bitplane count is not supported (1-8).
+     */
+    static qint32 maxPaletteCount(const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap = nullptr);
+
 protected:
+    /*!
+     * \brief maxPaletteCount
+     * \param bitplanes The number of bitplanes.
+     * \param modeId The display mode (see safeModeId()).
+     * \return The maximum number of colors the displayed palette can hold
+     *         for the given bitplane count and mode, or 0 if the bitplane
+     *         count is not supported (1-8).
+     *
+     * Maximum displayed palette size by mode:
+     * - Standard indexed (1-8 planes): 2^bitplanes
+     * - HalfBrite (1-8 planes): 2^bitplanes; only 2^(bitplanes - 1) colors
+     *   are stored in the CMAP chunk, the remaining half-bright colors are
+     *   derived from them at display time
+     * - HAM5 (5 planes): 16 colors (1 control bit + 1 hardwired bit + 4 data bits)
+     * - HAM6 (6 planes): 16 colors (2 control bits + 4 data bits)
+     * - HAM7 (7 planes): 32 colors (2 control bits + 5 data bits)
+     * - HAM8 (8 planes): 64 colors (2 control bits + 6 data bits)
+     */
+    static qint32 maxPaletteCount(qint32 bitplanes, CAMGChunk::ModeIds modeId);
+
     /*!
      * \brief strideSize
      * \param formType The type of the current form chunk.

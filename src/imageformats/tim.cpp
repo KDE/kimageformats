@@ -184,7 +184,7 @@ public:
             // where there shouldn't be any (so, disabled for now)
             clut << qRgba((v & 0x1F) * 255 / 31, ((v >> 5) & 0x1F) * 255 / 31, ((v >> 10) & 0x1F) * 255 / 31, 255);
         }
-        return truncTo8BitColorTable(clut);
+        return fixIndexedColorTable(clut, type() == TYPE_IDX_4BPP ? 16 : 256);
     }
 
     bool read(QIODevice *d)

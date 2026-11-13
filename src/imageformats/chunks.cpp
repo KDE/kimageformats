@@ -565,13 +565,13 @@ QList<QRgb> CMAPChunk::palette(bool halfbride) const
 {
     auto p = innerPalette();
     if (!halfbride) {
-        return truncTo8BitColorTable(p);
+        return p;
     }
     auto tmp = p;
     for (auto &&v : tmp) {
         p << qRgb(qRed(v) / 2, qGreen(v) / 2, qBlue(v) / 2);
     }
-    return truncTo8BitColorTable(p);
+    return p;
 }
 
 bool CMAPChunk::innerReadStructure(QIODevice *d)
@@ -975,6 +975,34 @@ CAMGChunk::ModeIds BODYChunk::safeModeId(const BMHDChunk *header, const CAMGChun
     return CAMGChunk::ModeIds();
 }
 
+qint32 BODYChunk::maxPaletteCount(const BMHDChunk *header, const CAMGChunk *camg, const CMAPChunk *cmap)
+{
+    auto bitplanes = header->bitplanes();
+    auto modeId = BODYChunk::safeModeId(header, camg, cmap);
+    return maxPaletteCount(bitplanes, modeId);
+}
+
+qint32 BODYChunk::maxPaletteCount(qint32 bitplanes, CAMGChunk::ModeIds modeId)
+{
+    if (bitplanes >= BITPLANES_HAM_MIN && bitplanes <= BITPLANES_HAM_MAX &&
+        (modeId & CAMGChunk::ModeId::Ham)) {
+        // HAM modes: the last control bits do not address the palette
+        // HAM 5 has only 1 control bit (the other bit is hardwired to zero)
+        auto ctlbits = bitplanes > 5 ? 2 : 1;
+        return 1 << (bitplanes - ctlbits);
+    }
+    if (bitplanes < BITPLANES_HALFBRIDE_MIN || bitplanes > BITPLANES_HALFBRIDE_MAX) {
+        return 0;
+    }
+    if (modeId & CAMGChunk::ModeId::HalfBrite) {
+        // HalfBrite stores half of the colors in the CMAP chunk;
+        // the remaining half are derived (half-bright) at display time
+        // so the total palette count is multiplied by 2.
+        return (1 << (bitplanes - 1)) * 2;
+    }
+    return 1 << bitplanes;
+}
+
 quint32 BODYChunk::strideSize(const BMHDChunk *header, const QByteArray& formType) const
 {
     // RGB8 / RGBN
@@ -1088,8 +1116,8 @@ QByteArray BODYChunk::deinterleave(const QByteArray &planes, qint32 y, const BMH
             //
             // HAM 5: 1 control bit (and 1 hardwired to zero)+4 bits of data
             //        (red and green modify operations are unavailable)
+            auto max = maxPaletteCount(bitplanes, modeId) - 1;
             auto ctlbits = bitplanes > 5 ? 2 : 1;
-            auto max = (1 << (bitplanes - ctlbits)) - 1;
             auto wrongIdx = false;
             quint8 prev[3] = {};
             for (qint32 i = 0, cnt = 0; i < rowLen; ++i) {
@@ -3104,14 +3132,15 @@ QByteArray IDATChunk::strideRead(QIODevice *d, qint32 y, const IHDRChunk *header
             rr = d->read(read);
         }
 
-        if (header->model() == IHDRChunk::CLut4) {
+        if (header->model() == IHDRChunk::CLut4 || header->model() == IHDRChunk::CLut3) {
             if (rr.size() < (qint64(header->width()) + 1) / 2) {
                 return {};
             }
+            quint8 mask = header->model() == IHDRChunk::CLut3 ? 0x7 : 0xF;
             QByteArray tmp(header->width(), char());
             for (auto x = 0, w = header->width(); x < w; ++x) {
                 auto i8 = quint8(rr.at(x / 2));
-                tmp[x] = x & 1 ? i8 & 0xF : (i8 >> 4) & 0xF;
+                tmp[x] = x & 1 ? i8 & mask : (i8 >> 4) & mask;
             }
             rr = tmp;
         }

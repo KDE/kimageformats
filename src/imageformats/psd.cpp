@@ -1150,7 +1150,7 @@ bool PSDHandler::read(QImage *image)
     }
     img.fill(qRgb(0, 0, 0));
     if (!cmds.palette.isEmpty()) {
-        img.setColorTable(truncTo8BitColorTable(cmds.palette));
+        img.setColorTable(fixIndexedColorTable(cmds.palette));
         setTransparencyIndex(img, irs);
     }
 

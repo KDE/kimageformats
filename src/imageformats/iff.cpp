@@ -433,6 +433,12 @@ bool IFFHandler::readStandardImage(QImage *image)
     if (ipal && img.format() == QImage::Format_Indexed8) {
         img = convertIPAL(img, ipal.get());
     }
+    if (img.format() == QImage::Format_Indexed8) {
+        auto palSize = form->formType() == PBM__FORM_TYPE ? 256
+                                                          : BODYChunk::maxPaletteCount(header, camg, cmap);
+        auto curSize = qMin(img.colorCount(), 256);
+        img.setColorCount(qBound(curSize, palSize > 0 ? palSize : 256, 256));
+    }
 
     // set metadata (including image resolution)
     addMetadata(img, form);
@@ -524,8 +530,17 @@ bool IFFHandler::readCDIImage(QImage *image)
     // set the palette
     if (img.format() == QImage::Format_Indexed8) {
         auto pltes = IFFChunk::searchT<PLTEChunk>(form);
-        if (!pltes.isEmpty()) {
-            img.setColorTable(pltes.first()->palette());
+        if (pltes.isEmpty()) {
+            img.setColorCount(256);
+        } else {
+            auto palSize = 256;
+            if (header->model() == IHDRChunk::Rle7)
+                palSize = 128;
+            if (header->model() == IHDRChunk::CLut4)
+                palSize = 16;
+            if (header->model() == IHDRChunk::Rle3 || header->model() == IHDRChunk::CLut3)
+                palSize = 8;
+            img.setColorTable(fixIndexedColorTable(pltes.first()->palette(), palSize));
         }
     }
 
@@ -585,8 +600,10 @@ bool IFFHandler::readRGFXImage(QImage *image)
     // set the palette
     if (img.format() == QImage::Format_Indexed8) {
         auto pltes = IFFChunk::searchT<RCOLChunk>(form);
-        if (!pltes.isEmpty()) {
-            img.setColorTable(pltes.first()->palette());
+        if (pltes.isEmpty()) {
+            img.setColorCount(256);
+        } else {
+            img.setColorTable(fixIndexedColorTable(pltes.first()->palette(), 256));
         }
     }
 
