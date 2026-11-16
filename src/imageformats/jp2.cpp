@@ -116,6 +116,7 @@ public:
         , m_jp2_image(nullptr)
         , m_jp2_version(0)
         , m_jp2_codec(nullptr)
+        , m_decoded(false)
         , m_quality(-1)
         , m_subtype(JP2_SUBTYPE)
     {
@@ -137,7 +138,14 @@ public:
     /*!
      * \brief resetDecoder
      * Discard the whole decoding pipeline (image, stream and codec) so that
-     * the next read starts from scratch. It must be called after a failed
+     * the next read starts from scratch.
+     * The OpenJPEG codec is single-use with respect to opj_decode(): a
+     * second opj_decode() on the same codec leaks the ICC profile buffer
+     * that opj_copy_image_header() copies into the codec's internal output
+     * image, because opj_copy_image_header() fails to free the previously
+     * allocated buffer (OpenJPEG bug, upstream fix pending).
+     * readImage() therefore decodes at most once per codec (see
+     * m_decoded), and this method must still be called after a failed
      * opj_setup_decoder()/opj_read_header()/opj_decode(): on failure
      * OpenJPEG frees its internal image (m_private_image) while the tile
      * coder inside the codec still references it, so reusing the codec
@@ -145,6 +153,7 @@ public:
      */
     void resetDecoder()
     {
+        m_decoded = false;
         if (m_jp2_image) {
             opj_image_destroy(m_jp2_image);
             m_jp2_image = nullptr;
@@ -261,7 +270,12 @@ public:
             return false;
         }
 
-        return isImageValid(m_jp2_image);
+        if (!isImageValid(m_jp2_image)) {
+            resetDecoder();
+            return false;
+        }
+
+        return true;
     }
 
     template<class T>
@@ -331,6 +345,15 @@ public:
             return {};
         }
 
+        if (m_decoded) {
+            // The stream has already been decoded: the OpenJPEG codec is
+            // single-use, a second opj_decode() on the same codec would leak
+            // the ICC profile buffer (OpenJPEG bug, upstream fix pending).
+            // Discard the whole pipeline, there is nothing more to read.
+            resetDecoder();
+            return {};
+        }
+
         auto img = imageAlloc(size(), format());
         if (img.isNull()) {
             return {};
@@ -341,6 +364,7 @@ public:
             resetDecoder();
             return {};
         }
+        m_decoded = true;
 
         auto f = img.format();
         if (f == QImage::Format_RGBA32FPx4 || f == QImage::Format_RGBX32FPx4) {
@@ -768,6 +792,11 @@ private:
 
     // read
     opj_codec_t *m_jp2_codec;
+
+    // Whether the current codec/stream has already been decoded. The OpenJPEG
+    // codec is single-use with respect to opj_decode() (a second decode would
+    // leak the ICC buffer), so at most one decode happens per codec.
+    bool m_decoded;
 
     opj_dparameters_t m_dparameters;
 
