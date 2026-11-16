@@ -1152,6 +1152,8 @@ bool PSDHandler::read(QImage *image)
     if (!cmds.palette.isEmpty()) {
         img.setColorTable(fixIndexedColorTable(cmds.palette));
         setTransparencyIndex(img, irs);
+    } else if (img.format() == QImage::Format_Indexed8) {
+        img.setColorCount(256);
     }
 
     auto imgChannels = imageChannels(img.format());
