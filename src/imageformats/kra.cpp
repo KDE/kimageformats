@@ -12,6 +12,7 @@
 #include "kra_p.h"
 #include "util_p.h"
 
+#include <karchive.h>
 #include <kzip.h>
 
 #include <QByteArrayView>
@@ -99,7 +100,10 @@ bool KraHandler::read(QImage *image)
     // reading the image
     const KArchiveEntry *entry = zip.directory()->entry(QStringLiteral("mergedimage.png"));
     if (!entry || !entry->isFile()) {
-        return false;
+        entry = zip.directory()->entry(QStringLiteral("preview.png"));
+        if (!entry || !entry->isFile()) {
+            return false;
+        }
     }
     const KZipFileEntry *fileZipEntry = static_cast<const KZipFileEntry *>(entry);
     if (!image->loadFromData(fileZipEntry->data(), "PNG")) {
@@ -114,7 +118,7 @@ bool KraHandler::read(QImage *image)
     }
     const KZipFileEntry *metaZipEntry = static_cast<const KZipFileEntry *>(metaEntry);
     if (!addMetadata(image, metaZipEntry->data())) {
-        qCWarning(LOG_KRAPLUGIN) << "XML metadat seems invalid.";
+        qCWarning(LOG_KRAPLUGIN) << "XML metadata seems invalid.";
     }
 
     return true;
@@ -139,7 +143,7 @@ bool KraHandler::canRead(QIODevice *device)
 
 QImageIOPlugin::Capabilities KraPlugin::capabilities(QIODevice *device, const QByteArray &format) const
 {
-    if (format == "kra" || format == "ora") {
+    if (format == "kra" || format == "krz" || format == "ora") {
         return Capabilities(CanRead);
     }
     if (!format.isEmpty()) {

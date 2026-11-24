@@ -99,6 +99,7 @@ endif()
 if (KF6Archive_FOUND)
     kimageformats_read_tests(
         kra
+        krz
         ora
     )
 endif()
